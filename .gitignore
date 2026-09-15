@@ -26,6 +26,11 @@ m2panel.conf
 .m2launcher-offers.json
 .m2vps-deploy.json
 
+# Konsola operatora: adres VPS, adres repo i hasło do panelu 9797. Hasło jest
+# zaszyfrowane przez DPAPI (czytelne tylko na tym koncie Windows), ale
+# zaszyfrowany sekret to nadal sekret i nie ma czego szukać w publicznym repo.
+.m2operator.json
+
 # --- rzeczy generowane na maszynie -------------------------------------------
 # backups/ zawiera m.in. zrzut log.sql o rozmiarze 343 MB — GitHub odrzuca
 # pojedyncze pliki powyżej 100 MB, więc bez tej linii pierwszy push nie przejdzie.
@@ -34,6 +39,7 @@ launcher-logs/
 support-bundles/
 release/
 _smoke_state/
+_selftest/
 
 # Kopie robocze obok plików źródłowych (np. admin_panel.py.bak-redesign, 908 kB).
 *.bak
