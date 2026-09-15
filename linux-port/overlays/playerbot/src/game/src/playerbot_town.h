@@ -1099,6 +1099,26 @@ namespace
 		return 0;
 	}
 
+	// A weapon or armour spare below the refine floor (PLAYERBOT_SHOP_MIN_GEAR_
+	// REFINE) that the flat refine test above it still gets wrong: a family
+	// Iwakura prices by hand regardless of refine (GetPlayerBotGearAskingBase
+	// just above - real yang whatever the refine says), or a piece off this
+	// bot's own class, whose lack of refine says nothing at all about whether
+	// the class it actually fits would want it - a bot never refines gear it
+	// cannot wear, so "unrefined" and "worthless" are the same fact here by
+	// accident, not by design. "niech chetniej sprzedaja dobre przedmioty
+	// jesli maja lepsze lub na inna klase" (operator report, 14 September).
+	bool IsPlayerBotSellableDespiteLowRefine(LPCHARACTER ch, LPITEM item)
+	{
+		if (!item || (item->GetType() != ITEM_WEAPON && item->GetType() != ITEM_ARMOR))
+			return false;
+		if (item->GetRefineLevel() >= GetPlayerBotShopMinGearRefine())
+			return false;
+		if (GetPlayerBotGearAskingBase(item) != 0)
+			return true;
+		return ch && !IsPlayerBotEquipmentCandidate(ch, item);
+	}
+
 	// A soul stone by kind and grade. His table names every +4 one by one and
 	// gives the lower grades one price each, with three exceptions.
 	DWORD GetPlayerBotSoulStoneAskingBase(DWORD dwVnum)
@@ -1210,7 +1230,7 @@ namespace
 		const bool bLevel30 = IsPlayerBotSpecialLevel30Weapon(item);
 		if (!bLevel30 &&
 				(item->GetType() == ITEM_WEAPON || item->GetType() == ITEM_ARMOR) &&
-				refine < PLAYERBOT_SHOP_MIN_GEAR_REFINE)
+				refine < GetPlayerBotShopMinGearRefine())
 			return ApplyPlayerBotBonusPremium(
 					std::max(std::max<DWORD>(1, npcUnit * PLAYERBOT_SCRAP_PRICE_MULT), investment),
 					bonusPercent);
@@ -1641,13 +1661,23 @@ namespace
 		const BYTE type = item->GetType();
 		if (type == ITEM_WEAPON || type == ITEM_ARMOR)
 		{
-			// A scrap keeper puts the low refines out too, last in line after
-			// everything worth more: fodder for a player's blacksmith runs.
-			if (IsPlayerBotScrapKeeper(ch->GetPlayerID()) &&
-					item->GetRefineLevel() < PLAYERBOT_SHOP_MIN_GEAR_REFINE)
-				return 100 + item->GetRefineLevel();
-			if (item->GetRefineLevel() < PLAYERBOT_SHOP_MIN_GEAR_REFINE)
-				return -1;
+			// A hand-priced family or an off-class piece: worth a counter slot
+			// whatever its refine says, ranked above an ordinary +4 spare below
+			// because it is rarer at this market than plain refined gear is.
+			// Still subject to the level floor just below - a thing nobody at
+			// this market's level buys is junk whatever its class or price
+			// sheet says. See IsPlayerBotSellableDespiteLowRefine.
+			const bool bWorthDespiteRefine = IsPlayerBotSellableDespiteLowRefine(ch, item);
+			if (!bWorthDespiteRefine)
+			{
+				// A scrap keeper puts the low refines out too, last in line after
+				// everything worth more: fodder for a player's blacksmith runs.
+				if (IsPlayerBotScrapKeeper(ch->GetPlayerID()) &&
+						item->GetRefineLevel() < GetPlayerBotShopMinGearRefine())
+					return 100 + item->GetRefineLevel();
+				if (item->GetRefineLevel() < GetPlayerBotShopMinGearRefine())
+					return -1;
+			}
 			// The refine floor alone let the whole of the twenties through, and
 			// the twenties are what a bot has just stopped wearing: 272 of the
 			// 487 spares at +4 or +5 in this world are for level 29 or below.
@@ -1656,7 +1686,7 @@ namespace
 			if (item->GetLevelLimit() < PLAYERBOT_SHOP_MIN_GEAR_LEVEL &&
 					!IsPlayerBotTopSlotLowLevelGear(item))
 				return -1;
-			return 100;
+			return bWorthDespiteRefine ? 300 : 100;
 		}
 
 		// An unopened box. Ranked between the materials and the spare gear: it
@@ -2619,6 +2649,7 @@ namespace
 		DWORD dwFishUnitPrice = 0;
 		const char* pszGear = NULL;
 		BYTE bGearRefine = 0;
+		const char* pszScrap = NULL;
 		bool grid[PLAYERBOT_SHOP_GRID_CELLS];
 		memset(grid, 0, sizeof(grid));
 		// What qualified and still stayed in the bag, by reason - the audit's
@@ -2751,8 +2782,12 @@ namespace
 				++iBooks;
 			}
 			else if ((item->GetType() == ITEM_WEAPON || item->GetType() == ITEM_ARMOR) &&
-					item->GetRefineLevel() < PLAYERBOT_SHOP_MIN_GEAR_REFINE)
+					item->GetRefineLevel() < GetPlayerBotShopMinGearRefine() &&
+					!IsPlayerBotSellableDespiteLowRefine(ch, item))
+			{
+				pszScrap = pszScrap ? pszScrap : pszName;
 				++iScrap;
+			}
 			else if (item->GetType() == ITEM_WEAPON || item->GetType() == ITEM_ARMOR)
 			{
 				if (!pszGear || item->GetRefineLevel() > bGearRefine)
@@ -2792,7 +2827,8 @@ namespace
 			// The draw moves with the stand, so a keeper reopening on the same
 			// pitch is not reading the same line for an hour.
 			const DWORD draw = PlayerBotNavHash(ch->GetPlayerID() ^ 0x5349474eU ^ ((DWORD)state.bShopStandsInRow * 0x9E3779B9U));
-			static const char* const s_apszPrefixes[] = { "", "Tanio: ", "Okazja: ", "Sprzedam " };
+			static const char* const s_apszPrefixes[] = {
+				"", "Tanio: ", "Okazja: ", "Sprzedam ", "Promocja: ", "Dzis taniej: ", "Extra: " };
 			static const char* const s_apszBookShops[] = {
 				"Ksiegi umiejetnosci", "KU dla kazdej klasy", "Biblioteka - ksiegi", "Ksiegi: %s i inne" };
 			static const char* const s_apszMaterialShops[] = {
@@ -2802,7 +2838,8 @@ namespace
 				"Wszystko za grosze", "Tanio jak barszcz", "Rozne rozczne, zapraszam",
 				"Czego szukasz, to mam", "Sprzedam, bez targow" };
 			const char* pszPrefix = bPoor ? "Wyprzedaz: "
-					: s_apszPrefixes[(ch->GetPlayerID() * 2654435761U >> 8) % 4U];
+					: s_apszPrefixes[(ch->GetPlayerID() * 2654435761U >> 8) %
+							(sizeof(s_apszPrefixes) / sizeof(s_apszPrefixes[0]))];
 			char body[SHOP_SIGN_MAX_LEN * 2 + 1];
 			const char* pszTemplate = NULL;
 			const char* pszArg = "";
@@ -2820,11 +2857,11 @@ namespace
 				else if (iMedals > 0 && iMedals * 2 >= (int)tableCount) signKind = SIGN_MEDALS;
 				else if (iScrolls > 0 && iScrolls * 2 >= (int)tableCount) signKind = SIGN_SCROLLS;
 				else if (iStones > 0 && iStones * 2 >= (int)tableCount) signKind = SIGN_STONES;
-				else if (iScrap > 0 && iScrap >= (int)tableCount / 2) bSignByKind = false; // "Zlom do palenia" below
+				else if (iScrap > 0 && iScrap >= (int)tableCount / 2) signKind = SIGN_SCRAP;
 				else if (tableCount == 1) bSignByKind = false; // one line: its own name
 			}
 			if (bSignByKind && PickPlayerBotShopSign(body, sizeof(body), signKind, draw,
-					ch->GetName(), dwFishUnitPrice, pszGear))
+					ch->GetName(), dwFishUnitPrice, signKind == SIGN_SCRAP ? pszScrap : pszGear))
 				; // chosen
 			else if (pszWeapon30)
 				snprintf(body, sizeof(body), "Bron 30: %s", pszWeapon30);

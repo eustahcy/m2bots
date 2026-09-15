@@ -102,6 +102,12 @@ namespace
 	// Percent of stall keepers that sell scrap gear. Zero is off, and the
 	// default: it is the "hard server" flavour, asked for by name.
 	int s_iPlayerBotScrapPercent = 0;
+	// Percent of the bots that also buy a stall line purely because it is
+	// priced well under what it would fetch relisted - a profit trader, not
+	// a shopper with a need. Zero is off, and the default: this is a new
+	// kind of spending, not a variant of a role bots already had, so the
+	// operator turns it on on purpose. See IsPlayerBotProfitTrader.
+	int s_iPlayerBotProfitTraderPercent = 0;
 	// Percent of the bots that finish an errand in a first village and stay
 	// a while on the market ring (PLAYERBOT_TOWN_LINGER_*). A hundred is the
 	// author's town; zero is the operator who wants every bot hunting, asked
@@ -115,6 +121,12 @@ namespace
 	// is what "some aggressive, some neutral" has to mean if a kingdom is to
 	// have a character rather than a mood.
 	int s_iPlayerBotKingdomPvpPercent = 0;
+	// The refine an ordinary weapon/armour spare needs to be worth a counter
+	// slot on its own merits (PLAYERBOT_SHOP_MIN_GEAR_REFINE's live override).
+	// -1 means the file has never set it: fall back to the constant, which is
+	// also what a fresh install and a broken file both get. Range 0-9 - 0
+	// would put every spare on the market, 9 almost none.
+	int s_iPlayerBotShopMinGearRefine = -1;
 	// Whether a bot reads its books without the engine's day between them.
 	// On by default: the day is what makes a book a month's project, and the
 	// books were rotting in the bags of bots that could not read them yet.
@@ -158,8 +170,10 @@ namespace
 			s_aiPlayerBotWeights[i] = PLAYERBOT_WEIGHT_NEUTRAL;
 		s_bPlayerBotOverheadChat = true;
 		s_iPlayerBotScrapPercent = 0;
+		s_iPlayerBotProfitTraderPercent = 0;
 		s_iPlayerBotRestPercent = 100;
 		s_iPlayerBotKingdomPvpPercent = 0;
+		s_iPlayerBotShopMinGearRefine = -1;
 		s_bPlayerBotFastBooks = true;
 		s_bPlayerBotNight = true;
 		if (s_iPlayerBotChestConfigPermille < 0)
@@ -264,12 +278,28 @@ namespace
 			s_iPlayerBotRestPercent = percent;
 			return;
 		}
+		if (PlayerBotWeightNameEquals(szKey, "PROFIT"))
+		{
+			const int percent = value < 0 ? 0 : (value > 100 ? 100 : (int)value);
+			if (percent != s_iPlayerBotProfitTraderPercent)
+				sys_log(0, "PLAYERBOT_CONFIG: profit traders %d%%", percent);
+			s_iPlayerBotProfitTraderPercent = percent;
+			return;
+		}
 		if (PlayerBotWeightNameEquals(szKey, "KINGDOMPVP"))
 		{
 			const int percent = value < 0 ? 0 : (value > 100 ? 100 : (int)value);
 			if (percent != s_iPlayerBotKingdomPvpPercent)
 				sys_log(0, "PLAYERBOT_CONFIG: kingdom hostility %d%% of bots", percent);
 			s_iPlayerBotKingdomPvpPercent = percent;
+			return;
+		}
+		if (PlayerBotWeightNameEquals(szKey, "SCRAPFLOOR"))
+		{
+			const int refine = value < 0 ? 0 : (value > 9 ? 9 : (int)value);
+			if (refine != s_iPlayerBotShopMinGearRefine)
+				sys_log(0, "PLAYERBOT_CONFIG: shop gear floor +%d", refine);
+			s_iPlayerBotShopMinGearRefine = refine;
 			return;
 		}
 		for (size_t i = 0; i < sizeof(PLAYERBOT_WEIGHT_NAMES) /
@@ -351,6 +381,7 @@ namespace
 		"RESTOCK", "REFINE", "SKILL", "HORSE", "BIOLOG", "METIN", "PARTY",
 		"HUNTING", "LEVEL", "FISHING", "TRADE",
 		"CHAT", "BOOKS", "NIGHT", "SCRAP", "CHEST", "CHEST_STONE", "REST",
+		"PROFIT", "SCRAPFLOOR",
 	};
 	const size_t PLAYERBOT_PANEL_WEIGHT_COUNT =
 			sizeof(PLAYERBOT_PANEL_WEIGHT_ORDER) / sizeof(PLAYERBOT_PANEL_WEIGHT_ORDER[0]);
@@ -371,8 +402,12 @@ namespace
 			return s_iPlayerBotScrapPercent;
 		if (PlayerBotWeightNameEquals(szKey, "REST"))
 			return s_iPlayerBotRestPercent;
+		if (PlayerBotWeightNameEquals(szKey, "PROFIT"))
+			return s_iPlayerBotProfitTraderPercent;
 		if (PlayerBotWeightNameEquals(szKey, "KINGDOMPVP"))
 			return s_iPlayerBotKingdomPvpPercent;
+		if (PlayerBotWeightNameEquals(szKey, "SCRAPFLOOR"))
+			return s_iPlayerBotShopMinGearRefine;
 		if (PlayerBotWeightNameEquals(szKey, "CHEST"))
 			return s_bPlayerBotChestFromFile ? g_iMoonlightChestPermille : -1;
 		if (PlayerBotWeightNameEquals(szKey, "CHEST_STONE"))
@@ -415,7 +450,8 @@ namespace
 			value = value ? 1 : 0;
 			return true;
 		}
-		if (PlayerBotWeightNameEquals(szKey, "SCRAP"))
+		if (PlayerBotWeightNameEquals(szKey, "SCRAP") ||
+				PlayerBotWeightNameEquals(szKey, "PROFIT"))
 		{
 			value = value < 0 ? 0 : (value > 100 ? 100 : value);
 			return true;
@@ -424,6 +460,11 @@ namespace
 				PlayerBotWeightNameEquals(szKey, "CHEST_STONE"))
 		{
 			value = value < 0 ? 0 : (value > 1000 ? 1000 : value);
+			return true;
+		}
+		if (PlayerBotWeightNameEquals(szKey, "SCRAPFLOOR"))
+		{
+			value = value < 0 ? 0 : (value > 9 ? 9 : value);
 			return true;
 		}
 		for (size_t i = 0; i < sizeof(PLAYERBOT_WEIGHT_NAMES) /
@@ -692,6 +733,22 @@ namespace
 		return (int)((dwPID * 2654435761U) % 100U) < s_iPlayerBotScrapPercent;
 	}
 
+	// Whether this bot buys a stall line it has no personal use for, purely
+	// because it is priced well under what it could fetch relisted - the
+	// panel's PROFIT slider, salted apart from every other pid-hashed role so
+	// a scrap keeper or a resource trader can be a profit trader too, or not,
+	// independently. See PLAYERBOT_MARKET_PROFIT_MARGIN_PERCENT for what
+	// counts as "well under" and WantsPlayerBotStallItem for where this gates.
+	bool IsPlayerBotProfitTrader(DWORD dwPID)
+	{
+		if (!s_bPlayerBotWeightsInitialised)
+			ResetPlayerBotWeights();
+		if (s_iPlayerBotProfitTraderPercent <= 0)
+			return false;
+		return (int)(((dwPID ^ 0x27d4eb2fU) * 3266489917U) % 100U) <
+				s_iPlayerBotProfitTraderPercent;
+	}
+
 	// Whether this bot trades its own resources - the unopened chests and the
 	// refine scrolls - instead of spending every one of them on itself. A
 	// fixed share by pid like the scrap keeper above, and salted apart from it
@@ -712,6 +769,16 @@ namespace
 		if (!s_bPlayerBotWeightsInitialised)
 			ResetPlayerBotWeights();
 		return s_iPlayerBotRestPercent;
+	}
+
+	// The live override of PLAYERBOT_SHOP_MIN_GEAR_REFINE (playerbot_types.h),
+	// or that constant itself while the panel has never said otherwise.
+	BYTE GetPlayerBotShopMinGearRefine()
+	{
+		if (!s_bPlayerBotWeightsInitialised)
+			ResetPlayerBotWeights();
+		return s_iPlayerBotShopMinGearRefine >= 0
+				? (BYTE)s_iPlayerBotShopMinGearRefine : PLAYERBOT_SHOP_MIN_GEAR_REFINE;
 	}
 
 	// The market ledger's count of open counters on a map (playerbot_market.h,

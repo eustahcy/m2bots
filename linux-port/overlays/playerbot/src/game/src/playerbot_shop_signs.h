@@ -25,6 +25,7 @@ namespace
 		SIGN_GEAR,
 		SIGN_MATERIALS,
 		SIGN_MEDALS,
+		SIGN_SCRAP,
 		SIGN_SCROLLS,
 		SIGN_STONES,
 	};
@@ -167,6 +168,23 @@ namespace
 		"Medale konne, tanio",
 		"MEDALE KONNE u %N",
 	};
+	// Bronie i zbroje ponizej progu ulepszenia (+0..+3) - w grze towar na
+	// przepalenie, nie na noszenie. Stare brzmienie tej polki, "Zlom do
+	// palenia +0..+3", zostaje pierwsze na liscie: ma je w pamieci kazdy,
+	// kto widzial te stragany wczesniej. %I dostaje nazwe pierwszej takiej
+	// pozycji z lady (playerbot_town.h podaje tu pszScrap, nie pszGear).
+	static const char* const s_apszSignScrap[] = {
+		"Zlom do palenia +0..+3",
+		"ZLOM NA ULEPSZANIE",
+		"Bronie i zbroje na czesci",
+		"Tanie EQ do przepalenia",
+		"ZLOM +0..+3 TANIO",
+		"Stare EQ za grosze",
+		"Zlomik u %N",
+		"%I i inne zlomy",
+		"Palnik czeka: zlom +0..+3",
+		"EQ na start, tanio",
+	};
 	static const char* const s_apszSignScrolls[] = {
 		"ZWOJE BLOGOSLAWIENSTWA",
 		"ZWOJE BLOGOSLAWIENSTWA TANIO!",
@@ -195,6 +213,7 @@ namespace
 			case SIGN_GEAR:      list.names = s_apszSignGear;      list.count = sizeof(s_apszSignGear) / sizeof(s_apszSignGear[0]); break;
 			case SIGN_MATERIALS: list.names = s_apszSignMaterials; list.count = sizeof(s_apszSignMaterials) / sizeof(s_apszSignMaterials[0]); break;
 			case SIGN_MEDALS:    list.names = s_apszSignMedals;    list.count = sizeof(s_apszSignMedals) / sizeof(s_apszSignMedals[0]); break;
+			case SIGN_SCRAP:     list.names = s_apszSignScrap;     list.count = sizeof(s_apszSignScrap) / sizeof(s_apszSignScrap[0]); break;
 			case SIGN_SCROLLS:   list.names = s_apszSignScrolls;   list.count = sizeof(s_apszSignScrolls) / sizeof(s_apszSignScrolls[0]); break;
 			case SIGN_STONES:    list.names = s_apszSignStones;    list.count = sizeof(s_apszSignStones) / sizeof(s_apszSignStones[0]); break;
 			default: break;
