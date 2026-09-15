@@ -1606,7 +1606,16 @@ namespace
 		const DWORD scaled = (base * 100U) / (DWORD)attSpeed;
 		// Even a heavily buffed character cannot outrun its own animation by much;
 		// the floor stops an extreme attack speed turning into a packet storm.
-		return scaled < 200U ? 200U : scaled;
+		const DWORD floored = scaled < 200U ? 200U : scaled;
+		// ...and then the hands holding it. The table is the earliest legal
+		// moment, so this only ever adds: see playerbot_human_timing.h for why
+		// an "early" human click has to be modelled as a late one.
+		return (DWORD)playerbot_human_timing::HumanSwingInterval(
+				(unsigned int)floored, (unsigned int)ch->GetPlayerID(),
+				number(0, playerbot_human_timing::SWING_JITTER_PERCENT_MAX),
+				number(1, playerbot_human_timing::SWING_MISS_ONE_IN),
+				number(playerbot_human_timing::SWING_MISS_MIN_MS,
+						playerbot_human_timing::SWING_MISS_MAX_MS));
 	}
 
 	bool ExecutePlayerBotBasicAttack(LPCHARACTER ch, LPCHARACTER target,

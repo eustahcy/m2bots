@@ -2,6 +2,7 @@
 #include "playerbot_manager.h"
 #include "playerbot_empire_rules.h"
 #include "playerbot_world_rules.h"
+#include "playerbot_human_timing.h"
 
 #include "char.h"
 #include "skill.h"
@@ -3167,7 +3168,30 @@ void CPlayerBotManager::Update()
 				if (!target)
 					++s_uPlayerBotLoadTargetMisses;
 			}
+			const DWORD dwPreviousTargetVID = state.dwTargetVID;
 			state.dwTargetVID = target ? (DWORD)target->GetVID() : 0;
+			// Eyes, then hands. Until now a bot struck in the same tick it
+			// decided to, which is the one thing no player has ever done.
+			// Pushing dwNextAttackTime is the whole change: ExecutePlayerBotBasicAttack
+			// already refuses to swing before that clock, so this needs no new
+			// state and no second gate. Only the first blow against a newly
+			// noticed target waits - the swings after it are paced by the
+			// motion table as before.
+			if (target && state.dwTargetVID != dwPreviousTargetVID)
+			{
+				const bool bEngaged = state.dwLastCombatActionTime != 0 &&
+						dwNow >= state.dwLastCombatActionTime &&
+						dwNow - state.dwLastCombatActionTime <
+								playerbot_human_timing::REACTION_ENGAGED_WINDOW_MS;
+				const DWORD dwReaction = (DWORD)playerbot_human_timing::ReactionDelay(
+						bEngaged, (unsigned int)ch->GetPlayerID(),
+						number(playerbot_human_timing::ReactionMinMs(bEngaged),
+								playerbot_human_timing::ReactionMaxMs(bEngaged)));
+				// Never pull the clock backwards: a swing already owed from the
+				// previous fight stays owed.
+				if (state.dwNextAttackTime < dwNow + dwReaction)
+					state.dwNextAttackTime = dwNow + dwReaction;
+			}
 			if (target && target->IsMonster())
 			{
 				RememberPlayerBotSpotFight(ch->GetMapIndex(), target->GetX(), target->GetY(), dwNow);
