@@ -38,6 +38,26 @@ Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 [Windows.Forms.Application]::EnableVisualStyles()
 
+# Bez tego każdy błąd w obsłudze kliknięcia kończy się systemowym oknem
+# „Wystąpił nieobsługiwany wyjątek w składniku aplikacji" ze stosem .NET
+# i przyciskiem „Kontynuuj" — komunikatem, z którego operator nie dowie się
+# niczego, a który w dodatku wygląda jak awaria całego narzędzia. Przechwycone
+# tutaj: treść ląduje w logu okna i w pliku obok, a aplikacja żyje dalej.
+[Windows.Forms.Application]::SetUnhandledExceptionMode(
+    [Windows.Forms.UnhandledExceptionMode]::CatchException)
+[Windows.Forms.Application]::add_ThreadException({
+        param($eventSender, $threadEvent)
+        $message = $threadEvent.Exception.Message
+        try { Write-Log "BŁĄD WEWNĘTRZNY: $message" } catch { }
+        try { Set-Status "✖ Błąd wewnętrzny — szczegóły w logu" $colBad } catch { }
+        try {
+            $crashLog = Join-Path $env:TEMP 'm2-operator-blad.txt'
+            "[{0}] {1}`r`n{2}" -f (Get-Date -Format 'u'), $message,
+                $threadEvent.Exception.StackTrace | Add-Content -LiteralPath $crashLog -Encoding UTF8
+        }
+        catch { }
+    })
+
 $script:serverRoot = Split-Path -Parent $PSScriptRoot
 $script:configPath = Join-Path $script:serverRoot '.m2operator.json'
 $script:deployConfigPath = Join-Path $script:serverRoot '.m2vps-deploy.json'
@@ -112,7 +132,12 @@ function Protect-PanelPassword {
 #  Log w oknie
 # =============================================================================
 function Write-Log {
-    param([string]$Text, [System.Drawing.Color]$Color = $null)
+    # Bez parametru koloru. Miał tu być, z domyślnym $null -- ale
+    # System.Drawing.Color to struktura, a struktury nie przyjmują $null:
+    # PowerShell wywalał się przy PIERWSZYM wpisie do logu komunikatem
+    # "Cannot convert null to type System.Drawing.Color", czyli zaraz po
+    # otwarciu okna. Kolor i tak nigdy nie był używany -- log jest jednobarwny.
+    param([string]$Text)
     if ($null -eq $script:logBox) { return }
     $stamp = (Get-Date -Format 'HH:mm:ss')
     $script:logBox.AppendText("[$stamp] $Text`r`n")
@@ -252,52 +277,6 @@ function Complete-BackgroundJob {
 function Set-ButtonsEnabled {
     param([bool]$Enabled)
     foreach ($button in $script:actionButtons) { $button.Enabled = $Enabled }
-}
-
-# =============================================================================
-#  Autotest (-SelfTest): wszystko, co da się sprawdzić bez okna
-# =============================================================================
-if ($SelfTest) {
-    $failures = @()
-    function Assert-That {
-        param([string]$Label, [bool]$Condition, [string]$Detail = '')
-        Write-Host ("  {0}  {1}{2}" -f $(if ($Condition) { 'OK  ' } else { 'FAIL' }), $Label,
-            $(if ($Detail) { " — $Detail" } else { '' }))
-        if (-not $Condition) { $script:selfTestFailures += $Label }
-    }
-    $script:selfTestFailures = @()
-
-    Write-Host '1. Szyfrowanie hasła panelu (DPAPI)'
-    $secret = 'tajne-haslo-panelu-123'
-    $protected = Protect-PanelPassword $secret
-    Assert-That 'zaszyfrowane nie jest jawnym tekstem' ($protected -ne $secret -and $protected.Length -gt 40)
-    Assert-That 'odszyfrowanie zwraca oryginał' ((Unprotect-PanelPassword $protected) -eq $secret)
-    Assert-That 'pusty wejściowy daje pusty wyjściowy' ((Protect-PanelPassword '') -eq '')
-    Assert-That 'śmieci nie wywalają, tylko dają pustkę' ((Unprotect-PanelPassword 'nie-dpapi') -eq '')
-
-    Write-Host '2. Wyciąganie tokenu CSRF ze strony panelu'
-    # Dokładnie to, co renderuje szablon panelu: const csrf = {{ csrf|tojson }};
-    $page = 'blah <script>' + "`n" + 'const csrf = "a1b2c3d4e5f6";' + "`n" + 'let x = 1;</script>'
-    Assert-That 'regex znajduje token' ($page -match 'const csrf = "([^"]+)"')
-    Assert-That 'token jest poprawny' ($Matches[1] -eq 'a1b2c3d4e5f6') $Matches[1]
-
-    Write-Host '3. Konfiguracja'
-    $config = Get-OperatorConfig
-    Assert-That 'domyślny port panelu to 9797' ([int]$config.panelPort -eq 9797) $config.panelPort
-    Assert-That 'adres VPS podciągnięty z .m2vps-deploy.json' ([bool]$config.host) $config.host
-    Assert-That 'domyślna gałąź to main' ($config.branch -eq 'main') $config.branch
-
-    Write-Host '4. Ścieżki'
-    Assert-That 'Publish-ToGit.ps1 jest obok' (Test-Path -LiteralPath $script:publishScript)
-    Assert-That 'korzeń repo to folder Serwer' ((Split-Path -Leaf $script:serverRoot) -eq 'Serwer') $script:serverRoot
-
-    Write-Host ''
-    if ($script:selfTestFailures.Count) {
-        Write-Host "NIEPOWODZENIA ($($script:selfTestFailures.Count)): $($script:selfTestFailures -join ', ')"
-        exit 1
-    }
-    Write-Host 'OK: konsola operatora przeszła autotest.'
-    exit 0
 }
 
 # =============================================================================
@@ -712,5 +691,80 @@ $form.Add_FormClosing({
         foreach ($timer in @($script:jobTimer, $script:logTimer)) { if ($timer) { $timer.Stop() } }
         if ($script:job) { Stop-Job -Job $script:job -ErrorAction SilentlyContinue }
     })
+
+# =============================================================================
+#  Autotest (-SelfTest)
+# =============================================================================
+# Stoi TUTAJ, a nie przed budową okna, i to jest cała lekcja z tego pliku.
+# Pierwsza wersja testowała tylko funkcje pomocnicze i przechodziła na zielono,
+# podczas gdy okno wywalało się przy pierwszym wpisie do logu na
+# "Cannot convert null to type System.Drawing.Color". Test, który nie dotyka
+# kontrolek, nie mówi nic o oknie. Uruchomienie procesu na kilka sekund też
+# nie: WinForms pokazuje taki wyjątek w modalnym okienku i żyje dalej, więc
+# "proces wstał i stderr pusty" wygląda identycznie jak sukces.
+#
+# Poniżej zbudowane jest prawdziwe okno (wszystko powyżej już się wykonało)
+# i wywołane te ścieżki, które odpalają się zaraz po pokazaniu go.
+if ($SelfTest) {
+    $script:selfTestFailures = @()
+    function Assert-That {
+        param([string]$Label, [bool]$Condition, [string]$Detail = '')
+        Write-Host ("  {0}  {1}{2}" -f $(if ($Condition) { 'OK  ' } else { 'FAIL' }), $Label,
+            $(if ($Detail) { " — $Detail" } else { '' }))
+        if (-not $Condition) { $script:selfTestFailures += $Label }
+    }
+
+    Write-Host '1. Szyfrowanie hasła panelu (DPAPI)'
+    $secret = 'tajne-haslo-panelu-123'
+    $protected = Protect-PanelPassword $secret
+    Assert-That 'zaszyfrowane nie jest jawnym tekstem' ($protected -ne $secret -and $protected.Length -gt 40)
+    Assert-That 'odszyfrowanie zwraca oryginał' ((Unprotect-PanelPassword $protected) -eq $secret)
+    Assert-That 'pusty wejściowy daje pusty wyjściowy' ((Protect-PanelPassword '') -eq '')
+    Assert-That 'śmieci nie wywalają, tylko dają pustkę' ((Unprotect-PanelPassword 'nie-dpapi') -eq '')
+
+    Write-Host '2. Wyciąganie tokenu CSRF ze strony panelu'
+    # Dokładnie to, co renderuje szablon panelu: const csrf = {{ csrf|tojson }};
+    $page = 'blah <script>' + "`n" + 'const csrf = "a1b2c3d4e5f6";' + "`n" + 'let x = 1;</script>'
+    Assert-That 'regex znajduje token' ($page -match 'const csrf = "([^"]+)"')
+    Assert-That 'token jest poprawny' ($Matches[1] -eq 'a1b2c3d4e5f6') $Matches[1]
+
+    Write-Host '3. Konfiguracja i ścieżki'
+    $config = Get-OperatorConfig
+    Assert-That 'domyślny port panelu to 9797' ([int]$config.panelPort -eq 9797) $config.panelPort
+    Assert-That 'adres VPS podciągnięty z .m2vps-deploy.json' ([bool]$config.host) $config.host
+    Assert-That 'Publish-ToGit.ps1 jest obok' (Test-Path -LiteralPath $script:publishScript)
+    Assert-That 'korzeń repo to folder Serwer' ((Split-Path -Leaf $script:serverRoot) -eq 'Serwer')
+
+    Write-Host '4. Okno i ścieżki, które odpalają się po jego pokazaniu'
+    Assert-That 'formularz powstał' ($null -ne $form)
+    Assert-That 'pole logu istnieje' ($null -ne $script:logBox)
+    Assert-That 'są przyciski akcji' ($script:actionButtons.Count -ge 5) $script:actionButtons.Count
+    try {
+        # To jest ta linia, która wywalała aplikację.
+        Write-Log 'autotest: wpis do logu'
+        Assert-That 'Write-Log nie rzuca wyjątku' $true
+        Assert-That 'Write-Log naprawdę pisze' ($script:logBox.Text -match 'autotest: wpis do logu')
+    }
+    catch { Assert-That 'Write-Log nie rzuca wyjątku' $false $_.Exception.Message }
+    try {
+        Set-Status 'autotest' $colOk
+        Assert-That 'Set-Status nie rzuca wyjątku' ($script:statusLabel.Text -eq 'autotest')
+    }
+    catch { Assert-That 'Set-Status nie rzuca wyjątku' $false $_.Exception.Message }
+    try {
+        Set-ButtonsEnabled $false; Set-ButtonsEnabled $true
+        Assert-That 'Set-ButtonsEnabled nie rzuca wyjątku' $true
+    }
+    catch { Assert-That 'Set-ButtonsEnabled nie rzuca wyjątku' $false $_.Exception.Message }
+
+    $form.Dispose()
+    Write-Host ''
+    if ($script:selfTestFailures.Count) {
+        Write-Host "NIEPOWODZENIA ($($script:selfTestFailures.Count)): $($script:selfTestFailures -join ', ')"
+        exit 1
+    }
+    Write-Host 'OK: konsola operatora przeszła autotest.'
+    exit 0
+}
 
 [void]$form.ShowDialog()
