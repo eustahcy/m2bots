@@ -1,0 +1,2 @@
+send_letter ( translate . fishing . onboarding . state_reward . letter_name ) 
+send_target ( 9009 ) 

@@ -1,0 +1,4 @@
+if pc . count_item ( 35007 ) < 1 then if number ( 1 , 2 ) == 1 then 
+pc . give_item2 ( 35007 ) 
+end 
+ return end 

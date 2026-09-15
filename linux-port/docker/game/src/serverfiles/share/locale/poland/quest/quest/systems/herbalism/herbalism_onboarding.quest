@@ -1,0 +1,110 @@
+define KNIFE_VNUM 29201
+define FLOWER_VNUM 50721
+define RECIPE_VNUM 50909
+define BOTTLE_VNUM 50901
+quest herbalism_onboarding begin
+    state start begin
+        when 20018.chat.translate.herbalism.prime_quest.npc_chat begin
+            npc_name()
+            if pc.get_level() < 15 then
+                say_split(translate.herbalism.prime_quest.low_lvl)
+                return
+            end
+            say_split(translate.herbalism.prime_quest.introduction1)
+            wait()
+            npc_name()
+            say_split(translate.herbalism.prime_quest.introduction2)
+            wait()
+            npc_name()
+            say_split(translate.herbalism.prime_quest.introduction3)
+            say_item_vnum(KNIFE_VNUM)
+            wait()
+            npc_name()
+            say_split(translate.herbalism.prime_quest.introduction4)
+            say_item_vnum(FLOWER_VNUM)
+            wait()
+            npc_name()
+            say_split(translate.herbalism.prime_quest.introduction5)
+            set_state(progress)
+        end
+    end
+    state progress begin
+        when letter begin
+            send_letter(translate.herbalism.prime_quest.state_progress.letter_name)
+            if pc.count_item(FLOWER_VNUM) >= 10 then
+                send_target(20018)
+            end
+        end
+
+        when button or info begin
+            say_info()
+            if pc.count_item(FLOWER_VNUM) >= 10 then
+                say_split(translate.herbalism.prime_quest.state_progress.letter_info_has_flowers)
+            else
+                say_split(translate.herbalism.prime_quest.state_progress.letter_info)
+            end
+        end
+
+        when __TARGET__.target.click or 20018.chat.translate.herbalism.prime_quest.state_progress.npc_chat with pc.count_item(FLOWER_VNUM) >= 10 begin
+            target.delete("__TARGET__")
+            npc_name()
+            say_split(translate.herbalism.prime_quest.state_progress.talk1)
+            wait()
+            npc_name()
+            say_split(translate.herbalism.prime_quest.state_progress.talk2)
+            wait()
+            if pc.get_empty_inventory_count() < 2 then
+                say_info()
+                say(translate.general.no_inventory_space)
+                return
+            end
+            npc_name()
+            say_split(translate.herbalism.prime_quest.state_progress.talk3)
+            say_item_vnum(RECIPE_VNUM)
+            say_split(translate.herbalism.prime_quest.state_progress.talk4)
+            
+            pc.give_item2(RECIPE_VNUM, 1)
+            pc.give_item2(BOTTLE_VNUM, 5)
+            pc.setf("herbalism_onboarding", "completed", 1)
+            set_state(craft)
+        end
+    end
+    state craft begin
+        when letter begin
+            send_letter(translate.herbalism.prime_quest.state_craft.letter_name)
+        end
+
+        when button or info begin
+            say_info()
+            say_split(translate.herbalism.prime_quest.state_craft.letter_info)
+        end
+
+        -- craft event hardcoded in crafting.create
+    end
+    state reward begin
+        when letter begin
+            send_letter(translate.herbalism.prime_quest.state_reward.letter_name)
+            send_target(20018)
+        end
+
+        when button or info begin
+            say_info()
+            say_split(translate.herbalism.prime_quest.state_reward.letter_info)
+        end
+
+        when __TARGET__.target.click or 20018.chat.translate.herbalism.prime_quest.state_reward.npc_chat begin
+            target.delete("__TARGET__")
+            npc_name()
+            say_split(translate.herbalism.prime_quest.state_reward.talk1)
+            say()
+            say("...")
+            say_split(translate.herbalism.prime_quest.state_reward.talk2)
+            set_state(complete)
+            give_reward("herbalism_onboarding")
+            pc.setf("crafting", "learn_delay11", 0)
+            clear_letter()
+        end
+    end
+    state complete begin
+    end
+end

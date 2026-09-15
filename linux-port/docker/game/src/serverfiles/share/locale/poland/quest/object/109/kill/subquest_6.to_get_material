@@ -1,0 +1,5 @@
+local s = number ( 1 , 100 ) 
+if s <= 5 and pc . count_item ( "30044" ) == 0 and pc . getqf ( "coal_done" ) == 0 then 
+pc . give_item2 ( "30044" , 1 ) 
+send_target ( 20005 , "__TARGET3__" ) 
+end 

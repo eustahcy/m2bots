@@ -1,0 +1,15 @@
+if not pc . is_near_attr ( ATTR_WATER ) then 
+syschat ( translate . fishing . stand_near_water ) 
+return 
+end 
+if item . remove ( 1 ) then 
+pc . show_effect ( SE_FRESH_WATER ) 
+say_info ( ) 
+say_split ( translate . fishing . onboarding . state_clear_water . info1 , say_reward ) 
+wait ( ) 
+say_info ( ) 
+say_split ( translate . fishing . onboarding . state_clear_water . info2 , say_reward ) 
+say ( ) 
+say_split ( translate . fishing . onboarding . state_clear_water . info3 ) 
+set_state ( "reward" ) 
+end 

@@ -1,0 +1,8 @@
+target . delete ( "__TARGET__" ) 
+say_title ( gameforge . subquest_21 . _30_sayTitle ) 
+say ( gameforge . subquest_21 . _170_say ) 
+pc . remove_item ( "30152" , 1 ) 
+say_title ( gameforge . subquest_21 . _180_sayTitle ) 
+set_state ( "COMPLETE" ) 
+give_reward ( "subquest_21" ) 
+clear_letter ( ) 

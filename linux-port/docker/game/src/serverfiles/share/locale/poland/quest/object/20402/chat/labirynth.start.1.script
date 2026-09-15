@@ -1,0 +1,6 @@
+npc_name ( ) 
+say_split ( translate . labirynth . chat3 ) 
+pc . setqf ( "complete" , 1 ) 
+cleartimer ( "end_labirynth" ) 
+wait ( ) 
+d . exit_all ( ) 

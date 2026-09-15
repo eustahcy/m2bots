@@ -1,0 +1,7 @@
+npc_name ( ) 
+say_split ( translate . herbalism . extend_duration . talk1 ) 
+wait ( ) 
+npc_name ( ) 
+say_split ( translate . herbalism . extend_duration . talk2 ) 
+say ( ) 
+say_split ( translate . herbalism . extend_duration . talk3 ) 

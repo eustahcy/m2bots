@@ -1,0 +1,16 @@
+if pc . is_polymorphed ( ) and pc . get_point ( POINT_POLYMORPH ) == 5003 then 
+item . remove ( 1 ) 
+syschat ( translate . monkey_curse . break_curse ) 
+pc . remove_polymorph ( ) 
+return 
+end 
+syschat ( translate . monkey_curse . protection ) 
+local vnum = item . get_vnum ( ) 
+local affect_type = item . get_value ( 0 ) 
+local duration = item . get_value ( 1 ) 
+if not affect . is_loaded ( ) then 
+return 
+end 
+if item . remove ( 1 ) then 
+affect . add_new ( affect_type , POINT_NONE , 0 , 3600 * 2 , AFF_NONE , true , false , vnum ) 
+end 

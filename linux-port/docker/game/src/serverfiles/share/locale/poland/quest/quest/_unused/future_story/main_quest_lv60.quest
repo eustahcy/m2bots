@@ -1,0 +1,461 @@
+define acient_rubbing 31001
+define acient_doc 31002
+----------------------------------
+--	��������Ʈ LV60
+--  �ǿ��� �ܼ� : �������� ��ϱ�
+--  2011.11.24 ����
+----------------------------------
+quest main_quest_lv60 begin
+	state start begin
+		when login or levelup or enter with pc.get_level() >= 60 begin
+			if pc.getf("main_quest_lv55", "__status")==main_quest_lv55.__COMPLETE__ then
+				set_state ( quest1_begin )
+			end
+		end
+	end
+	
+	state run begin
+		when login or levelup or enter with pc.get_level() >= 60 begin
+			set_state ( quest1_begin )
+		end
+	end
+
+	state quest1_begin begin
+		when letter begin    --����Ʈ����1
+			send_letter(gameforge.main_quest_lv60._10_sendLetter)
+			
+			-- �������� ����Ų��.
+			local vid_20011 = find_npc_by_vnum(20011)
+			if 0 != vid_20011 then
+				target.vid("__TARGET__", vid_20011, mob_name(20011))
+			end
+		end
+
+		when button or info begin  -- ����Ʈ����1 ����
+			say_title(gameforge.main_quest_lv60._10_sendLetter)
+			
+			----"12345678901234567890123456789012345678901234567890"|
+			say(gameforge.main_quest_lv60._20_say)
+			say("")
+			
+		end
+		
+		when __TARGET__.target.click begin
+			target.delete("__TARGET__")
+			say_title(mob_name(20011))
+			----"12345678901234567890123456789012345678901234567890"|
+			say(gameforge.main_quest_lv60._30_say)
+			say("")
+			wait()
+			
+			say_title(pc.getname())
+			say(gameforge.main_quest_lv60._40_say)
+			say("")
+			wait()
+			
+			say_title(mob_name(20011))
+			say(gameforge.main_quest_lv60._50_say)
+			say("")
+
+			set_state ( quest2_begin )
+		end
+	end
+
+	state quest2_begin begin
+		-----------����Ʈ����2------------
+		when letter begin
+			send_letter(gameforge.main_quest_lv60._60_sendLetter)
+
+			-- �������� ����Ų��.
+			local v = find_npc_by_vnum(20011)
+			if 0 != v then
+				target.vid("__TARGET__", v, mob_name(20011))
+			end
+		end
+
+		when button or info begin
+			say_title(gameforge.main_quest_lv60._60_sendLetter)
+			say(gameforge.main_quest_lv60._70_say)
+			say("")
+		end
+
+		when __TARGET__.target.click begin
+			target.delete("__TARGET__")
+			
+			say_title(mob_name(20011))
+			----"12345678901234567890123456789012345678901234567890"|
+			say(gameforge.main_quest_lv60._80_say)
+			say("")
+			wait()
+			
+			say_title(mob_name(20011))
+			say(gameforge.main_quest_lv60._90_say)
+			say("")
+			wait()
+			
+			say_title(pc.getname())
+			say(gameforge.main_quest_lv60._100_say)
+			say("")
+			wait()
+			
+			say_title(mob_name(20011))  
+			say(gameforge.main_quest_lv60._110_say)
+			
+			set_state (quest2_ongoing)
+		end
+	end
+	
+	state quest2_ongoing begin --�������� ��ȭ�ϰ� Ź���� �޾ƿ���� �̼��� �޾Ҵ�.
+		-----------����Ʈ����2------------
+		when letter begin
+			send_letter(gameforge.main_quest_lv60._60_sendLetter)
+
+			-- ��ϱ��� ���� ���� ����Ų��. (������ ���� npc�� ����Ų��.)
+			local v = find_npc_by_vnum(20371)
+			if 0 != v then
+				target.vid("__TARGET__", v, mob_name(20371))
+			end
+		end
+
+		when button or info begin
+			say_title(gameforge.main_quest_lv60._60_sendLetter)
+			say(gameforge.main_quest_lv60._120_say)
+			say("")
+		end
+		
+		--�������� �����ϸ� �ش� ����Ʈ�� ���õ� ��ȭ�� ���� �� �ִ�.
+		when 20011.gameforge.main_quest_lv60._60_sendLetter begin
+			say_title(mob_name(20011))
+			say(gameforge.main_quest_lv60._130_say)
+			say("")
+		end
+		
+		--��ϱ��� ���� ���� ������. 
+		when 20371.click begin
+			target.delete("__TARGET__")
+			say_reward(gameforge.main_quest_lv60._140_sayReward)
+			pc.give_item2 ( acient_rubbing )
+			say("")
+			
+			set_state (quest2_end)
+		end
+	end
+		
+	--���� ���� Ź���� �����.
+	state quest2_end begin
+		-----------����Ʈ����2------------
+		when letter begin
+			send_letter(gameforge.main_quest_lv60._60_sendLetter)
+
+			-- �������� ����Ų��.
+			local v = find_npc_by_vnum(20011)
+			if 0 != v then
+				target.vid("__TARGET__", v, mob_name(20011))
+			end
+		end
+
+		when button or info begin
+			say_title(gameforge.main_quest_lv60._60_sendLetter)
+			say(gameforge.main_quest_lv60._150_say)
+			say("")
+		end
+		
+		when __TARGET__.target.click begin
+			pc.remove_item ( acient_rubbing, 1 )
+			target.delete("__TARGET__")
+			
+			say_title(mob_name(20011))
+			say(gameforge.main_quest_lv60._160_say)
+			say("")
+			wait()
+			
+			say_title(mob_name(20011))
+			say(gameforge.main_quest_lv60._170_say)
+			say("")
+			wait()
+			
+			say_title(mob_name(20011))
+			say(gameforge.main_quest_lv60._180_say)
+			say("")
+			wait()
+			
+			give_reward("main_quest_lv6"0.quest2_end)
+			
+			
+			
+			set_state (quest3_begin)
+		end
+	
+	end
+	
+	state quest3_begin begin
+		-------����Ʈ����3---------
+		when letter begin
+			send_letter(gameforge.main_quest_lv60._220_sendLetter)
+
+			-- �������� ����Ų��.
+			local v = find_npc_by_vnum(20011)
+			if 0 != v then
+				target.vid("__TARGET__", v, mob_name(20011))
+			end
+		end
+
+		when button or info begin
+			say_title(gameforge.main_quest_lv60._220_sendLetter)
+			say(gameforge.main_quest_lv60._230_say)
+			say("")
+		end
+		
+		when __TARGET__.target.click begin
+			target.delete("__TARGET__")
+			say_title(mob_name(20011))
+			----"12345678901234567890123456789012345678901234567890"|
+			say(gameforge.main_quest_lv60._240_say)
+			say("")
+			
+			set_state (quest3_ongoing1)
+		end	
+	end
+	
+	state quest3_ongoing1 begin
+		-------����Ʈ����3---------
+		when letter begin
+			send_letter(gameforge.main_quest_lv60._220_sendLetter)
+
+			-- �����͸��� ��ġ�� ǥ���Ѵ�.--
+			--------------------------------
+			--------------------------------
+		end
+
+		when button or info begin
+			say_title(gameforge.main_quest_lv60._220_sendLetter)
+			say(gameforge.main_quest_lv60._230_say)
+			say("")
+		end
+
+		--�������� �����ϸ� �ش� ����Ʈ�� ���õ� ��ȭ�� ���� �� �ִ�.
+		when 20011.chat.gameforge.main_quest_lv60._220_sendLetter begin
+			say_title(mob_name(20011))
+			say(gameforge.main_quest_lv60._260_say)
+			say("")
+		end
+		
+		--�����͸��� ������� 1000���� 1 Ȯ���� ����Ʈ ������ �������� �ش�.
+		when 2305.kill begin
+			if	number (1,100) == 1 then	
+				pc.give_item2 (acient_doc, 1 )	
+				say_reward(gameforge.main_quest_lv60._270_sayReward)
+				say("")
+				
+				--3.����
+				set_state (quest3_end1)
+			end
+		end
+	end
+	
+	-- ���빮���� �ϳ� �����. ���������� ����������Ѵ�.
+	state quest3_end1 begin
+		-------����Ʈ����3---------
+		when letter begin
+			send_letter(gameforge.main_quest_lv60._220_sendLetter)
+
+			-- �������� ����Ų��.
+			local v = find_npc_by_vnum(20011)
+			if 0 != v then
+				target.vid("__TARGET__", v, mob_name(20011))
+			end
+		end
+
+		when button or info begin
+			say_title(gameforge.main_quest_lv60._220_sendLetter)
+			say(gameforge.main_quest_lv60._230_say)
+			say("")
+		end
+		
+		when __TARGET__.target.click begin
+			target.delete("__TARGET__")
+			say_title(mob_name(20011))
+			----"12345678901234567890123456789012345678901234567890"|
+			say(gameforge.main_quest_lv60._280_say)
+			say("")
+			wait()
+			
+			--@@@@@@@@@����@@@@@@@@@@--
+			--1. ������ ������ ���� �ʴ´�.
+			say_title(mob_name(20011))
+			----"12345678901234567890123456789012345678901234567890"|
+			pc.remove_item (acient_doc, 1 )	
+			say(gameforge.main_quest_lv60._290_say)
+			say("")
+			
+			set_state (quest3_ongoing2)
+		end	
+		
+	end
+	
+	state quest3_ongoing2 begin
+		--�� ���¿� ó�� ������ �Ǹ� '���� ������ ����' ����Ʈ �÷��׸� �����Ѵ�.
+		-- �ʱⰪ�� 9�� �����ؼ� ���͸� ���������� 1�� �ٿ� 0���� ����.
+		-- 0�� �Ǹ� ����Ʈ ������Ʈ�� ��ȭ��Ų��.
+		when enter begin
+			pc.setqf("remain_item",9)
+		end
+		
+		--*************************--
+		-------����Ʈ����3_1---------
+		when letter begin
+			send_letter(gameforge.main_quest_lv60._220_sendLetter)
+
+			-- �����͸��� ��ġ�� ǥ���Ѵ�.--
+			--------------------------------
+			--------------------------------
+		end
+		when button or info begin
+			say_title(gameforge.main_quest_lv60._220_sendLetter)
+			say(gameforge.main_quest_lv60._230_say)
+			say("")
+			q.set_counter(gameforge.main_quest_lv60._250_counter, pc.getqf("remain_item"))
+		end
+		-----------------------------
+		--*************************--
+		
+
+		
+		--�����͸��� ������� 1000���� 1 Ȯ���� ���� ���� ���� ���� �ٿ��ش�.
+		when 2305.kill begin
+			if	number (1,100) == 1 then
+				local remain_item_prev =  pc.getqf("remain_item")
+				pc.setqf("remain_item",remain_item_prev-1)
+			
+				pc.give_item2 (acient_doc, 1 )	
+				notice(string.format(gameforge.main_quest_lv60._300_say,pc.getqf("remain_item")))
+				
+				-- ��� ������ �� ������� ���� ����Ʈ�� �Ѿ��.
+				if pc.getqf("remain_item")==0 then
+					-- �����͸��� ��ġ ǥ�ø� �����ش� --
+					-------------------------------------
+					-------------------------------------
+					set_state (quest3_end2)
+				end
+			end
+		end
+	end
+	
+	state quest3_end2 begin
+		--*************************--
+		-------����Ʈ����3_1---------
+		when letter begin
+			send_letter(gameforge.main_quest_lv60._220_sendLetter)
+
+			-- �������� ����Ų��.
+			local v = find_npc_by_vnum(20011)
+			if 0 != v then
+				target.vid("__TARGET__", v, mob_name(20011))
+			end
+		end
+		when button or info begin
+			say_title(gameforge.main_quest_lv60._220_sendLetter)
+			say(gameforge.main_quest_lv60._230_say)
+			say("")
+			q.set_counter(gameforge.main_quest_lv60._250_counter, pc.getqf("remain_item"))
+		end
+		-----------------------------
+		--*************************--
+	
+		when __TARGET__.target.click begin
+			target.delete("__TARGET__")
+			pc.remove_item (acient_doc, pc.count_item (acient_doc) )	
+			say_title(mob_name(20011))
+			----"12345678901234567890123456789012345678901234567890"|
+			say(gameforge.main_quest_lv60._310_say)
+			say("")
+			wait()
+			
+			say_title(mob_name(20011))
+			----"12345678901234567890123456789012345678901234567890"|
+			say(gameforge.main_quest_lv60._320_say)
+			say("")
+			wait()
+			
+			say_title(mob_name(20011))
+			----"12345678901234567890123456789012345678901234567890"|
+			say(gameforge.main_quest_lv60._330_say)
+			say("")
+			wait()
+			
+			say_title(locale.reward)
+			----"12345678901234567890123456789012345678901234567890"|
+			give_reward("main_quest_lv6"0.quest3_end2)
+			
+			set_state (quest4_begin)
+		end	
+	end
+	
+	state quest4_begin begin
+		--*************************--
+		-------����Ʈ����4-----------
+		when letter begin
+			send_letter(gameforge.main_quest_lv60._340_sendLetter)
+
+			-- �������� ����Ų��.
+			local v = find_npc_by_vnum(20011)
+			if 0 != v then
+				target.vid("__TARGET__", v, mob_name(20011))
+			end
+		end
+		when button or info begin
+			say_title(gameforge.main_quest_lv60._340_sendLetter)
+			say(gameforge.main_quest_lv60._350_say)
+			say("")
+		end
+		-----------------------------
+		--*************************--
+	
+	
+		when __TARGET__.target.click begin
+			target.delete("__TARGET__")
+			say_title(mob_name(20011))
+			----"12345678901234567890123456789012345678901234567890"|
+			say(gameforge.main_quest_lv60._360_say)
+			say("")
+			wait()
+			
+			say_title(mob_name(20011))
+			----"12345678901234567890123456789012345678901234567890"|
+			say(gameforge.main_quest_lv60._370_say)
+			say("")
+			wait()
+			
+			say_title(pc.getname())
+			----"12345678901234567890123456789012345678901234567890"|
+			say(gameforge.main_quest_lv60._380_say)
+			say("")
+			wait()
+			
+			say_title(mob_name(20011))
+			----"12345678901234567890123456789012345678901234567890"|
+			say(gameforge.main_quest_lv60._390_say)
+			say("")
+			wait()
+			
+			say_title(mob_name(20011))
+			----"12345678901234567890123456789012345678901234567890"|
+			say(gameforge.main_quest_lv60._400_say)
+			say("")
+
+			-- to dopiero po update
+			-- wait()
+			-- say_reward(gameforge.main_quest_lv60._410_sayReward)
+			-- say("")
+
+			clear_letter()
+			set_state (__COMPLETE__)
+		end	
+	end
+	
+	state __COMPLETE__ begin
+		when enter begin
+			q.done()
+		end
+	end
+end

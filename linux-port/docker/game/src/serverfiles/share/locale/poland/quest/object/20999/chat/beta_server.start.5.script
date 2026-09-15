@@ -1,0 +1,46 @@
+npc_name ( ) 
+say_split ( translate . beta . horse_level . ask ) 
+local horse_options = { 
+{ 1 , 25 } 
+} 
+local beta_progress = game . get_event_flag ( "beta_server" ) 
+if beta_progress >= 2 then 
+table . insert ( horse_options , { 11 , 35 } ) 
+end 
+if beta_progress >= 4 then 
+table . insert ( horse_options , { 21 , 50 } ) 
+end 
+horse_select_table = { } 
+for i , v in pairs ( horse_options ) begin 
+table . insert ( horse_select_table , string . format ( "%d lvl konia" , v [ 1 ] ) ) 
+end 
+table . insert ( horse_select_table , translate . general . cancel ) 
+local x = select_table ( horse_select_table ) 
+if x == table . getn ( horse_select_table ) then 
+return 
+end 
+local horse_level = horse_options [ x ] [ 1 ] 
+local req_player_level = horse_options [ x ] [ 2 ] 
+if pc . get_level ( ) < req_player_level then 
+npc_name ( ) 
+say ( msg ( translate . general . low_lvl , req_player_level ) ) 
+return 
+end 
+if horse . get_grade ( ) == x then 
+setskin ( NOWINDOW ) 
+return 
+end 
+horse . set_level ( horse_level ) 
+if pc . count_item ( 50050 + x ) < 1 then 
+pc . give_item2 ( 50050 + x , 1 ) 
+end 
+npc_name ( ) 
+say_split ( translate . beta . horse_level . success ) 
+if horse . is_riding ( ) then 
+horse . unride ( ) 
+end 
+if horse . is_summon ( ) then 
+horse . unsummon ( ) 
+end 
+horse . summon ( ) 
+horse . ride ( ) 

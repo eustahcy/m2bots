@@ -1,0 +1,52 @@
+diff --git a/linux-port/docker/game/src/server/game/src/playerbot_manager.h b/linux-port/docker/game/src/server/game/src/playerbot_manager.h
+index 8ea16dc..c5de488 100644
+--- a/linux-port/docker/game/src/server/game/src/playerbot_manager.h
++++ b/linux-port/docker/game/src/server/game/src/playerbot_manager.h
+@@ -1,4 +1,4 @@
+-#ifndef __INC_METIN_II_GAME_PLAYERBOT_MANAGER_H__
++﻿#ifndef __INC_METIN_II_GAME_PLAYERBOT_MANAGER_H__
+ #define __INC_METIN_II_GAME_PLAYERBOT_MANAGER_H__
+ 
+ #include <set>
+@@ -23,7 +23,10 @@ class CPlayerBotManager : public singleton<CPlayerBotManager>
+ 		void	OnPlayerLoaded(LPDESC d);
+ 		void	OnLoadFailed(DWORD dwHandle);
+ 		void	OnDescriptorDestroyed(LPDESC d);
+-		void	Update();
++		void	Update();
++                DWORD   GetCompanionOwner(DWORD pid) const;
++                void    OnOwnerEnteredGame(LPCHARACTER ch);
++                void    OnOwnerAttack(LPCHARACTER owner, LPCHARACTER target);
+ 		// A player's shout, after the channel has it, and a whisper addressed to
+ 		// a bot. Both from patch 0007 in input_main.cpp; playerbot_chat_trade.h
+ 		// decides whether and which bot answers.
+@@ -53,7 +56,8 @@ class CPlayerBotManager : public singleton<CPlayerBotManager>
+ 		// in: Spawn takes it from here, so nothing can start a registered PID
+ 		// into an empire its character does not belong to.
+ 		struct TPlayerBotAccount { DWORD dwID; std::string strLogin; BYTE bEmpire; };
+-		typedef std::map<DWORD, TPlayerBotAccount> TPlayerBotAccountMap;
++		typedef std::map<DWORD, TPlayerBotAccount> TPlayerBotAccountMap;
++                bool    LoadCompanionRegistry();
+ 
+ 		bool	LoadRegisteredBots();
+ 		// Says in one line why the cohort is smaller than the seed.
+@@ -79,7 +83,13 @@ class CPlayerBotManager : public singleton<CPlayerBotManager>
+ 		// When to count the world again and re-queue whoever is missing.
+ 		DWORD			m_dwNextTopUpTime;
+ 		bool			m_bRegistryLoaded;
+-		bool			m_bRegistryAvailable;
++		bool			m_bRegistryAvailable;
++                bool                    m_bCompanionRegistryLoaded;
++                std::map<DWORD, DWORD>  m_mapCompanionsByOwner;
++                std::map<DWORD, DWORD>  m_mapOwnersByCompanion;
++                std::map<DWORD, BYTE>   m_mapCompanionEmpire;
++                std::map<DWORD, DWORD>  m_mapCompanionOwnerTargetVID;
++                std::map<DWORD, DWORD>  m_mapCompanionOwnerAttackTime;
+ };
+ 
+ // The AI weights, for the F9 GM panel's "Sterowanie Serwerem" tab.
+@@ -98,3 +108,4 @@ bool PlayerBotBuildWeightReport(char* szOut, size_t len);
+ bool PlayerBotSetWeight(const char* szKey, long value);
+ 
+ #endif
++

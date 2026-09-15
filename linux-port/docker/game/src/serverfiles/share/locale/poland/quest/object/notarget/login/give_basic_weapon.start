@@ -1,0 +1,15 @@
+if pc . getqf ( "basic_weapon" ) ~= 0 then 
+return 
+end 
+local item_vnum = 10 
+if pc . job == 3 then 
+item_vnum = 7000 
+elseif pc . job == 1 then 
+item_vnum = 1000 
+end 
+local item_count = pc . countitem ( item_vnum ) 
+local equip_weapon = pc . weapon if item_count == 0 and equip_weapon ~= item_vnum then 
+set_state ( "__COMPLETE__" ) 
+pc . give_item2 ( item_vnum , 1 , 0 ) 
+pc . give_item2 ( 27001 , 5 ) 
+end 

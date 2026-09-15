@@ -1,0 +1,6 @@
+if in_dungeon ( 79 ) then pc . set_warp_location ( 69 , 6337 , 11951 ) 
+d . notice ( translate . labirynth . dungeon_info ) 
+d . spawn_mob ( 20402 , 131 , 126 ) 
+timer ( "end_labirynth" , 60 * 10 ) 
+ return end if pc . get_map_index ( ) == 69 and pc . getqf ( "complete" ) > 0 then set_state ( "reward" ) 
+ return end 

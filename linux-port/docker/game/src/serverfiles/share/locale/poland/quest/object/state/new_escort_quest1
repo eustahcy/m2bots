@@ -1,0 +1,56 @@
+new_escort_quest1={["start"]=0,["complete"]=1114099747,["escort"]=2012274676,get_waypoints= function ()return { 
+[ 3 ] = { 
+{ 857 , 429 } , 
+{ 873 , 408 } , 
+{ 890 , 380 } , 
+{ 903 , 351 } , 
+{ 911 , 326 } , 
+{ 914 , 298 } , 
+{ 912 , 275 } , 
+{ 890 , 267 } , 
+{ 864 , 278 } , 
+{ 833 , 302 } , 
+} , 
+[ 23 ] = { 
+{ 160 , 354 } , 
+{ 161 , 373 } , 
+{ 163 , 397 } , 
+{ 166 , 427 } , 
+{ 191 , 453 } , 
+{ 215 , 469 } , 
+{ 236 , 450 } , 
+{ 251 , 432 } , 
+{ 263 , 424 } , 
+{ 265 , 445 } , 
+} , 
+[ 43 ] = { 
+{ 655 , 180 } , 
+{ 642 , 199 } , 
+{ 617 , 205 } , 
+{ 590 , 195 } , 
+{ 569 , 186 } , 
+{ 542 , 184 } , 
+{ 513 , 181 } , 
+{ 482 , 179 } , 
+{ 459 , 178 } , 
+{ 439 , 177 } , 
+{ 432 , 161 } , 
+{ 423 , 142 } , 
+{ 416 , 127 } , 
+} , 
+} 
+end ,create_waypoint= function ()local waypoints = new_escort_quest1 . get_waypoints ( ) [ pc . get_map_index ( ) ] 
+if pc . getqf ( "waypoint_index" ) == table . getn ( waypoints ) then 
+return 0 , 0 , true 
+end 
+pc . setqf ( "waypoint_index" , pc . getqf ( "waypoint_index" ) + 1 ) 
+local index = pc . getqf ( "waypoint_index" ) 
+local x = waypoints [ index ] [ 1 ] 
+local y = waypoints [ index ] [ 2 ] 
+target . pos ( "__ESCORT__" , x , y , pc . get_map_index ( ) , "" , 0 , 500 , 5000 ) 
+timer ( "escort_abort" , 60 ) 
+return x , y , false 
+end ,abort_quest= function ()if npc . select ( pc . getqf ( "escort_vid" ) ) > 0 then 
+npc . purge ( ) 
+end 
+end }

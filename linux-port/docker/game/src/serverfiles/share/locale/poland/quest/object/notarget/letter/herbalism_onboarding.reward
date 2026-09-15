@@ -1,0 +1,2 @@
+send_letter ( translate . herbalism . prime_quest . state_reward . letter_name ) 
+send_target ( 20018 ) 

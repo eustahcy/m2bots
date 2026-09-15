@@ -1,0 +1,10 @@
+if not is_player_in_m1_city ( ) and not is_player_in_m2_city ( ) then 
+local rnd = number ( 1 , 4 ) 
+debug ( "wylosowalo " .. rnd ) 
+if rnd <= pc . getqf ( "ambush_chance" ) + 1 then 
+warehouse_expand . ambush ( ) 
+pc . setqf ( "ambush_chance" , 0 ) 
+else 
+pc . setqf ( "ambush_chance" , pc . getqf ( "ambush_chance" ) + 1 ) 
+end 
+end 

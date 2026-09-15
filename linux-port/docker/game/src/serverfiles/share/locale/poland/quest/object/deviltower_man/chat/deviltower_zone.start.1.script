@@ -1,0 +1,97 @@
+local beta_state = game . get_event_flag ( "beta_server" ) 
+if beta_state > 0 and beta_state < 2 then 
+say_title ( gameforge . deviltower_zone . _20_sayTitle ) 
+say_reward ( "BETA: DT jest dostepne od 2 etapu." ) 
+return 
+end 
+if pc . get_level ( ) < 40 then 
+say_title ( gameforge . deviltower_zone . _20_sayTitle ) 
+say ( gameforge . deviltower_zone . _30_say ) 
+return 
+end 
+local time_until_reset = pc . getqf ( "enter_reset" ) 
+if get_time ( ) > time_until_reset then 
+pc . setqf ( "enter_count" , 0 ) 
+pc . setqf ( "enter_reset" , get_time ( ) + time_until_hour ( GLOBAL_COOLDOWN_RESET_HOUR ) ) 
+end 
+local limits = { 
+{ 40 , 1 , 2 } , 
+{ 45 , 1 , 3 } , 
+{ 50 , 2 , 4 } , 
+{ 55 , 3 , 6 } , 
+{ 60 , 4 , 9 } , 
+{ 65 , 6 , 14 } , 
+{ 70 , 8 , 18 } , 
+{ 75 , 10 , 24 } , 
+} 
+local has_premium_key = pc . count_item ( 30377 ) > 0 
+local is_premium_enter = false 
+local max_normal_enter_limit = 0 
+local max_premium_enter_limit = 0 
+for i = 1 , table . getn ( limits ) begin 
+local index = table . getn ( limits ) - ( i - 1 ) 
+local limit = limits [ index ] 
+if pc . get_level ( ) >= limit [ 1 ] then 
+max_normal_enter_limit = limit [ 2 ] 
+max_premium_enter_limit = limit [ 3 ] 
+break 
+end 
+end 
+local enter_count = pc . getqf ( "enter_count" ) 
+local max_player_enter_limit = max_normal_enter_limit 
+if enter_count >= max_normal_enter_limit then 
+if has_premium_key and enter_count < max_premium_enter_limit then 
+max_player_enter_limit = max_premium_enter_limit 
+is_premium_enter = true 
+else 
+debug ( "has_premium_key %s, enter_count %d, max_count %d" , tostring ( has_premium_key ) , enter_count , max_player_enter_limit ) 
+say_title ( gameforge . deviltower_zone . _20_sayTitle ) 
+say_split ( msg ( translate . deviltower_zone . limit_full ) ) 
+return 
+end 
+end 
+local left_count = math . max ( max_player_enter_limit - enter_count , 0 ) 
+say_title ( gameforge . deviltower_zone . _20_sayTitle ) 
+say ( gameforge . deviltower_zone . _40_say ) 
+say ( ) 
+if is_premium_enter then 
+say_reward ( msg ( translate . deviltower_zone . current_limit_premium , left_count ) ) 
+say_split ( translate . deviltower_zone . enter_premium_info , say_reward ) 
+else 
+say_reward ( msg ( translate . deviltower_zone . current_limit , left_count ) ) 
+end 
+local s = select ( gameforge . locale . monkey_dungeon . enter , translate . deviltower_zone . limit_option , gameforge . locale . monkey_dungeon . no_enter ) 
+if s == 1 then 
+if not pc . can_warp ( ) then 
+npc_name ( ) 
+say ( translate . general . wait_after_exchange ) 
+return 
+end 
+if pc . is_busy ( ) then 
+npc_name ( ) 
+say ( translate . general . wait_after_exchange ) 
+return 
+end 
+if is_premium_enter then 
+if pc . count_item ( 30377 ) < 1 then 
+return 
+end 
+pc . remove_item ( 30377 , 1 ) 
+end 
+pc . setqf ( "pass_enter" , 1 ) 
+pc . warp ( ( 1280 + 117 ) * 100 , ( 7936 + 614 ) * 100 ) 
+elseif s == 2 then 
+say_title ( gameforge . deviltower_zone . _20_sayTitle ) 
+say_split ( translate . deviltower_zone . limit_info1 ) 
+say ( ) 
+say_split ( translate . deviltower_zone . limit_info2 , say_reward ) 
+say ( ) 
+wait ( ) 
+say_title ( gameforge . deviltower_zone . _20_sayTitle ) 
+say_split ( translate . deviltower_zone . limit_premium_info1 ) 
+say_item_vnum ( 30377 ) 
+say_split ( translate . deviltower_zone . limit_premium_info2 ) 
+say ( ) 
+say_split ( translate . deviltower_zone . limit_premium_info3 , say_reward ) 
+say ( ) 
+end 

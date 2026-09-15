@@ -1,0 +1,82 @@
+if item . get_type ( ) == ITEM_POTION then if not check_safe_item ( ) then return end 
+if item . get_vnum ( ) >= 27863 and item . get_vnum ( ) < 27900 then 
+return 
+end 
+pc . set_crafting ( true ) 
+npc_name ( ) 
+if item . get_socket ( 0 ) > 0 or item . get_value ( 1 ) == 0 or item . get_value ( 1 ) > 1200 then 
+say_split ( translate . herbalism . extend_duration . cannot_extend ) 
+pc . set_crafting ( false ) 
+return 
+end 
+say_split ( translate . herbalism . extend_duration . take_item_info1 ) 
+say_split ( translate . herbalism . extend_duration . take_item_info2 ) 
+option_table = translate . herbalism . extend_duration . take_item_select local x = select_table ( option_table ) 
+if x == table . getn ( option_table ) then 
+pc . set_crafting ( false ) 
+return 
+end 
+local cost_per_potion = 2500 
+local dust_per_potion = 1 
+local level_limit = get_item_limit ( item . get_vnum ( ) , LIMIT_LEVEL ) 
+local item_vnum = item . get_vnum ( ) 
+if item_vnum >= 27100 and item_vnum <= 27105 then 
+if item_vnum == 27101 or item_vnum == 27105 then 
+level_limit = 30 
+elseif item_vnum == 27102 then 
+level_limit = 50 
+end 
+end 
+if level_limit >= 60 then 
+cost_per_potion = 24000 
+dust_per_potion = 3 
+elseif level_limit >= 50 then 
+cost_per_potion = 18000 
+dust_per_potion = 3 
+elseif level_limit >= 30 then 
+cost_per_potion = 6000 
+dust_per_potion = 2 
+end 
+local count = item . get_count ( ) 
+local cost = cost_per_potion * count 
+local dust_count = dust_per_potion * count 
+if x == 1 then 
+cost = math . floor ( cost / 2 ) 
+dust_count = math . ceil ( dust_count / 2 ) 
+end 
+npc_name ( ) 
+say_split ( translate . herbalism . extend_duration . take_item_info3 ) 
+say_item_vnum ( 30360 ) 
+local percent = { 50 , 100 } 
+say_split ( string . format ( translate . herbalism . extend_duration . take_item_info4 , percent [ x ] , dust_count , parse_number ( cost ) ) ) 
+say_reward ( translate . herbalism . extend_duration . take_item_warning ) 
+say ( ) 
+if select ( translate . general . yes , translate . general . no ) == 2 then 
+pc . set_crafting ( false ) 
+return 
+end 
+if not check_safe_item ( BUSY_CRAFTING ) then return end 
+if not pc . is_crafting ( ) then 
+npc_name ( ) 
+say ( translate . general . wait_after_exchange ) 
+return 
+end 
+if pc . get_gold ( ) < cost then 
+npc_name ( ) 
+say ( translate . general . no_gold ) 
+pc . set_crafting ( false ) 
+return 
+end 
+if pc . count_item ( 30360 ) < dust_count then 
+npc_name ( ) 
+say ( translate . herbalism . extend_duration . no_dust ) 
+pc . set_crafting ( false ) 
+return 
+end 
+npc_name ( ) 
+say_split ( translate . herbalism . extend_duration . extend_success ) 
+pc . change_money ( - cost ) 
+pc . remove_item ( 30360 , dust_count ) 
+item . set_socket ( 0 , percent [ x ] ) 
+pc . set_crafting ( false ) 
+ return end 

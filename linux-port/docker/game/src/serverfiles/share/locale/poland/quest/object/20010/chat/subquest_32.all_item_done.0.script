@@ -1,0 +1,54 @@
+if pc . count_item ( 30140 ) >= 1 and pc . count_item ( 30141 ) >= 1 and pc . count_item ( 30139 ) >= 100 then 
+target . delete ( "__TARGET__" ) 
+say_title ( gameforge . subquest_32 . _440_sayTitle ) 
+say ( gameforge . subquest_32 . _450_say ) 
+local items = { 17103 , 17084 , 17064 } 
+local reward_table = { } 
+for i , v in pairs ( items ) begin 
+table . insert ( reward_table , select_item_format ( v ) ) 
+end 
+local x = select_table ( reward_table ) 
+if x > table . getn ( items ) then 
+return 
+end 
+if pc . count_item ( 30140 ) < 1 or pc . count_item ( 30141 ) < 1 or pc . count_item ( 30139 ) < 100 then 
+setskin ( NOWINDOW ) 
+return 
+end 
+say_title ( gameforge . subquest_32 . _440_sayTitle ) 
+say ( gameforge . subquest_32 . reward_talk ) 
+say ( ) 
+pc . remove_item ( 30140 , 1 ) 
+pc . remove_item ( 30141 , 1 ) 
+pc . remove_item ( 30139 , 100 ) 
+pc . setqf ( "jewel_done" , 0 ) 
+pc . setqf ( "sil_done" , 0 ) 
+set_state ( "THEEND" ) 
+local selected_reward = items [ x ] 
+pc . give_item2 ( selected_reward , 1 ) 
+say_reward ( msg ( translate . reward . item_reward , item_name ( selected_reward ) ) ) 
+give_reward ( "subquest_32" ) 
+clear_letter ( ) 
+return 
+end 
+target . delete ( "__TARGET__" ) 
+say_title ( gameforge . subquest_32 . _440_sayTitle ) 
+say ( gameforge . subquest_32 . _480_say ) 
+local s = select ( gameforge . subquest_01 . _50_select , gameforge . subquest_01 . _60_select ) 
+if 2 == s then 
+say ( gameforge . subquest_32 . _490_say ) 
+local a = select ( gameforge . subquest_12 . _select_yes , gameforge . subquest_12 . _select_no ) 
+if 2 == a then 
+say_title ( gameforge . subquest_32 . _440_sayTitle ) 
+say ( gameforge . subquest_32 . _500_say ) 
+set_state ( "gogogo" ) 
+return 
+end 
+say_title ( gameforge . subquest_32 . _440_sayTitle ) 
+say ( gameforge . subquest_32 . _510_say ) 
+set_state ( "__GIVEUP__" ) 
+return 
+end 
+say_title ( gameforge . subquest_32 . _440_sayTitle ) 
+say ( gameforge . subquest_32 . _520_say ) 
+set_state ( "gogogo" ) 

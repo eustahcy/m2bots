@@ -1,0 +1,8 @@
+target . delete ( "__TARGET__" ) 
+say_pc_name ( ) 
+say ( gameforge . subquest_23 . _310_say ) 
+say ( ) 
+say_split ( gameforge . subquest_23 . _say_item , say_reward ) 
+pc . give_item2 ( 16082 ) 
+pc . give_item2 ( 30155 ) 
+set_state ( "to_mirinae" ) 

@@ -1,0 +1,13 @@
+target . delete ( "__TARGET__" ) 
+if pc . count_item ( "30026" ) >= 1 then 
+say_title ( gameforge . subquest_06 . _320_sayTitle ) 
+say ( gameforge . subquest_07 . _140_say ) 
+pc . remove_item ( "30026" ) 
+say_title ( gameforge . collect_herb_lv4 . _130_sayTitle ) 
+set_state ( "__COMPLETE__" ) 
+give_reward ( "subquest_07" ) 
+else 
+say_title ( gameforge . subquest_06 . _320_sayTitle ) 
+say ( gameforge . subquest_07 . _160_say ) 
+set_state ( "hunt_for_oku" ) 
+end 

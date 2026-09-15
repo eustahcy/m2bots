@@ -1,0 +1,14 @@
+say_title ( gameforge . subquest_32 . _130_sayReward ) 
+say ( gameforge . subquest_32 . _140_sayReward ) 
+say ( ) 
+if pc . getqf ( "jewel_done" ) == 1 and pc . count_item ( 30141 ) < 1 then 
+say_split ( gameforge . subquest_32 . letter_tip1 , say_reward ) 
+elseif pc . count_item ( 30141 ) > 0 then 
+say_split ( gameforge . subquest_32 . letter_tip1_done , say_reward ) 
+end 
+say ( ) 
+if pc . getqf ( "sil_done" ) == 1 and pc . count_item ( 30140 ) < 1 then 
+say_split ( gameforge . subquest_32 . letter_tip2 , say_reward ) 
+elseif pc . count_item ( 30140 ) > 0 then 
+say_split ( gameforge . subquest_32 . letter_tip2_done , say_reward ) 
+end 

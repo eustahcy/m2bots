@@ -1,0 +1,9 @@
+if in_dungeon ( 66 ) and d . get_level ( ) == 5 then pc . remove_item ( 30300 , 1 ) 
+local pct = number ( 1 , 10 ) 
+if pct == 1 then 
+game . drop_item ( 30302 , 1 ) 
+d . clear_regen ( ) 
+else 
+syschat ( translate . deviltower_zone . chest_no_key ) 
+end 
+ return end 

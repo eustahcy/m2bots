@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="pl" data-theme="{{ settings.theme }}" data-density="{{ settings.density }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Logowanie · {{ panel_codename }}</title>
+  <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/tuike.css') }}">
+</head>
+<body class="centred">
+<form method="post" class="card auth-card">
+  <div class="brand brand-stacked">
+    <span class="brand-mark">{{ panel_codename[0] }}</span>
+    <span class="brand-text"><b>{{ panel_brand }}</b><small>{{ panel_tagline }}</small></span>
+  </div>
+
+  <h1>Panel administracyjny</h1>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for _category, message in messages %}
+      <p class="flash error">{{ message }}</p>
+    {% endfor %}
+  {% endwith %}
+
+  <label class="field"><span>Hasło administratora</span>
+    <input autofocus type="password" name="password" required autocomplete="current-password"></label>
+  <button type="submit">Zaloguj</button>
+</form>
+</body>
+</html>

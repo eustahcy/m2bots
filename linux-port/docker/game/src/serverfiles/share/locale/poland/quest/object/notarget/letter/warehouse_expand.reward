@@ -1,0 +1,4 @@
+send_letter ( translate . warehouse_expand . quest_name ) 
+if pc . get_map_index ( ) == get_player_map1_index ( ) then 
+send_target ( 9005 ) 
+end 

@@ -1,0 +1,3 @@
+local data = quest_book . get_current_quest_data ( ) 
+send_letter_ex ( data . title , "ex" , "scroll_open_golden" ) 
+q . set_counter ( translate . general . left , quest_book_kill . get_full_progress ( ) ) 

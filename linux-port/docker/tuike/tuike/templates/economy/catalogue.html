@@ -1,0 +1,56 @@
+﻿{% extends 'base.html' %}
+{% from 'partials/macros.html' import page_head with context %}
+{% block title %}Baza przedmiotów{% endblock %}
+
+{% block content %}
+{{ page_head('KATALOG GRY', 'Baza przedmiotów',
+             'Komplet danych z bazy serwera: polskie nazwy, VNUM-y i ikony klienta.') }}
+
+<nav class="tabs tabs-wrap" aria-label="Kategoria przedmiotu">
+  <a class="{{ 'active' if not selected_type }}"
+     href="{{ url_for('economy.catalogue', q=query) }}">Wszystkie</a>
+  {% for category in types %}
+    <a class="{{ 'active' if selected_type == category.type|string }}"
+       href="{{ url_for('economy.catalogue', q=query, type=category.type) }}">
+      {% if item_icon(category.icon_vnum) %}
+        <img class="item-icon" src="{{ item_icon(category.icon_vnum) }}" alt="" loading="lazy">
+      {% endif %}{{ category.label }} <small>{{ category.count }}</small>
+    </a>
+  {% endfor %}
+</nav>
+
+<form class="search" method="get">
+  <input type="hidden" name="type" value="{{ selected_type }}">
+  <input id="catalogue-search" name="q" value="{{ query }}"
+         placeholder="Szukaj po nazwie lub VNUM" autocomplete="off">
+  <button type="submit">Szukaj</button>
+  {% if query %}
+    <a class="ghost-link" href="{{ url_for('economy.catalogue', type=selected_type) }}">Wyczyść</a>
+  {% endif %}
+</form>
+
+<p id="catalogue-count" class="muted">
+  {{ total }} przedmiotów{% if selected_type %} w tej kategorii{% endif %} · pełna lista bez stron
+</p>
+
+<section id="catalogue" class="card-grid">
+  {% for item in items %}
+    <article class="item-card" data-search="{{ (item.name ~ ' ' ~ item.vnum)|lower }}">
+      {% if item_icon(item.vnum) %}
+        <img class="item-icon" src="{{ item_icon(item.vnum) }}" alt="" loading="lazy">
+      {% endif %}
+      <div>
+        <b>{{ item.name }}</b>
+        <small>VNUM {{ item.vnum }} · typ {{ item.type }}{% if item.subtype is not none %}/{{ item.subtype }}{% endif %}</small>
+        {% if item.gold %}<small>Cena: {{ thousands(item.gold) }} Yang</small>{% endif %}
+      </div>
+    </article>
+  {% else %}
+    <p class="muted">Brak przedmiotów pasujących do wyszukiwania.</p>
+  {% endfor %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/catalogue.js') }}"></script>
+{% endblock %}

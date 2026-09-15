@@ -1,0 +1,15 @@
+target . delete ( "__TARGET5__" ) 
+say_title ( gameforge . new_quest_lv7 . _020_say_title ) 
+if npc . get_empire ( ) == pc . get_empire ( ) then 
+if soup then 
+say ( gameforge . new_quest_lv7 . _150_say ) 
+end 
+say ( gameforge . new_quest_lv7 . _151_say ) 
+say ( gameforge . new_quest_lv7 . _152_say ) 
+set_state ( "__COMPLETE__" ) 
+give_reward ( "new_quest_lv7" ) 
+else 
+say ( gameforge . new_quest_lv7 . _160_say ) 
+say ( gameforge . new_quest_lv7 . _165_say ) 
+soup = true 
+end 

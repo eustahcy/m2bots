@@ -1,0 +1,46 @@
+quest use_refine_bonus_item begin
+    state start begin
+        when 3.use_type with item.get_sub_type() == USE_REFINE_BONUS begin
+            if pc.getf("refine", "chance") > 0 or pc.getf("refine", "gold") > 0 or pc.getf("refine", "no_item") > 0 then
+                syschat(translate.use_refine_bonus_item.has_bonus)
+                return
+            end
+
+            say_info()
+            say_split(translate.use_refine_bonus_item.ask)
+            if select(translate.general.yes, translate.general.no) == 2 then
+                return
+            end
+
+            local refine_is_100_chance = item.get_value(0) > 0
+            local refine_is_no_gold = item.get_value(1) > 0
+            local refine_is_no_item = item.get_value(2) > 0
+
+            local refine_item_type = item.get_value(3)
+            local refine_max_use_level = item.get_value(4)
+            local refine_max_refine_level = item.get_value(5)
+
+            if item.remove(1) then
+                if refine_is_100_chance then
+                    debug("nadaje 100%% szansy")
+                    pc.setf("refine", "chance", 1)
+                end
+
+                if refine_is_no_gold then
+                    debug("nadaje zero golda")
+                    pc.setf("refine", "gold", 1)
+                end
+
+                if refine_is_no_item then
+                    debug("nadaje brak ulepszaczy")
+                    pc.setf("refine", "no_item", 1)
+                end
+
+                pc.setf("refine", "item_type", refine_item_type)
+                pc.setf("refine", "use_level", refine_max_use_level)
+                pc.setf("refine", "refine_level", refine_max_refine_level)
+                syschat(translate.use_refine_bonus_item.add)
+            end
+        end
+    end
+end

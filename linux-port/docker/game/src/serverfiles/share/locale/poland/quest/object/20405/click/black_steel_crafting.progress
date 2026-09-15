@@ -1,0 +1,9 @@
+if pc . count_item ( 35006 ) < 1 then if npc . select ( pc . getqf ( "tree_vid" ) ) < 1 then 
+local vid = spawn_mob ( 2317 , 11172 * 100 , 42 * 100 , 0 , pc . get_vid ( ) ) 
+if vid > 0 then 
+npc . set_custom_npc_flag ( vid , CUSTOM_NPC_FLAG_PURGE_ON_AGGRO_LOSE ) 
+npc . say ( vid , translate . black_steel_crafting . state_progress . red_forest_awake_mob ) 
+pc . setqf ( "tree_vid" , vid ) 
+end 
+end 
+ return end 

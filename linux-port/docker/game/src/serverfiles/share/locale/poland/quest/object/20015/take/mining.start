@@ -1,0 +1,4 @@
+if item . vnum >= 29101 and item . vnum < 29110 and item . get_socket ( 0 ) ~= item . get_value ( 2 ) then if not check_safe_item ( ) then return end 
+say_title ( gameforge . mining . _10_sayTitle ) 
+say ( gameforge . mining . _20_say ) 
+ return end 

@@ -1,0 +1,22 @@
+target . delete ( "__TARGET__" ) 
+if pc . count_item ( 30362 ) > 0 then 
+return 
+end 
+say_info ( ) 
+say_split ( translate . fishing . onboarding . state_progress . get_item2_chat1 , say_reward ) 
+say ( ) 
+say_split ( translate . fishing . onboarding . state_progress . get_item2_chat2 ) 
+if select ( translate . general . yes , translate . general . no ) == 2 then 
+say_info ( ) 
+say_split ( translate . fishing . onboarding . state_progress . get_item2_chat3_refuse , say_reward ) 
+return 
+end 
+say_info ( ) 
+say_split ( translate . fishing . onboarding . state_progress . get_item2_chat3_get , say_reward ) 
+pc . give_item2 ( 30362 , 1 ) 
+if pc . count_item ( 30361 ) > 0 and pc . count_item ( 30362 ) > 0 then 
+wait ( ) 
+say_info ( ) 
+say_split ( translate . fishing . onboarding . state_progress . get_all ) 
+set_state ( "return_uriel" ) 
+end 

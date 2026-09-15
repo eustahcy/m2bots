@@ -1,0 +1,2 @@
+if pc . get_map_index ( ) == 66 then timer ( "deviltower_create_dungeon" , 6 ) 
+ return end 

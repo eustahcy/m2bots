@@ -1,0 +1,15 @@
+if not npc . is_pc ( ) then local check_kill = function ( ) 
+if table_is_in ( { 131 , 132 , 133 , 134 , 135 , 136 } , npc . get_race ( ) ) and new_quest_lv19 . killanimal ( 1 ) then 
+return true 
+elseif table_is_in ( { 140 , 141 } , npc . get_race ( ) ) and new_quest_lv19 . killanimal ( 2 ) then 
+return true 
+elseif table_is_in ( { 143 , 144 } , npc . get_race ( ) ) and new_quest_lv19 . killanimal ( 3 ) then 
+return true 
+end 
+return false 
+end 
+if check_kill ( ) and new_quest_lv19 . check_if_all_gather ( ) then 
+setstate ( "gotouriel2" ) 
+clear_letter ( ) 
+end 
+ return end 

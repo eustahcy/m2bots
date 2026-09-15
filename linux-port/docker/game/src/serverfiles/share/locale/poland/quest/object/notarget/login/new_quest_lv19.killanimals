@@ -1,0 +1,4 @@
+if new_quest_lv19 . check_if_all_gather ( ) then 
+setstate ( "gotouriel2" ) 
+clear_letter ( ) 
+end 

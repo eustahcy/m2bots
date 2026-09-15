@@ -1,0 +1,18 @@
+if pc . count_item ( 35001 ) < 1 then 
+if number ( 1 , 100 ) <= 30 then 
+pc . give_item2 ( 35001 ) 
+if 1 == pc . count_item ( 35000 ) and 1 == pc . count_item ( 35001 ) then 
+notice_multiline ( gameforge . new_quest_lv22 . _061_notice , notice ) 
+q . done ( ) 
+set_state ( "back_to_baekgo" ) 
+else 
+if 1 == pc . count_item ( 35001 ) then 
+notice_multiline ( string . format ( gameforge . new_quest_lv22 . _056_notice , 1 - pc . count_item ( 35000 ) ) , notice ) 
+else 
+notice_multiline ( string . format ( gameforge . new_quest_lv22 . _060_notice , 1 - pc . count_item ( 35001 ) ) , notice ) 
+end 
+end 
+else 
+notice_multiline ( gameforge . new_quest_lv22 . _062_notice , notice ) 
+end 
+end 

@@ -1,0 +1,18 @@
+if pc . get_account_flag ( "beta_wait_kupon" ) > get_time ( ) then 
+local left_time = pc . get_account_flag ( "beta_wait_kupon" ) - get_time ( ) 
+npc_name ( ) 
+say_split ( msg ( translate . beta . gold . wait , second_to_smart_time ( left_time ) ) ) 
+return 
+end 
+if not beta_server . is_beta_etap3plus ( ) then 
+say_reward ( "Nastepny kupon mozesz odebrac jutro. (reset o 5 rano)" ) 
+pc . set_account_flag ( "beta_wait_kupon" , get_time ( ) + time_until_hour ( GLOBAL_COOLDOWN_RESET_HOUR ) ) 
+end 
+npc . say_me ( translate . beta . itemshop . say ) 
+local val = 1000 
+if beta_server . is_beta_etap3plus ( ) then 
+val = 2000 
+end 
+syschat ( "Otrzymales SM automatycznie na konto." ) 
+pc . charge_cash ( val ) 
+setskin ( NOWINDOW ) 

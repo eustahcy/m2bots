@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% from 'partials/macros.html' import character_link with context %}
+{% block title %}{{ owner.shop_name }}{% endblock %}
+
+{% block content %}
+<a class="back" href="{{ url_for('economy.shops') }}">← Wróć do straganów</a>
+
+<header class="page-head">
+  <p class="eyebrow">STRAGAN</p>
+  <h1>{{ owner.shop_name }}</h1>
+  <p class="lead">Prowadzi {{ character_link(owner.owner, owner.owner_name, owner.owner_job) }}
+    · {{ items|length }} przedmiotów{% if owner.is_premium %} · premium{% endif %}</p>
+</header>
+
+<section class="panel table-wrap">
+  <table>
+    <thead><tr><th>Przedmiot</th><th class="numeric">Ilość</th><th class="numeric">Cena</th></tr></thead>
+    <tbody>
+      {% for item in items %}
+        <tr>
+          <td class="item-cell">
+            <a href="{{ url_for('economy.item', vnum=item.vnum) }}">
+              {% if item_icon(item.vnum) %}
+                <img class="item-icon" src="{{ item_icon(item.vnum) }}" alt="" loading="lazy">
+              {% endif %}{{ item.item_name }}</a>
+          </td>
+          <td class="numeric">{{ item.count }}</td>
+          <td class="numeric">{% if item.price %}{{ thousands(item.price) }}{% else %}<span class="muted">—</span>{% endif %}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="3" class="muted empty">Ten stragan nie ma nic wystawionego.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

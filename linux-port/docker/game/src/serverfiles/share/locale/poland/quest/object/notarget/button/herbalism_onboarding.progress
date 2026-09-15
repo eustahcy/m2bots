@@ -1,0 +1,6 @@
+say_info ( ) 
+if pc . count_item ( 50721 ) >= 10 then 
+say_split ( translate . herbalism . prime_quest . state_progress . letter_info_has_flowers ) 
+else 
+say_split ( translate . herbalism . prime_quest . state_progress . letter_info ) 
+end 

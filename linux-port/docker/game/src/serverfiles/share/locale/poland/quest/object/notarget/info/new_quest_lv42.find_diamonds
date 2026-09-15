@@ -1,0 +1,9 @@
+say_title ( gameforge . new_quest_lv42 . _037_send_letter ) 
+say ( gameforge . new_quest_lv42 . _066_say ) 
+say ( "" ) 
+if 20 <= pc . count_item ( 50601 ) then 
+say ( gameforge . new_quest_lv42 . _063_say ) 
+say ( string . format ( gameforge . new_quest_lv42 . _067_say , get_map_name_by_number ( 1 ) ) ) 
+else 
+say ( string . format ( gameforge . new_quest_lv42 . _062_say , 20 - pc . count_item ( 50601 ) , mob_name ( 20047 ) ) ) 
+end 

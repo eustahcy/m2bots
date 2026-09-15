@@ -1,0 +1,203 @@
+﻿{% extends 'base.html' %}
+{% from 'partials/macros.html' import empire_badge, item_tooltip, item_image with context %}
+{% block title %}{{ character.name }}{% endblock %}
+
+{% block content %}
+<a class="back" href="{{ url_for('characters.roster') }}">← Powrót do postaci</a>
+
+<header class="profile-head">
+  <img class="portrait portrait-large" src="{{ class_portrait(character.job) }}"
+       alt="{{ character.job_name }}">
+  <div>
+    <p class="eyebrow">PODGLĄD POSTACI</p>
+    <h1>{{ character.name }}</h1>
+    <p class="lead">
+      {{ character.job_name }} · {{ character.class_profile.gender }} · poziom {{ character.level }}
+      {% if character.live %}<span class="tag tag-live">w świecie</span>
+      {% else %}<span class="tag">offline</span>{% endif %}
+    </p>
+  </div>
+  <div class="profile-tags">
+    {{ empire_badge(character.empire) }}
+    <span class="tag">{{ map_name(character.map_index) }}</span>
+    <span class="tag">{{ thousands(character.gold) }} Yang</span>
+    <span class="tag honour {{ character.honour.css }}">{{ character.honour.title }}</span>
+  </div>
+</header>
+
+<div class="profile-layout">
+  <div class="profile-main">
+    <section class="panel">
+      <h2>Stan postaci</h2>
+      <div class="bars">
+        <div class="bar-row hp">
+          <span>❤ PŻ</span>
+          <span class="bar"><i style="width:{{ character.hp_percent }}%"></i></span>
+          <b>{{ character.hp }} / {{ character.max_hp }}</b>
+        </div>
+        <div class="bar-row mp">
+          <span>✦ PM</span>
+          <span class="bar"><i style="width:{{ character.mp_percent }}%"></i></span>
+          <b>{{ character.mp }} / {{ character.max_mp }}</b>
+        </div>
+        <div class="bar-row exp">
+          <span>⚡ EXP</span>
+          <span class="bar"><i style="width:{{ character.experience.percent }}%"></i></span>
+          <b>{{ character.experience.percent }}% ·
+             {{ thousands(character.experience.current) }} / {{ thousands(character.experience.required) }}</b>
+        </div>
+      </div>
+
+      <dl class="readouts readouts-grid">
+        <div><dt>Pozycja</dt><dd>{{ character.x }}, {{ character.y }}</dd></div>
+        <div><dt>Ranga</dt><dd>{{ thousands(character.honour.points) }} pkt</dd></div>
+        <div><dt>Osobowość</dt><dd>{{ character.personality }}</dd></div>
+        <div><dt>Ambicja</dt><dd>{{ character.ambition }}</dd></div>
+        <div><dt>Cel</dt><dd>{{ character.goal }}</dd></div>
+        <div><dt>Czynność</dt><dd>{{ character.activity }}</dd></div>
+        <div><dt>Koń</dt><dd>Lv {{ character.horse_level }}</dd></div>
+        <div><dt>Czas gry</dt><dd>{{ hours(character.playtime) }} h</dd></div>
+      </dl>
+    </section>
+
+    <div class="split">
+      <section class="panel">
+        <h2>Statystyki</h2>
+        <div class="stat-cells">
+          <div><span>STR</span><b>{{ character.st }}</b></div>
+          <div><span>VIT</span><b>{{ character.ht }}</b></div>
+          <div><span>DEX</span><b>{{ character.dx }}</b></div>
+          <div><span>INT</span><b>{{ character.iq }}</b></div>
+        </div>
+        <p class="muted">Nierozdane: {{ character.stat_point or 0 }} pkt statystyk ·
+          {{ character.skill_point or 0 }} pkt umiejętności</p>
+      </section>
+
+      <section class="panel">
+        <h2>Umiejętności</h2>
+        <div class="skills">
+          {% for skill in character.skills %}
+            <div class="skill">
+              <img class="skill-icon" alt=""
+                   src="{{ tieru_url }}/static/skill_icons/{{ skill.vnum }}{{ skill.icon_suffix }}.png"
+                   onerror="this.remove()">
+              <span>{{ skill.name }}</span>
+              <b class="rank rank-{{ skill.rank[0]|lower }}">{{ skill.rank }}</b>
+            </div>
+          {% else %}
+            <p class="muted">Postać nie wybrała jeszcze profesji.</p>
+          {% endfor %}
+        </div>
+      </section>
+    </div>
+
+    {% include 'partials/actions.html' %}
+
+    <section class="panel">
+      <h2>Ostatnie zdarzenia</h2>
+      <div class="log-lines">
+        {% for line in logs %}
+          <div class="log-line">
+            <time>{{ line.time }}</time>
+            {% if line.label %}
+              <span class="log-event">
+                {% if line.vnum and item_icon(line.vnum) %}
+                  <img class="item-icon" src="{{ item_icon(line.vnum) }}" alt="">
+                {% endif %}
+                {{ line.label }}{% if line.vnum %} <span class="muted">VNUM {{ line.vnum }}</span>{% endif %}
+                {% if line.hint %} <span class="muted">· {{ line.hint }}</span>{% endif %}
+              </span>
+            {% else %}
+              <span>{{ line.type }} · {{ line.how }}{% if line.hint %} · {{ line.hint }}{% endif %}{% if line.what %} · {{ line.what }}{% endif %}</span>
+            {% endif %}
+          </div>
+        {% else %}
+          <p class="muted">Brak zapisanych zdarzeń w logu.</p>
+        {% endfor %}
+      </div>
+    </section>
+  </div>
+
+  <aside class="panel storage">
+    <h2>Ekwipunek</h2>
+    <div class="tabs storage-toggle" role="tablist">
+      <button type="button" class="active" data-storage="inventory" role="tab">Plecak</button>
+      <button type="button" data-storage="safebox" role="tab">
+        Magazyn{% if not safebox %} (pusty){% endif %}</button>
+    </div>
+
+    {# The window this opens onto is the game's own, so it is dressed like the
+       game's own inventory rather than the panel's admin chrome - the same
+       dark wood and bronze in every theme, page tabs built from the client's
+       own button art (static/inventory-ui), octagonal slot frames instead of
+       plain rounded squares. #}
+    <div class="game-panel">
+      <div id="storage-inventory">
+        <div class="paperdoll">
+          {% for slot in layout %}
+            {% set worn = equipment.get(slot) %}
+            <div class="equip-slot slot-{{ slot }}">
+              <span class="slot-face">{% if worn %}{{ item_image(worn) }}{% endif %}</span>
+              {% if worn %}{{ item_tooltip(worn) }}{% endif %}
+            </div>
+          {% endfor %}
+        </div>
+
+        {% if pages > 1 %}
+          <div class="inventory-pages" role="tablist">
+            {% for page in range(pages) %}
+              {% set active_src = url_for('static', filename='inventory-ui/page-' ~ (page + 1) ~ '-active.png') %}
+              {% set inactive_src = url_for('static', filename='inventory-ui/page-' ~ (page + 1) ~ '-inactive.png') %}
+              <button type="button" class="page-tab {{ 'active' if loop.first }}"
+                      data-page="{{ page }}" role="tab" aria-label="Strona {{ page + 1 }}">
+                {% if page < 2 %}
+                  <img src="{{ active_src if loop.first else inactive_src }}"
+                       data-active="{{ active_src }}" data-inactive="{{ inactive_src }}" alt="">
+                {% else %}
+                  <span>{{ page + 1 }}</span>
+                {% endif %}
+              </button>
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        <div class="grid-storage" style="--columns:{{ columns }}">
+          {% for entry in inventory %}
+            <div class="grid-slot" data-page="{{ entry.page }}"
+                 style="grid-column-start:{{ entry.grid_column + 1 }};grid-row-start:{{ entry.grid_row + 1 }}"
+                 {% if entry.page != 0 %}hidden{% endif %}>
+              <span class="slot-face">{{ item_image(entry) }}</span>
+              {% if entry.count > 1 %}<b class="count">{{ entry.count }}</b>{% endif %}
+              {{ item_tooltip(entry) }}
+            </div>
+          {% else %}
+            <p class="muted">Plecak jest pusty.</p>
+          {% endfor %}
+        </div>
+        <p class="storage-foot"><i class="coin" aria-hidden="true"></i>{{ thousands(character.gold) }} Yang</p>
+      </div>
+
+      <div id="storage-safebox" hidden>
+        <div class="grid-storage" style="--columns:{{ columns }}">
+          {% for entry in safebox %}
+            <div class="grid-slot"
+                 style="grid-column-start:{{ entry.grid_column + 1 }};grid-row-start:{{ entry.grid_row + 1 }}">
+              <span class="slot-face">{{ item_image(entry) }}</span>
+              {% if entry.count > 1 %}<b class="count">{{ entry.count }}</b>{% endif %}
+              {{ item_tooltip(entry) }}
+            </div>
+          {% else %}
+            <p class="muted">Magazyn dozorcy jest pusty.</p>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </aside>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/storage.js') }}"></script>
+<script src="{{ url_for('static', filename='js/item-search.js') }}"></script>
+<script src="{{ url_for('static', filename='js/tools.js') }}"></script>
+{% endblock %}

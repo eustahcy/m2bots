@@ -1,0 +1,33 @@
+target . delete ( "__TARGET__" ) 
+local copper = pc . count_item ( 50604 ) 
+local pearl = pc . count_item ( 50609 ) 
+local ebony = pc . count_item ( 50608 ) 
+if copper < 100 or pearl < 100 or ebony < 100 then 
+say_title ( gameforge . blacksmith . _20_sayTitle ) 
+say ( gameforge . subquest_31 . _160_say ) 
+local s = select ( gameforge . subquest_31 . _170_select , gameforge . subquest_31 . _180_select ) 
+if 2 == s then 
+say ( gameforge . subquest_31 . _190_say ) 
+local a = select ( gameforge . subquest_12 . _select_yes , gameforge . subquest_12 . _select_no ) 
+if 2 == a then 
+say_title ( gameforge . blacksmith . _20_sayTitle ) 
+say ( gameforge . subquest_31 . _200_say ) 
+return 
+end 
+say_title ( gameforge . subquest_09 . _50_sayTitle ) 
+say ( gameforge . subquest_31 . _210_say ) 
+set_state ( "__GIVEUP__" ) 
+return 
+end 
+say_title ( gameforge . blacksmith . _20_sayTitle ) 
+say ( gameforge . subquest_31 . _220_say ) 
+end 
+if copper >= 100 and pearl >= 100 and ebony >= 100 then 
+say ( gameforge . subquest_31 . _230_say ) 
+pc . remove_item ( 50604 , 100 ) 
+pc . remove_item ( 50609 , 100 ) 
+pc . remove_item ( 50608 , 100 ) 
+clear_letter ( ) 
+set_state ( "__COMPLETE__" ) 
+give_reward ( "subquest_31" ) 
+end 

@@ -1,0 +1,7 @@
+target . delete ( "__TARGET__" ) 
+say_title ( gameforge . npc_talk . _630_sayTitle ) 
+say ( gameforge . subquest_18 . _320_say ) 
+say_title ( gameforge . locale . reward ) 
+set_state ( "__COMPLETE__" ) 
+give_reward ( "subquest_18" ) 
+clear_letter ( ) 

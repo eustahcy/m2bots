@@ -1,0 +1,21 @@
+npc_name ( ) 
+if pc . get_level ( ) < 15 then 
+say_split ( translate . herbalism . prime_quest . low_lvl ) 
+return 
+end 
+say_split ( translate . herbalism . prime_quest . introduction1 ) 
+wait ( ) 
+npc_name ( ) 
+say_split ( translate . herbalism . prime_quest . introduction2 ) 
+wait ( ) 
+npc_name ( ) 
+say_split ( translate . herbalism . prime_quest . introduction3 ) 
+say_item_vnum ( 29201 ) 
+wait ( ) 
+npc_name ( ) 
+say_split ( translate . herbalism . prime_quest . introduction4 ) 
+say_item_vnum ( 50721 ) 
+wait ( ) 
+npc_name ( ) 
+say_split ( translate . herbalism . prime_quest . introduction5 ) 
+set_state ( "progress" ) 

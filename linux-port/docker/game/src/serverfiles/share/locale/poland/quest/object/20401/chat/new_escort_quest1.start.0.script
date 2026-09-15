@@ -1,0 +1,23 @@
+npc_name ( ) 
+say_split ( translate . new_escort_quest1 . state_start . npcTalk ) 
+if select ( translate . new_escort_quest1 . state_start . accept , translate . new_escort_quest1 . state_start . cancel ) == 2 then 
+npc_name ( ) 
+say_split ( translate . new_escort_quest1 . state_start . cancelInfo ) 
+return 
+end 
+npc_name ( ) 
+say_split ( translate . new_escort_quest1 . state_start . acceptInfo ) 
+wait ( ) 
+if npc . is_custom_flag2 ( CUSTOM_NPC_FLAG_LOCK_INTERACTION ) then 
+say_info ( ) 
+say_split ( translate . escort . busy , say_reward ) 
+return 
+end 
+setskin ( NOWINDOW ) 
+npc . set_custom_npc_flag2 ( CUSTOM_NPC_FLAG_LOCK_INTERACTION ) 
+pc . setqf ( "escort_vid" , npc . get_vid ( ) ) 
+pc . setqf ( "waypoint_index" , 0 ) 
+x , y , is_last = new_escort_quest1 . create_waypoint ( ) 
+npc . go_to ( x , y ) 
+npc . say_me ( translate . new_escort_quest1 . state_start . escort_start ) 
+set_state ( "escort" ) 

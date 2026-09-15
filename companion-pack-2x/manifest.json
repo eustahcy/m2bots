@@ -1,0 +1,96 @@
+{
+  "schemaVersion": 1,
+  "version": "1.0.0",
+  "buildLine": "2.x",
+  "serverVersion": "2.0.14",
+  "revision": "41023",
+  "created": "2026-09-12",
+  "sourceConversation": "6aa0e4c6-a750-83ed-aab5-f3097666ebf0",
+  "files": [
+    {
+      "path": "linux-port/docker/game/src/server/game/src/playerbot_manager.cpp",
+      "beforeHash": "d8958c77b8c280a1ce7195b8c3f561d51b0a565fef5c5b0a7b44fe30ecc8d7c3",
+      "afterHash": "e4f24629fdec55aa1dbdf9c3c6b329497b286aae9936c43e38edd8092687f21f",
+      "provenance": "Local pre-change backup: playerbot_manager.cpp.bak_2.0.14_pre_companion_stage1"
+    },
+    {
+      "path": "linux-port/overlays/playerbot/src/game/src/playerbot_manager.cpp",
+      "beforeHash": "d8958c77b8c280a1ce7195b8c3f561d51b0a565fef5c5b0a7b44fe30ecc8d7c3",
+      "afterHash": "e4f24629fdec55aa1dbdf9c3c6b329497b286aae9936c43e38edd8092687f21f",
+      "provenance": "Local pre-change backup: playerbot_manager.cpp.bak_2.0.14_pre_companion_stage1"
+    },
+    {
+      "path": "linux-port/docker/game/src/server/game/src/playerbot_manager.h",
+      "beforeHash": "a6f1a797e33f0c5a98037e96e674ec2d4808cd5d7e27ed5e6bdda1a7bc1c66c6",
+      "afterHash": "d76741be5a445c7786b2cf081423474d18cb667f89ce7bab6954c2cce8f84b65",
+      "provenance": "Local pre-change backup: playerbot_manager.h.bak_2.0.14_pre_companion"
+    },
+    {
+      "path": "linux-port/overlays/playerbot/src/game/src/playerbot_manager.h",
+      "beforeHash": "a6f1a797e33f0c5a98037e96e674ec2d4808cd5d7e27ed5e6bdda1a7bc1c66c6",
+      "afterHash": "d76741be5a445c7786b2cf081423474d18cb667f89ce7bab6954c2cce8f84b65",
+      "provenance": "Local pre-change backup: playerbot_manager.h.bak_2.0.14_pre_companion"
+    },
+    {
+      "path": "linux-port/docker/game/src/server/game/src/exchange.cpp",
+      "beforeHash": "be6c6f48a26232dede5b2dce8df566a2d14376c2cf60b03f22e02839b71d0566",
+      "afterHash": "a769a8d5773e1acca12dfe2f83b255180f914f6b4332181afb5af3f858ec1947",
+      "provenance": "Local pre-change backup: exchange.cpp.bak_2.0.14_pre_exchange_autoaccept"
+    },
+    {
+      "path": "linux-port/docker/game/src/server/game/src/input_login.cpp",
+      "beforeHash": "e6d2e8b3b18be00e734e756ec9e210996cb9fc9c5d0e8795dadb2d122fa6b907",
+      "afterHash": "bc437f3b9395872f28587de599caa6aa1e07e00e9e97a4892b0798dcdedd2d25",
+      "provenance": "Local pre-change backup: input_login.cpp.bak_pre_companion_login_hook"
+    },
+    {
+      "path": "linux-port/docker/game/src/server/game/src/input_main.cpp",
+      "beforeHash": "64c0e04ebe5b088c72a49241506113d3a378e4d7367467f92782134e18f12c23",
+      "afterHash": "21bb8b0c6d44aced7d326fee8761c40a11b46f128248c8b5a20162473897cbe3",
+      "provenance": "Reviewed local update backup 2.0.12; byte hash enforced"
+    },
+    {
+      "path": "linux-port/docker/game/src/server/game/src/playerbot_combat.h",
+      "beforeHash": "6353693d5dab0f77a7058bc699a0ee1c8a0b783c362f6e19916923c0941d1764",
+      "afterHash": "3d8ac5e72bd44e1a1a2605a245c24c467f3ffcef3164e29dbedc43c6d43ff5c6",
+      "provenance": "Current unmodified 2.0.14 combat header"
+    },
+    {
+      "path": "linux-port/overlays/playerbot/src/game/src/playerbot_combat.h",
+      "beforeHash": "6353693d5dab0f77a7058bc699a0ee1c8a0b783c362f6e19916923c0941d1764",
+      "afterHash": "3d8ac5e72bd44e1a1a2605a245c24c467f3ffcef3164e29dbedc43c6d43ff5c6",
+      "provenance": "Current unmodified 2.0.14 combat header"
+    }
+  ],
+  "guards": [
+    {
+      "path": "linux-port/docker/docker-compose.yml",
+      "hash": "ffae5e79a4344a4d5660d37d00eeca8e084ca939940566c99a28e3eb14783497"
+    },
+    {
+      "path": "linux-port/docker/game/Dockerfile",
+      "hash": "9f9cee74bad175040345f2df4f94d894e5c2c0b105f25d38ae0fb7290c911798"
+    },
+    {
+      "path": "linux-port/docker/game/src/server/game/src/Makefile",
+      "hash": "31404ff0971af0141f1d5df6e2bea5c18fd041a291cee9164fd99f99bc360e2e"
+    },
+    {
+      "path": "linux-port/docker/game/src/server/game/src/playerbot_targeting.h",
+      "hash": "68d07094b6dc170c8207c2cb3c1338b533fddbbc732d0d3b0828cbcca4e6869a"
+    },
+    {
+      "path": "linux-port/docker/game/src/server/game/src/playerbot_types.h",
+      "hash": "72d39dfecef2c59f972e9e60429a342e19cbef3065db10837130776d89cf9f35"
+    },
+    {
+      "path": "linux-port/docker/game/src/server/game/src/playerbot_skills.h",
+      "hash": "511d1f39291b3a2489e30dc08cb1a2a8b1f38feeafc52441637a292716a4a55f"
+    }
+  ],
+  "notes": [
+    "User-specific PID 2505 skill correction preserved verbatim.",
+    "Owner-buff helper restored verbatim from final conversation patch; missing from disk snapshot.",
+    "input_main baseline comes from local 2.0.12 update backup; diff reviewed: only owner attack hook, BOM and whitespace. Exact hashes required."
+  ]
+}

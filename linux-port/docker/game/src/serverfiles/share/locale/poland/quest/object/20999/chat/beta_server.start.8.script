@@ -1,0 +1,22 @@
+if not beta_server . is_beta_etap4 ( ) then 
+if pc . getqf ( "wait_gold" ) > get_time ( ) then 
+local left_time = pc . getqf ( "wait_gold" ) - get_time ( ) 
+npc_name ( ) 
+say_split ( msg ( translate . beta . gold . wait , second_to_smart_time ( left_time ) ) ) 
+return 
+end 
+end 
+npc_name ( ) 
+say_split ( translate . beta . gold . ask ) 
+local gold = math . pow ( pc . get_level ( ) , 2 ) * ( 1000 + pc . get_level ( ) * 20 ) 
+if beta_server . is_beta_etap4 ( ) then 
+gold = gold * 3 
+end 
+say_split ( msg ( translate . beta . gold . info , parse_number ( gold ) ) , say_reward ) 
+if select ( translate . general . yes , translate . general . no ) == 2 then 
+return 
+end 
+npc_name ( ) 
+pc . change_money ( gold ) 
+say_split ( translate . beta . gold . success ) 
+pc . setqf ( "wait_gold" , get_time ( ) + time_until_hour ( GLOBAL_COOLDOWN_RESET_HOUR ) ) 

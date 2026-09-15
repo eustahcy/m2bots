@@ -1,0 +1,5 @@
+npc . say_me ( translate . new_escort_quest1 . state_start . kill ) 
+set_state ( "complete" ) 
+pc . change_money ( 10000 ) 
+pc . give_exp2 ( 50000 ) 
+game . drop_item_with_ownership ( 25052 , 1 , 60 ) 

@@ -1,0 +1,21 @@
+orcvalley_first_quest={["start"]=0,["progress"]=570552902,["reward"]=1322349139,task_data= function ()return { 
+{ 636 , 15 } , 
+{ 637 , 8 } , 
+{ 631 , 25 } , 
+{ 632 , 20 } , 
+{ 633 , 20 } , 
+{ 634 , 20 } , 
+{ 635 , 10 } , 
+{ 701 , 25 } , 
+{ 702 , 20 } , 
+{ 703 , 15 } , 
+} 
+end ,can_start_quest= function ()if pc . get_level ( ) < 25 then 
+return "low_lvl" 
+elseif pc . get_reputation ( FRACTION_ORC_VALLEY ) < 0 then 
+return "low_reputation" 
+elseif pc . getqf ( "reset_time" ) > get_time ( ) then 
+return "delay" 
+end 
+return "ok" 
+end }

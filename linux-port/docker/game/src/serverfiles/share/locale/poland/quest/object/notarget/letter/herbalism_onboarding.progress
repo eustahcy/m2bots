@@ -1,0 +1,4 @@
+send_letter ( translate . herbalism . prime_quest . state_progress . letter_name ) 
+if pc . count_item ( 50721 ) >= 10 then 
+send_target ( 20018 ) 
+end 

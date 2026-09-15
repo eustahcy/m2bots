@@ -1,0 +1,6 @@
+if number ( 1 , 100 ) <= 15 then 
+pc . give_item2 ( new_quest_lv43_drop1 ) 
+notice_multiline ( gameforge . new_quest_lv43 . _043_notice , notice ) 
+q . done ( ) 
+set_state ( "goto_wondarim" ) 
+end 

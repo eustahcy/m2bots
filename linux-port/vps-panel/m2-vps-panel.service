@@ -1,0 +1,19 @@
+[Unit]
+Description=M2 VPS Panel - start/stop/restart/compile the Metin2 stack
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/m2-vps-panel.env
+WorkingDirectory=/opt/m2-vps-panel
+ExecStart=/opt/m2-vps-panel/venv/bin/gunicorn --bind 0.0.0.0:${M2_VPS_PANEL_PORT} --workers 2 --threads 4 --timeout 120 app:app
+Restart=always
+RestartSec=3
+# Root, deliberately: this panel's whole job is docker compose up/down/build
+# and reading a root-owned Docker volume - the same trust the project's own
+# updater service already asks for over the Docker socket.
+User=root
+
+[Install]
+WantedBy=multi-user.target

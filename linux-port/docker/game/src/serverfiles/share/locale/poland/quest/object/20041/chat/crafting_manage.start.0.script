@@ -1,0 +1,8 @@
+npc_name ( ) 
+say_split ( translate . crafting . npc . bum . talk1 ) 
+say_split ( translate . crafting . npc . bum . talk2 ) 
+say_split ( translate . crafting . npc . bum . talk3 ) 
+say ( ) 
+wait ( ) 
+crafting . open ( CRAFTING_BUM ) 
+setskin ( NOWINDOW ) 

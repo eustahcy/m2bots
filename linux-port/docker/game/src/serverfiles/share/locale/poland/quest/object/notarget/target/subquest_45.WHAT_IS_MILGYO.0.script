@@ -1,0 +1,27 @@
+if pc . count_item ( "30147" ) > 0 and pc . count_item ( "30148" ) > 0 and pc . count_item ( "30164" ) > 0 then 
+target . delete ( "__TARGET__" ) 
+say_title ( gameforge . subquest_05 . _30_sayTitle ) 
+say ( gameforge . subquest_45 . _140_say ) 
+wait ( ) 
+say_title ( gameforge . subquest_05 . _30_sayTitle ) 
+say ( gameforge . subquest_45 . _150_say ) 
+pc . remove_item ( "30148" , 1 ) 
+pc . remove_item ( "30147" , 1 ) 
+pc . remove_item ( "30164" , 1 ) 
+set_state ( "COMPLETE" ) 
+give_reward ( "subquest_45" ) 
+clear_letter ( ) 
+return 
+else 
+say_title ( gameforge . subquest_05 . _30_sayTitle ) 
+say ( gameforge . subquest_45 . _190_say ) 
+local s = select ( gameforge . subquest_45 . _200_select , gameforge . find_brother_article . _170_select ) 
+if 2 == s then 
+say_title ( gameforge . subquest_05 . _30_sayTitle ) 
+say ( gameforge . subquest_45 . _210_say ) 
+set_state ( "__GIVEUP__" ) 
+return 
+end 
+say_title ( gameforge . subquest_05 . _30_sayTitle ) 
+say ( gameforge . subquest_45 . _220_say ) 
+end 

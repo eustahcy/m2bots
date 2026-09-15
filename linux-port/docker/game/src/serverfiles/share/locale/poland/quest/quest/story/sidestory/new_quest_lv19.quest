@@ -1,0 +1,145 @@
+define group QUEST_MOBS_LIST_WOLFS {131, 132, 133, 134, 135, 136}
+define group QUEST_MOBS_LIST_BEARS {140, 141}
+define group QUEST_MOBS_LIST_TIGERS {143, 144}
+define QUEST_ITEM_WOLF 30331
+define QUEST_ITEM_BEAR 30332
+define QUEST_ITEM_TIGER 30333
+define QUEST_NPC_URIEL 20011
+
+quest new_quest_lv19 begin
+	state start begin
+		function killanimal(animal)
+			local animals = {QUEST_ITEM_WOLF, QUEST_ITEM_BEAR, QUEST_ITEM_TIGER}
+			if pc.count_item(animals[animal])<5 then
+				local s = number(1, 100)
+				if s <= 20 then
+					pc.give_item2(animals[animal], 1)
+					return true
+				else
+					return false
+				end
+			end
+		end
+		
+		function check_if_all_gather()
+			if pc.count_item(QUEST_ITEM_WOLF) >= 5 and pc.count_item(QUEST_ITEM_BEAR) >= 5 and pc.count_item(QUEST_ITEM_TIGER) >= 5 then
+				return true
+			else
+				return false
+			end
+		end
+		when login or levelup or enter begin
+			if pc.get_level() >= 19 then 				
+				setstate( gotouriel )		
+			end
+		end
+	end
+	state gotouriel begin
+
+		when letter begin
+			local v=find_npc_by_vnum(QUEST_NPC_URIEL)
+			if v~=0 then
+				target.vid("__TARGET__", v, mob_name(QUEST_NPC_URIEL))
+			end
+		end
+		when letter begin
+			send_letter(translate.new_quest_lv19.gotouriel.letter)
+		end
+		when button or info begin
+			say_title(translate.new_quest_lv19.gotouriel.letter)
+			say(translate.new_quest_lv19.gotouriel.letterInfo)
+		end
+		
+		when __TARGET__.target.click or QUEST_NPC_URIEL.chat.translate.new_quest_lv19.killanimals.letter begin
+			target.delete("__TARGET__")
+			say_title(translate.new_quest_lv19.uriel)
+			say_split(translate.new_quest_lv19.gotouriel.npcChat1)
+			wait()
+			say_title(translate.new_quest_lv19.uriel)
+			say_split(translate.new_quest_lv19.gotouriel.npcChat2)
+			wait()
+			say_title(translate.new_quest_lv19.uriel)
+			say_split(translate.new_quest_lv19.gotouriel.npcChat3)
+			if new_quest_lv19.check_if_all_gather() then
+				setstate( gotouriel2 )
+				clear_letter()
+			end
+			setstate( killanimals )
+			clear_letter()
+		end
+	end
+
+	state killanimals begin
+		when login or enter begin
+			if new_quest_lv19.check_if_all_gather() then
+				setstate( gotouriel2 )
+				clear_letter()
+			end
+		end
+		when letter begin
+			send_letter(translate.new_quest_lv19.killanimals.letter)
+		end
+		when button or info begin
+			say_title(translate.new_quest_lv19.killanimals.letter)
+			say_split(translate.new_quest_lv19.killanimals.letterInfo)
+		end
+		when kill with not npc.is_pc() begin
+			local check_kill = function ()
+				if table_is_in(QUEST_MOBS_LIST_WOLFS, npc.get_race()) and new_quest_lv19.killanimal(1) then
+					return true
+				elseif table_is_in(QUEST_MOBS_LIST_BEARS, npc.get_race()) and new_quest_lv19.killanimal(2) then
+					return true
+				elseif table_is_in(QUEST_MOBS_LIST_TIGERS, npc.get_race()) and new_quest_lv19.killanimal(3) then
+					return true
+				end
+				return false
+			end
+			if check_kill() and new_quest_lv19.check_if_all_gather() then
+				setstate( gotouriel2 )
+				clear_letter()
+			end
+		end
+	end
+	state gotouriel2 begin
+		when letter begin
+			local v=find_npc_by_vnum(QUEST_NPC_URIEL)
+			if 0 ~= v then
+				target.vid("__TARGET__", v, mob_name(QUEST_NPC_URIEL))
+			end
+		end
+		when letter begin
+			send_letter(translate.new_quest_lv19.gotouriel2.letter)
+		end
+		when button or info begin
+			say_title(translate.new_quest_lv19.gotouriel2.letter)
+			say_split(translate.new_quest_lv19.gotouriel2.letterInfo)
+		end
+		when __TARGET__.target.click or QUEST_NPC_URIEL.chat.translate.new_quest_lv19.killanimals.letter begin
+			target.delete("__TARGET__")
+			if new_quest_lv19.check_if_all_gather() then
+				pc.remove_item(QUEST_ITEM_WOLF, 5)
+				pc.remove_item(QUEST_ITEM_TIGER, 5)
+				pc.remove_item(QUEST_ITEM_BEAR, 5)
+				say_title(translate.new_quest_lv19.uriel)
+				say_split(translate.new_quest_lv19.gotouriel2.npcChat1)
+				wait()
+				say_title(translate.new_quest_lv19.uriel)
+				say_split(translate.new_quest_lv19.gotouriel2.npcChat2)
+				wait()
+				say_title(translate.new_quest_lv19.uriel)
+				set_state (__COMPLETE__)
+				give_reward("new_quest_lv19")
+				clear_letter()
+			else
+				say_title(translate.new_quest_lv19.uriel)
+				say_split(translate.new_quest_lv19.gotouriel2.notenough)
+				setstate( killanimals )
+				clear_letter()
+			end
+		end
+	end
+	state __COMPLETE__ begin
+	end
+end
+
+

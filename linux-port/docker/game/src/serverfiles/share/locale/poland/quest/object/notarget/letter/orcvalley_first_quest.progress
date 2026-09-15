@@ -1,0 +1,2 @@
+send_letter_ex ( translate . reputation_orc_valley . first . name , "ex" , "scroll_open_blue" ) 
+q . set_counter ( translate . general . left , pc . getqf ( "progress" ) ) 

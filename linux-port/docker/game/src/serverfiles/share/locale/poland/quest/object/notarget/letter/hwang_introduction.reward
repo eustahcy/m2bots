@@ -1,0 +1,2 @@
+send_letter ( translate . hwang_introduction . state_progress . letter_name ) 
+send_target ( 20403 ) 

@@ -1,0 +1,14 @@
+if monkey_curse . is_in_dungeon ( ) then 
+if pc . getqf ( "time" ) < get_time ( ) then 
+monkey_curse . set_time ( ) 
+elseif pc . getqf ( "logout_time" ) > 0 then 
+local offline_time = get_time ( ) - pc . getqf ( "logout_time" ) 
+pc . setqf ( "time" , pc . getqf ( "time" ) + offline_time ) 
+end 
+local seconds = pc . getqf ( "time" ) - get_time ( ) 
+debug ( "ustawiamy timer na %ds" , seconds ) 
+timer ( "monkey_curse" , seconds ) 
+else 
+pc . setqf ( "time" , 0 ) 
+pc . setqf ( "logout_time" , 0 ) 
+end 

@@ -1,0 +1,2 @@
+if game . get_safebox_level ( ) > 1 then set_state ( "__COMPLETE__" ) 
+ return end 

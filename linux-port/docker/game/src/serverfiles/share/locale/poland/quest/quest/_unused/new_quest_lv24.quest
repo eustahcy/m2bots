@@ -1,0 +1,235 @@
+define QUEST_NPC_URIEL 20011
+quest new_quest_lv24 begin
+	state start begin
+		function get_waypoints()
+			return {
+				[1] = {522, 921, 3},
+				[2] = {558, 896, 23},
+				[3] = {407, 917, 43},
+			}
+		end
+		function get_waves()
+			return {
+				{501, 501, 502, 502, 504},
+				{501, 502, 503, 502, 504},
+				{501, 502, 502, 503, 504},
+			}
+		end
+		function spawn_wave(wave)
+			pc.setqf("wave_target_count", 0)
+			for i, vnum in ipairs(wave) do 
+				local x,y;
+				for j=1, 10 do
+					local random_pos = number(1,100) / 100
+					x, y = getPositionOnCircle(pc.get_x(), pc.get_y(), 10, random_pos)
+					local vid = spawn_mob(vnum, x*100, y*100, 0, pc.get_vid())
+					if vid ~= 0 then
+						npc.set_custom_npc_flag(vid, CUSTOM_NPC_FLAG_PURGE_ON_AGGRO_LOSE)
+						pc.setqf("kill_target"..i, vid, true)
+						pc.setqf("wave_target_count", pc.getqf("wave_target_count") + 1)
+						break
+					end
+				end
+			end
+		end
+
+	end
+	state run begin
+		when login or levelup or enter begin
+			if pc.get_level() >= 24 then 				
+				setstate( gotouriel )		
+			end
+		end
+	end
+
+	state gotouriel begin
+		when letter begin
+			local v=find_npc_by_vnum(QUEST_NPC_URIEL)
+			if v~=0 then
+				target.vid("__TARGET__", v, mob_name(QUEST_NPC_URIEL))
+			end
+		end
+		when letter begin
+			send_letter(translate.new_quest_lv24.gotouriel.letter)
+		end
+		when button or info begin
+			say_title(translate.new_quest_lv24.gotouriel.letter)
+			say(translate.new_quest_lv24.gotouriel.letterInfo)
+		end
+
+		when __TARGET__.target.click or QUEST_NPC_URIEL.chat.translate.new_quest_lv24.killanimals.letter begin
+			target.delete("__TARGET__")
+			say_title(translate.new_quest_lv24.uriel)
+			say(translate.new_quest_lv24.gotouriel.npcChat1)
+			wait()
+			say_title(translate.new_quest_lv24.uriel)
+			say(translate.new_quest_lv24.gotouriel.npcChat2)
+			wait()
+			say_title(translate.new_quest_lv24.uriel)
+			say(translate.new_quest_lv24.gotouriel.npcChat3)
+			setstate( zbadaj_m2 )
+			clear_letter()
+		end
+	end
+
+	state zbadaj_m2 begin
+		when letter begin
+			local empire = pc.get_empire()
+			local pos = new_quest_lv24.get_waypoints()[empire]
+			target.pos("__TARGET__", pos[1], pos[2], pos[3], "")
+			send_letter(translate.new_quest_lv24.zbadaj_m2.letter)
+		end
+		when button or info begin
+			say_title(translate.new_quest_lv24.zbadaj_m2.letter)
+			say(translate.new_quest_lv24.zbadaj_m2.letterInfo)
+		end
+		
+		when __TARGET__.target.arrive begin
+			target.delete("__TARGET__")
+			say(translate.new_quest_lv24.zbadaj_m2.complete)
+			wait()
+			pc.setqf("wave", 1)
+			setstate(spawn_wave)
+			clear_letter()
+		end
+	end
+	state spawn_wave begin
+		when enter or login begin
+			local empire = pc.get_empire()
+			local pos = new_quest_lv24.get_waypoints()[empire]
+			local global_x, global_y = map_local_to_global_position(pc.get_map_index(), pos[1], pos[2])
+			if is_player_in_area(global_x, global_y, 50) then
+				if pc.getqf("wave") <= table.getn(new_quest_lv24.get_waves()) then
+					chat(pc.getqf("wave"))
+					new_quest_lv24.spawn_wave(new_quest_lv24.get_waves()[pc.getqf("wave")])
+					setstate(kill_wave)
+				else
+					say_title(translate.new_quest_lv24.zbadaj_m2.complete)
+					say("BRAWO")
+					wait()
+					setstate(gotouriel2)
+				end
+			end
+		end
+		when logout begin
+			setstate(gotouriel2) 
+		end
+	end
+	state kill_wave begin
+		when kill with not npc.is_pc() begin
+			local killVid = npc.get_vid()
+			for i=1, table.getn(new_quest_lv24.get_waves()[pc.getqf("wave")]) do
+				local flagVid = pc.getqf("kill_target"..i)
+				if flagVid == killVid then
+					chat(flagVid)
+					pc.delqf("kill_target"..i)
+					chat(pc.getqf("wave_target_count"))
+					if pc.getqf("wave_target_count") > 1 then
+						pc.setqf("wave_target_count", pc.getqf("wave_target_count")-1)
+						pc.delqf("kill_target"..i)
+					else
+						pc.delqf("kill_target"..i)
+						pc.delqf("wave_target_count")
+						pc.setqf("wave", pc.getqf("wave")+1)
+						setstate(spawn_wave)
+					end
+				end
+			end
+		end
+		when logout or die begin
+			setstate(gotouriel2) 
+		end
+	end
+	state gotouriel2 begin
+		when enter or login begin
+			setstate(__COMPLETE__) 
+		end
+		-- when letter begin
+		-- 	local v=find_npc_by_vnum(QUEST_NPC_URIEL)
+		-- 	-- if 0 ~= v then
+		-- 	-- 	-- target.vid("__TARGET__", v, mob_name(QUEST_NPC_URIEL))
+		-- 	-- end
+		-- 	debug("gotouriel2.letter")
+		-- end
+		-- -- when letter begin
+		-- -- 	send_letter(translate.new_quest_lv24.gotouriel2.letter)
+		-- -- end
+		-- when button or info begin
+		-- 	say_title(translate.new_quest_lv24.gotouriel2.letter)
+		-- 	if pc.getqf("wave") >= table.getn(new_quest_lv24.get_waves()) then
+		-- 		say(translate.new_quest_lv24.gotouriel2.letterSuccess)
+		-- 	else
+		-- 		say(translate.new_quest_lv24.gotouriel2.letterFail)
+		-- 	end
+		-- end
+		-- when __TARGET__.target.click or QUEST_NPC_URIEL.chat.translate.new_quest_lv24.killanimals.letter begin
+		-- 	target.delete("__TARGET__")
+		-- 	if pc.getqf("wave") >= table.getn(new_quest_lv24.get_waves()) then
+		-- 		say_title(translate.new_quest_lv24.uriel)
+		-- 		say(translate.new_quest_lv24.gotouriel2.success1)
+		-- 		wait()
+		-- 		say_title(translate.new_quest_lv24.uriel)
+		-- 		say(translate.new_quest_lv24.gotouriel2.success2)
+		-- 		wait()
+		-- 		say_title(translate.new_quest_lv24.uriel)
+		-- 		give_reward(reward_data.new_quest_lv24.success)
+		-- 		clear_letter()
+		-- 		set_state (__COMPLETE__)
+		-- 	else
+		-- 		say_title(translate.new_quest_lv24.uriel)
+		-- 		say(translate.new_quest_lv24.gotouriel2.fail1)
+		-- 		wait()
+		-- 		say_title(translate.new_quest_lv24.uriel)
+		-- 		say(translate.new_quest_lv24.gotouriel2.fail2)
+		-- 		wait()
+		-- 		say_title(translate.new_quest_lv24.uriel)
+		-- 		give_reward(reward_data.new_quest_lv24.fail)
+		-- 		clear_letter()
+		-- 		set_state (__COMPLETE__)
+		-- 	local v=find_npc_by_vnum(QUEST_NPC_URIEL)
+		-- 	if 0 ~= v then
+		-- 		target.vid("__TARGET__", v, mob_name(QUEST_NPC_URIEL))
+		-- 	end
+		-- end
+		-- when letter begin
+		-- 	send_letter(translate.new_quest_lv24.gotouriel2.letter)
+		-- end
+		-- when button or info begin
+		-- 	say_title(translate.new_quest_lv24.gotouriel2.letter)
+		-- 	if pc.getqf("wave") >= table.getn(new_quest_lv24.get_waves()) then
+		-- 		say(translate.new_quest_lv24.gotouriel2.letterSuccess)
+		-- 	else
+		-- 		say(translate.new_quest_lv24.gotouriel2.letterFail)
+		-- 	end
+		-- end
+		-- when __TARGET__.target.click or QUEST_NPC_URIEL.chat.translate.new_quest_lv24.killanimals.letter begin
+		-- 	target.delete("__TARGET__")
+		-- 	if pc.getqf("wave") >= table.getn(new_quest_lv24.get_waves()) then
+		-- 		say_title(translate.new_quest_lv24.uriel)
+		-- 		say(translate.new_quest_lv24.gotouriel2.success1)
+		-- 		wait()
+		-- 		say_title(translate.new_quest_lv24.uriel)
+		-- 		say(translate.new_quest_lv24.gotouriel2.success2)
+		-- 		wait()
+		-- 		say_title(translate.new_quest_lv24.uriel)
+		-- 		give_reward(reward_data.new_quest_lv24.success)
+		-- 		clear_letter()
+		-- 		set_state (__COMPLETE__)
+		-- 	else
+		-- 		say_title(translate.new_quest_lv24.uriel)
+		-- 		say(translate.new_quest_lv24.gotouriel2.fail1)
+		-- 		wait()
+		-- 		say_title(translate.new_quest_lv24.uriel)
+		-- 		say(translate.new_quest_lv24.gotouriel2.fail2)
+		-- 		wait()
+		-- 		say_title(translate.new_quest_lv24.uriel)
+		-- 		give_reward(reward_data.new_quest_lv24.fail)
+		-- 		clear_letter()
+		-- 		set_state (__COMPLETE__)
+		-- 	end
+		-- end
+	end
+	
+	state __COMPLETE__ begin
+	end
+end

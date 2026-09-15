@@ -1,0 +1,43 @@
+if not ( horse . is_summon ( ) or horse . is_riding ( ) ) then 
+say_info ( ) 
+say_split ( translate . general . no_horse , say_reward ) 
+say ( ) 
+return 
+end 
+say_title ( gameforge . pony_levelup . _790_makequestbutton ) 
+if horse . get_level ( ) >= 11 then 
+say ( gameforge . pony_levelup . _800_say ) 
+elseif ( horse . get_level ( ) >= 1 and horse . get_level ( ) <= 10 ) then 
+local chance = 50 + pc . getqf ( "fail_count" ) * 25 
+if number ( 1 , 100 ) > chance then 
+say ( gameforge . pony_levelup . _810_say ) 
+pc . setqf ( "next_time" , 0 ) 
+pc . setqf ( "fail_count" , pc . getqf ( "fail_count" ) + 1 ) 
+else 
+say ( gameforge . pony_levelup . _820_say ) 
+if pc . count_item ( 50050 ) >= 1 then 
+setstate ( "start" ) 
+pc . setqf ( "fail_count" , 0 ) 
+char_log ( 0 , "PONY_ADVANCE" , "BEGIN" ) 
+pc . removeitem ( "50050" , 1 ) 
+char_log ( 0 , "PONY_ADVANCE" , "DEC 50050 1" ) 
+horse . unride ( ) 
+horse . advance ( ) 
+horse . ride ( ) 
+char_log ( 0 , "PONY_ADVANCE" , "INC horse_advance 1" ) 
+char_log ( 0 , "PONY_ADVANCE" , "END" ) 
+say ( string . format ( gameforge . pony_levelup . _830_say , ( horse . get_level ( ) ) ) ) 
+if horse . get_level ( ) == 10 then 
+say ( gameforge . pony_levelup . _840_say ) 
+pc . setqf ( "next_time" , 0 ) 
+else 
+say ( gameforge . pony_levelup . _850_say ) 
+end 
+return 
+else 
+say ( gameforge . pony_levelup . _860_say ) 
+end 
+end 
+end 
+setstate ( "start" ) 
+q . done ( ) 

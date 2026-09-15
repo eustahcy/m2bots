@@ -1,0 +1,173 @@
+quest new_escort_quest1 begin
+    state start begin
+        function get_waypoints()
+            return {
+                [3] = {
+                    {857,429},
+                    {873,408},
+                    {890,380},
+                    {903,351},
+                    {911,326},
+                    {914,298},
+                    {912,275},
+                    {890,267},
+                    {864,278},
+                    {833,302},
+                },
+                [23] = {
+                    {160, 354},
+                    {161, 373},
+                    {163, 397},
+                    {166, 427},
+                    {191, 453},
+                    {215, 469},
+                    {236, 450},
+                    {251, 432},
+                    {263, 424},
+                    {265, 445},
+                },
+                [43] = {
+                    {655, 180},
+                    {642, 199},
+                    {617, 205},
+                    {590, 195},
+                    {569, 186},
+                    {542, 184},
+                    {513, 181},
+                    {482, 179},
+                    {459, 178},
+                    {439, 177},
+                    {432, 161},
+                    {423, 142},
+                    {416, 127},
+                },
+            }
+        end
+
+        function create_waypoint()
+                local waypoints = new_escort_quest1.get_waypoints()[pc.get_map_index()]
+                if pc.getqf("waypoint_index") == table.getn(waypoints) then
+                    return 0, 0, true
+                end
+
+                pc.setqf("waypoint_index", pc.getqf("waypoint_index") + 1)
+                local index = pc.getqf("waypoint_index")
+                local x = waypoints[index][1]
+                local y = waypoints[index][2]
+                target.pos("__ESCORT__", x, y, pc.get_map_index(), "", 0, 500, 5000)
+                timer("escort_abort", 60)
+                return x,y,false
+        end
+
+        function abort_quest()
+            if npc.select(pc.getqf("escort_vid")) > 0 then
+                npc.purge()
+            end
+        end
+
+        when 20401.chat.translate.new_escort_quest1.state_start.npcChat with not npc.is_custom_flag2(CUSTOM_NPC_FLAG_LOCK_INTERACTION) begin
+            npc_name()
+            say_split(translate.new_escort_quest1.state_start.npcTalk)
+            if select(translate.new_escort_quest1.state_start.accept, translate.new_escort_quest1.state_start.cancel) == 2 then
+                npc_name()
+                say_split(translate.new_escort_quest1.state_start.cancelInfo)
+                return
+            end
+
+            npc_name()
+            say_split(translate.new_escort_quest1.state_start.acceptInfo)
+            wait()
+           
+            if npc.is_custom_flag2(CUSTOM_NPC_FLAG_LOCK_INTERACTION) then
+                say_info()
+                say_split(translate.escort.busy, say_reward)
+                return
+            end
+            setskin(NOWINDOW)
+            npc.set_custom_npc_flag2(CUSTOM_NPC_FLAG_LOCK_INTERACTION)
+            pc.setqf("escort_vid", npc.get_vid())
+            pc.setqf("waypoint_index", 0)
+            x, y, is_last = new_escort_quest1.create_waypoint()
+            npc.go_to(x, y)
+            npc.say_me(translate.new_escort_quest1.state_start.escort_start)
+            set_state(escort)
+        end
+
+    end
+    state escort begin
+        when __ESCORT__.target.leave or logout or escort_abort.timer begin
+            new_escort_quest1.abort_quest()
+            cleartimer("escort_abort")
+            target.delete("__ESCORT__")
+            set_state(start)
+        end
+
+        when __ESCORT__.target.arrive begin
+            local vid = pc.getqf("escort_vid")
+            if npc.select(vid) < 1 then
+                debug("cant select npc")
+                return
+            end
+            
+            local current_waypoint = new_escort_quest1.get_waypoints()[pc.get_map_index()][pc.getqf("waypoint_index")]
+            wp_x, wp_y = map_local_to_global_position(pc.get_map_index(), current_waypoint[1], current_waypoint[2])
+            if npc.distance_to_point(wp_x*100, wp_y*100) > 50 then
+                debug("waiting for NPC")
+                return
+            end
+            target.delete("__ESCORT__")
+            cleartimer("escort_abort")
+            
+            x, y, is_last = new_escort_quest1.create_waypoint()
+            if is_last then
+                debug("LAST POINT")
+                local special_x = npc.get_x()
+                local special_y = npc.get_y()
+                npc.purge()
+
+                local spawnMobs = {501, 501, 502, 502, 505}
+                for i, vnum in ipairs(spawnMobs) do
+                    local is_special = vnum == 505
+                    local x,y;
+                    if is_special then
+                        x = special_x
+                        y = special_y
+                    else
+                        local random_pos = number(1,100) / 100
+                        x, y = getPositionOnCircle(pc.get_x(), pc.get_y(), 10, random_pos)
+                    end
+
+                    local vid = spawn_mob(vnum, x*100, y*100, 0, pc.get_vid())
+                    if vid > 0 then
+                        npc.set_custom_npc_flag(vid, CUSTOM_NPC_FLAG_PURGE_ON_AGGRO_LOSE)
+                        if is_special then
+                            npc.say(vid, translate.new_escort_quest1.state_start.escort_end)
+                        else
+                            npc.say(vid, translate.new_escort_quest1.state_start.attack_start)
+                        end
+                        
+                    end
+                end
+
+                
+            else
+                debug("GO TO NEXT POINT")
+                npc.say_me(table_get_random_item(translate.new_escort_quest1.state_start.escort_talk))
+                npc.go_to(x, y)
+            end
+        end
+
+        when 505.kill begin
+            npc.say_me(translate.new_escort_quest1.state_start.kill)
+            set_state(complete)
+            pc.change_money(10000)
+            pc.give_exp2(50000)
+            game.drop_item_with_ownership(25052, 1, 60)
+        end
+    end
+    state complete begin
+        when 20401.click begin
+            npc.say_me(table_get_random_item(translate.new_escort_quest1.state_complete.random_msg))
+        end
+    end
+end

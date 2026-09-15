@@ -1,0 +1,54 @@
+quest guild_war_join begin
+    state start begin
+		when letter with ( pc.get_map_index() != 71 and pc.get_map_index() != 104 and pc.get_map_index() != 72 and  pc.get_map_index() != 73 and pc.get_map_index() != 208) and pc.get_map_index() <= 200 begin
+			local e = guild.get_any_war()
+
+			if e != 0 and pc.get_war_map() == 0 then
+			setskin(NOWINDOW)
+			make_quest_button_ex(gameforge.locale.guild.war_join_request, "ex", "scroll_open_highlight")
+			end
+		end
+
+		when button with ( pc.get_map_index() != 71 and pc.get_map_index() != 104 and pc.get_map_index() != 72 and pc.get_map_index() != 73 and pc.get_map_index() != 208) and pc.get_map_index() <= 200 begin
+			local e = guild.get_any_war()
+			say_info()
+			if e == 0 then
+				say(gameforge.locale.guild.war_over)
+			else
+				say(string.format(gameforge.guild_war_join._10_say, guild.name(e)))
+
+				local s =  select(gameforge.locale.guild.yes, gameforge.locale.guild.no)
+
+				if s == 1 then
+					if horse.is_riding() then
+						say_info()
+						say(gameforge.guild_war_join.no_horse)
+						return
+					end
+					guild.war_enter(e)
+					pc.setqf("last_x", pc.get_x())
+					pc.setqf("last_y", pc.get_y())
+				else
+					setskin(NOWINDOW)
+					makequestbutton(gameforge.locale.guild.war_join_request)
+				end
+			end
+		end
+
+		when login with is_on_war_map() begin
+			if horse.is_riding() then
+				horse.unride()
+				horse.unsummon()
+			end
+		end
+
+		when write with mes.get_message() == "guild_exit_war" and is_on_war_map() begin
+			local e = guild.get_any_war()
+			if e != 0 then
+				guild.leave_war()
+			end
+		end
+    end
+end
+
+

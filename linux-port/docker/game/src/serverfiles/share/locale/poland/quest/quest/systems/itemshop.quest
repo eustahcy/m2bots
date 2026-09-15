@@ -1,0 +1,90 @@
+quest itemshop_manage begin
+    state start begin
+        when write with mes.get_message() == "itemshop" begin
+            local args = mes.get_arguments()
+            local argsLen = table.getn(args)
+
+            if argsLen < 1 then
+                debug("no parameters")
+                return
+            end
+
+            local commands = {
+                ["open"] = { args=2 },
+                ["buy"] = { args=3 },
+            }
+            local cmd = args[1]
+            local cmdArgs = commands[cmd]
+            if cmdArgs != nil and argsLen < cmdArgs.args then
+                debug("no parameters (need %d parameters)", cmdArgs.args)
+                return
+            end
+
+            if cmd == "open" then
+                local isRefresh = args[2] == "true"
+                itemshop.OpenItemShop(isRefresh)
+            elseif cmd == "close" then
+                itemshop.CloseItemShop()
+            elseif cmd == "refresh" then
+                itemshop.RefreshItemShop()
+            elseif cmd == "buy" then
+                local itemIndex = tonumber(args[2])
+                local quantity = tonumber(args[3])
+                itemshop.BuyItem(itemIndex, quantity)
+            elseif cmd == "auction_open" then
+                pc.open_itemshop_auction()
+            elseif cmd == "auction_close" then
+                pc.close_itemshop_auction()
+            elseif cmd == "use_voucher" then
+                local code = args[2]
+                if string.len(code) < 3 or string.len(code) > 20 then
+                    return
+                end
+                pc.use_code_voucher(args[2])
+            end
+        end
+
+        when 80014.use or 80015.use or 80016.use or 80017.use or 80018.use begin
+            if game.get_event_flag("block_dragon_voucher") > 0 then
+                syschat(get_lctext("This feature is temporarily unavailable."))
+                return
+            end
+
+            local value = item.get_value(0)
+            local id = item.get_id()
+            if item.remove() then
+                debug("use dragon coin scroll (add +%d)", value)
+                pc.charge_cash(value)
+                write_log(string.format("INSERT INTO itemshop_dragon_scroll VALUES (%d, %d, NOW(), %d, %d)", pc.get_player_id(), pc.get_account_id(), id, value))
+            end
+        end
+
+        when 72199.use begin
+            if pc.get_premium_subscription_remain_sec() > 0 or pc.getqf("use_premium_token") > get_time() then
+                syschat(translate.premium_token.has_premium)
+                return
+            end
+            
+            say_info()
+            say_split(translate.premium_token.info)
+            say()
+            if select(translate.general.yes, translate.general.no) == 2 then
+                return
+            end
+
+            if not check_safe_item() then return end
+
+            if not pc.can_warp() then
+                say_info()
+                say_split(translate.general.wait_after_exchange)
+                say()
+                return
+            end
+
+            if item.remove() then
+                pc.add_vip(8, 720) -- premium 30 dni
+                pc.setqf("use_premium_token", get_time() + 3600*24) -- blokada na 24h na uzycie zeby nie uzyl 2 razy
+            end
+        end
+    end
+end

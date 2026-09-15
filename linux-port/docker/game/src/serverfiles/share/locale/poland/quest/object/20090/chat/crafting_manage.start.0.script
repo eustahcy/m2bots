@@ -1,0 +1,5 @@
+npc_name ( ) 
+say_split ( translate . crafting . npc . halfdemon . talk1 ) 
+wait ( ) 
+crafting . open ( CRAFTING_HALFDEMON ) 
+setskin ( NOWINDOW ) 

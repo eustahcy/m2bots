@@ -1,0 +1,11 @@
+quest wl_pass begin
+    state start begin
+        when login with pc.get_map_index() == 69 begin
+            timer("wl_pass_whisper", number(10,30))
+        end
+
+        when wl_pass_whisper.timer begin
+            syschat(translate.wl_pass.whisper)
+        end
+    end
+end

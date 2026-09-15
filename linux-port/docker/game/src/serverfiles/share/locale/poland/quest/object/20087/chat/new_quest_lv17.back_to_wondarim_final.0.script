@@ -1,0 +1,21 @@
+target . delete ( "__TARGET__" ) 
+say_title ( gameforge . new_quest_lv17 . _020_say_title ) 
+say ( gameforge . new_quest_lv17 . _141_say ) 
+local s = select ( gameforge . new_quest_lv17 . _142_1_select , gameforge . new_quest_lv17 . _142_2_select ) 
+if s == 1 then 
+say_title ( gameforge . new_quest_lv17 . _012_say_title ) 
+say ( gameforge . new_quest_lv17 . _143_say ) 
+say ( gameforge . new_quest_lv17 . _144_say_reward_b ) 
+pc . remove_item ( 30173 , pc . count_item ( 30173 ) ) 
+set_state ( "__COMPLETE__" ) 
+give_reward ( "new_quest_lv17_lie" ) 
+q . done ( ) 
+return 
+end 
+if s == 2 then 
+say_title ( gameforge . new_quest_lv17 . _012_say_title ) 
+say ( gameforge . new_quest_lv17 . _145_say ) 
+say ( gameforge . new_quest_lv17 . _146_say_reward ) 
+q . done ( ) 
+set_state ( "goto_yangshin" ) 
+end 

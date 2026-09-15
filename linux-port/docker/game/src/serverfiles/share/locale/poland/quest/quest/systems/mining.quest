@@ -1,0 +1,24 @@
+quest mining begin
+	state start begin
+		when 20015.chat.gameforge.fisher._10_npcChat begin
+			setskin(NOWINDOW)
+			npc.open_shop()
+		end
+
+		when 20015.take with item.vnum >= 29101 and item.vnum < 29110 and item.get_socket(0) != item.get_value(2) begin
+			if not check_safe_item() then return end
+			say_title(gameforge.mining._10_sayTitle)
+			say(gameforge.mining._20_say)
+		end
+
+		when 20047.click or	20048.click or	20049.click or	20050.click or	20051.click or	20052.click or	20053.click or	20054.click or	20055.click or	20056.click or	20057.click or	20058.click or	20059.click
+			or 30301.click or 30302.click or 30303.click or 30304.click or 30305.click 
+		begin
+			if pc.is_mount() != true then
+				pc.mining()
+			end
+		end
+	end
+end
+
+

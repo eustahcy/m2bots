@@ -1,0 +1,24 @@
+if busy_action . is_busy ( "herb_pick" ) then 
+debug ( "already busy" ) 
+return 
+elseif not npc . is_near ( 2 ) then 
+syschat ( translate . herbalism . too_far ) 
+return 
+elseif pc . is_mount ( ) then 
+syschat ( translate . herbalism . no_horse ) 
+return 
+elseif pc . is_polymorphed ( ) then 
+syschat ( translate . general . polymorph ) 
+return 
+elseif pc . get_level ( ) < npc . get_level ( ) then 
+syschat ( string . format ( translate . herbalism . low_lvl , npc . get_level ( ) ) ) 
+return 
+end 
+local itemVnum = pc . get_wear ( WEAR_WEAPON ) 
+if itemVnum == nil or itemVnum < 29201 or itemVnum > 29210 then 
+syschat ( translate . herbalism . knife_needed ) 
+return 
+end 
+timer ( "herb_pick" , 3 ) 
+busy_action . start ( "herb_pick" , BUSY_ACTION_HERB , 3 ) 
+save_npc ( ) 

@@ -1,0 +1,6 @@
+if pc . count_item ( 30150 ) == 0 then 
+pc . give_item2 ( 30150 , 1 ) 
+end 
+set_state ( "gototeacher3" ) 
+say_title ( gameforge . main_quest_lv47 . _10_sayTitle ) 
+say ( gameforge . main_quest_lv47 . _20_say ) 

@@ -1,0 +1,7 @@
+quest qbook_manage begin
+    state start begin
+        when 50307.use or 50308.use or 50309.use or 50310.use begin
+            quest_book.start_quest()
+        end
+    end
+end

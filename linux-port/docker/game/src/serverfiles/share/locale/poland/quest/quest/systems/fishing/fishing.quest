@@ -1,0 +1,28 @@
+define FISHING_QUEST_STATE_FAIL 0
+define FISHING_QUEST_STATE_SUCCESS 1
+define FISHING_QUEST_STATE_PREDICT 2
+
+define FISH_ALIVE 0
+define FISH_DEAD 1
+quest fishing_quest begin
+	state start begin
+		when fishing begin
+			debug("fishing quest trigger!")
+			local fishingState = pc.get_fishing_state()
+			if fishingState == FISHING_QUEST_STATE_SUCCESS then
+				fishing_manage.success()
+			elseif fishingState == FISHING_QUEST_STATE_PREDICT then
+				fishing_manage.predict_fish()
+			end
+		end
+
+		when 12.use_type begin
+			if item.get_sub_type() == FISH_ALIVE then
+				fishing_drop.open_fish(item.get_vnum())
+				item.remove(1)
+			end
+		end
+	end
+end
+
+

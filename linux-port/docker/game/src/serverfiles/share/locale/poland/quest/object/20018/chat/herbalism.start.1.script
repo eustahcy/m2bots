@@ -1,0 +1,5 @@
+npc_name ( ) 
+say_split ( translate . herbalism . open_shop1 ) 
+wait ( ) 
+pc . open_special_shop ( 14 ) 
+setskin ( NOWINDOW ) 

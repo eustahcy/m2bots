@@ -1,0 +1,137 @@
+quest orcvalley_first_quest begin
+    state start begin
+        function task_data()
+            return {
+                {636, 15},
+                {637, 8},
+                {631, 25},
+                {632, 20},
+                {633, 20},
+                {634, 20},
+                {635, 10},
+                {701, 25},
+                {702, 20},
+                {703, 15},
+            }
+        end
+
+        function can_start_quest()
+            if pc.get_level() < 25 then
+                return "low_lvl"
+            elseif pc.get_reputation(FRACTION_ORC_VALLEY) < 0 then
+                return "low_reputation"
+            elseif pc.getqf("reset_time") > get_time() then
+                return "delay"
+            end
+
+            return "ok"
+        end
+
+        when login with pc.get_map_index() == 64 begin
+            if orcvalley_first_quest.can_start_quest() == "ok" then
+                send_target(20408 + pc.get_empire())
+            end
+        end
+
+        when
+            20409.chat.translate.reputation_orc_valley.first.name or
+            20410.chat.translate.reputation_orc_valley.first.name or
+            20411.chat.translate.reputation_orc_valley.first.name 
+        with pc.get_reputation(FRACTION_ORC_VALLEY) >= 0 and pc.get_empire() == npc.get_empire() begin
+            target.delete("__TARGET__")
+            npc_name()
+
+            local can_start = orcvalley_first_quest.can_start_quest()
+            if can_start == "low_lvl" then
+                say_split(msg(translate.reputation.quest_low_lvl, 25))
+                return
+            elseif can_start == "low_reputation" then
+                local rank = get_reputation_rank_by_total_value(0)
+                say_split(msg(translate.reputation.quest_low_reputation, translate.reputation.reputation_rank[rank+1]))
+                return
+            elseif can_start == "delay" then
+                say_split(translate.reputation.quest_wait)
+                return
+            end
+
+            say_split(translate.reputation_orc_valley.first.desc)
+            say()
+
+            local data = orcvalley_first_quest.task_data()
+            local quest_index = number(1, table.getn(data))
+            local task_data = data[quest_index]
+            say_reward(msg(translate.reputation_orc_valley.first.task, task_data[2], mob_name(task_data[1])))
+
+            pc.setqf("quest_index", quest_index)
+            pc.setqf("reset_time", get_time() + time_until_hour(GLOBAL_COOLDOWN_RESET_HOUR))
+            pc.setqf("progress", task_data[2])
+            set_state(progress)
+        end
+    end
+    state progress begin
+        when login with orcvalley_first_quest.can_start_quest() == "ok" begin
+            set_state(start)
+        end
+
+        when letter begin
+            send_letter_ex(translate.reputation_orc_valley.first.name, "ex", "scroll_open_blue")
+            q.set_counter(translate.general.left, pc.getqf("progress"))
+        end
+
+        when button or info begin
+            say_info()
+            say_split(translate.reputation_orc_valley.first.desc)
+            say()
+
+            local task_data = orcvalley_first_quest.task_data()[pc.getqf("quest_index")]
+            say_reward(msg(translate.reputation_orc_valley.first.task, task_data[2], mob_name(task_data[1])))
+            say_reward(translate.general.left..": "..pc.getqf("progress"))
+        end
+
+        when kill with not npc.is_pc() begin
+            local task_data = orcvalley_first_quest.task_data()[pc.getqf("quest_index")]
+            if npc.get_race() == task_data[1] then
+                pc.setqf("progress", pc.getqf("progress") - 1)
+                q.set_counter(translate.general.left, pc.getqf("progress"))
+                if pc.getqf("progress") < 1 then
+                    set_state(reward)
+                end
+            end
+        end
+    end
+    state reward begin
+        when login with orcvalley_first_quest.can_start_quest() == "ok" begin
+            set_state(start)
+        end
+
+        when letter begin
+            send_letter_ex(translate.reputation_orc_valley.first.name, "ex", "scroll_open_blue")
+            send_target(20408 + pc.get_empire())
+        end
+
+        when button or info begin
+            say_info()
+            say_split(translate.reputation.quest_done_letter)
+        end
+
+        when
+            20409.chat.translate.reputation_orc_valley.first.name or
+            20410.chat.translate.reputation_orc_valley.first.name or
+            20411.chat.translate.reputation_orc_valley.first.name
+            with pc.get_empire() == npc.get_empire()
+        begin
+            target.delete("__TARGET__")
+            npc_name()
+            say_split(translate.reputation_orc_valley.quest_done)
+            say()
+            set_state(start)
+
+            give_reward("orc_valley_rep1")
+            
+            say_reward(msg(translate.reputation.quest_reward_reputation, 2000, translate.reputation_orc_valley.fraction_name))
+            pc.add_reputation(FRACTION_ORC_VALLEY, 2000)
+
+            clear_letter()
+        end
+    end
+end

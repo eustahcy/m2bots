@@ -1,0 +1,3 @@
+if pc . get_level ( ) >= hunting . getData ( ) . reqLvl then debug ( "STARTING HUNTING QUEST" ) 
+set_state ( "information" ) 
+ return end 

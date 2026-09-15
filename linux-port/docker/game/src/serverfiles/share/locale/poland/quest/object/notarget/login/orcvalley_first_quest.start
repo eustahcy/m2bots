@@ -1,0 +1,4 @@
+if pc . get_map_index ( ) == 64 then if orcvalley_first_quest . can_start_quest ( ) == "ok" then 
+send_target ( 20408 + pc . get_empire ( ) ) 
+end 
+ return end 

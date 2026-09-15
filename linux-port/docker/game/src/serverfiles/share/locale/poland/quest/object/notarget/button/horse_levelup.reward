@@ -1,0 +1,43 @@
+if not ( horse . is_summon ( ) or horse . is_riding ( ) ) then 
+say_info ( ) 
+say_split ( translate . general . no_horse , say_reward ) 
+say ( ) 
+return 
+end 
+say_title ( gameforge . horse_levelup . _400_qSetTitle ) 
+if horse . get_level ( ) <= 10 then 
+say ( gameforge . horse_levelup . _410_say ) 
+elseif horse . get_level ( ) >= 20 then 
+say ( gameforge . horse_levelup . _420_say ) 
+elseif ( horse . get_level ( ) >= 11 and horse . get_level ( ) <= 19 ) then 
+local chance = 50 + pc . getqf ( "fail_count" ) * 25 
+if number ( 1 , 100 ) > chance then 
+say ( gameforge . horse_levelup . _430_say ) 
+pc . setqf ( "next_time" , 0 ) 
+pc . setqf ( "fail_count" , pc . getqf ( "fail_count" ) + 1 ) 
+else 
+say ( gameforge . horse_levelup . _440_say ) 
+if pc . countitem ( "50050" ) >= 1 then 
+pc . setqf ( "fail_count" , 0 ) 
+char_log ( 0 , "HORSE_ADVANCE" , "BEGIN" ) 
+pc . removeitem ( "50050" , 1 ) 
+char_log ( 0 , "HORSE_ADVANCE" , "DEC 50050 1" ) 
+horse . unride ( ) 
+horse . advance ( ) 
+horse . ride ( ) 
+char_log ( 0 , "HORSE_ADVANCE" , "INC horse_advance 1" ) 
+char_log ( 0 , "HORSE_ADVANCE" , "END" ) 
+say ( string . format ( gameforge . horse_levelup . _450_say , ( horse . get_level ( ) ) ) ) 
+if horse . get_level ( ) == 20 then 
+say ( gameforge . horse_levelup . _460_say ) 
+pc . setqf ( "next_time" , 0 ) 
+else 
+say ( gameforge . horse_levelup . _470_say ) 
+end 
+else 
+say ( gameforge . horse_levelup . _480_say ) 
+end 
+end 
+end 
+setstate ( "start" ) 
+clear_letter ( ) 

@@ -1,0 +1,24 @@
+﻿{% extends 'base.html' %}
+{% from 'partials/macros.html' import page_head with context %}
+{% block title %}Changelog{% endblock %}
+
+{% block content %}
+{{ page_head(panel_codename ~ ' · v' ~ panel_version, 'Changelog',
+             'Każda zmiana panelu jest zapisywana wraz z datą wdrożenia.') }}
+
+<section class="changelog">
+  {% for entry in entries %}
+    <article class="panel changelog-entry">
+      <header>
+        <strong>{{ entry.version }}</strong>
+        <time>{{ entry.timestamp }}</time>
+      </header>
+      <ul>
+        {% for change in entry.changes %}<li>{{ change }}</li>{% endfor %}
+      </ul>
+    </article>
+  {% else %}
+    <article class="panel"><p class="muted">Brak wpisów.</p></article>
+  {% endfor %}
+</section>
+{% endblock %}

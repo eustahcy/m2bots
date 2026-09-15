@@ -1,0 +1,7 @@
+# The operator's own configuration - it holds the database password and the
+# session secret.
+tuike.env
+
+__pycache__/
+*.py[cod]
+.venv/

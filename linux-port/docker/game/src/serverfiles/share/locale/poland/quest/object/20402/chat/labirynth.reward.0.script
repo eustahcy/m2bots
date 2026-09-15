@@ -1,0 +1,7 @@
+pc . setqf ( "complete" , 0 ) 
+npc_name ( ) 
+say_split ( translate . labirynth . chat4 ) 
+wait ( ) 
+setskin ( NOWINDOW ) 
+pc . open_special_shop ( 20402 ) 
+set_state ( "complete" ) 

@@ -1,0 +1,202 @@
+﻿{% extends 'base.html' %}
+{% from 'partials/macros.html' import page_head, stat with context %}
+{% block title %}Pulpit{% endblock %}
+
+{% block content %}
+{{ page_head('CENTRUM KONTROLI', 'Stan świata',
+             'Mapa i liczniki odświeżają się na żywo. Historia pochodzi z kolektora.') }}
+
+<section class="stat-grid">
+  {{ stat('Postacie i konta',
+          (totals.characters or 0) ~ ' / ' ~ (totals.accounts or 0),
+          'w tym ' ~ bot_count ~ ' botów') }}
+  {{ stat('Yang w obiegu', thousands(totals.yang), 'suma przy postaciach') }}
+  {{ stat('Stosy przedmiotów', thousands(totals.item_stacks), 'ekwipunek i magazyny') }}
+  {{ stat('Playerbots', summary.release.installed,
+          summary.release.label, 'tone-' ~ summary.release.tone) }}
+</section>
+
+<section class="live" id="live">
+  <header class="live-head">
+    <div>
+      <p class="eyebrow"><span class="pulse"></span> NA ŻYWO</p>
+      <h2>Mapa świata</h2>
+      <p class="lead" id="live-restart">Ostatni restart: {{ summary.last_restart }}</p>
+    </div>
+    <span class="badge" id="live-count">Ładowanie…</span>
+  </header>
+
+  <div class="live-controls">
+    <select id="live-mode" aria-label="Tryb mapy">
+      <option value="live">Pozycje botów na żywo</option>
+      {% for key, _how in heat_types.items() %}
+        <option value="{{ key }}">Mapa cieplna: {{
+          {'deaths': 'zgony botów', 'metins': 'rozbite Metiny', 'bosses': 'zabite bossy'}[key]
+        }}</option>
+      {% endfor %}
+    </select>
+
+    <select id="live-map" aria-label="Mapa">
+      {% for index, name in live_maps %}
+        <option value="{{ index }}"
+                data-aspect="{{ map_aspect(index) }}"
+                data-background="{{ map_background(index) }}">{{ name }}</option>
+      {% endfor %}
+    </select>
+
+    <div class="segmented" role="group" aria-label="Filtr poziomu">
+      {% for value, label in level_filters %}
+        <button type="button" data-level="{{ value }}"
+                class="{{ 'active' if loop.first }}">{{ label }}</button>
+      {% endfor %}
+    </div>
+
+    <label class="check"><input id="show-names" type="checkbox" checked> Nicki</label>
+    <label class="check"><input id="party-only" type="checkbox"> Tylko grupy</label>
+    <label class="check"><input id="map-autoplay" type="checkbox"> Auto-zmiana map</label>
+    <input id="bot-search" placeholder="Szukaj bota…" autocomplete="off" aria-label="Szukaj bota">
+  </div>
+
+  <div class="live-body">
+    <div class="live-stage">
+      <div class="world-map" id="world-map" data-map-index="{{ live_maps[0][0] }}">
+        <span class="map-caption" id="map-caption">{{ live_maps[0][1] }}</span>
+      </div>
+      <ul class="legend">
+        <li><i class="dot"></i>Bot</li>
+        <li><i class="dot is-party"></i>W grupie</li>
+        <li><i class="dot is-stuck"></i>Możliwie zawieszony</li>
+        <li><i class="dot is-metin"></i>Walka z Metinem</li>
+      </ul>
+    </div>
+
+    <aside class="live-side">
+      <div class="mini-stats">
+        <div><b id="stat-visible">—</b><span>Widoczne</span></div>
+        <div><b id="stat-party">—</b><span>W grupie</span></div>
+        <div><b id="stat-average">—</b><span>Śr. poziom</span></div>
+        <div><b id="stat-max">—</b><span>Maks. poziom</span></div>
+      </div>
+      <section class="side-block">
+        <h3>Ranking na mapie</h3>
+        <div id="live-ranking" class="live-ranking"></div>
+      </section>
+      <section class="side-block">
+        <h3>Czym się zajmują</h3>
+        <div id="live-activity" class="activity-list"></div>
+      </section>
+    </aside>
+
+    <aside class="world-overview">
+      <p class="eyebrow">ŚWIAT</p>
+      <h3>Playerbots</h3>
+      <div class="overview-grid">
+        <div><b id="overview-bots">{{ summary.bots }}</b><span>Botów w grze</span></div>
+        <div><b id="overview-average">{{ summary.average_level }}</b><span>Śr. poziom</span></div>
+        <div><b id="overview-party">{{ summary.party_bots }}</b><span>W grupach</span></div>
+        <div><b id="overview-max">{{ summary.max_level }}</b><span>Maks. poziom</span></div>
+        <div><b>{{ summary.horse_average }}</b><span>Koń · śr.</span></div>
+        <div><b>{{ summary.horse_max }}</b><span>Koń · maks.</span></div>
+        <div><b>{{ summary.guilds }}</b><span>Gildie botów</span></div>
+        <div><b id="overview-stuck">{{ summary.stuck_bots }}</b><span>Zawieszone</span></div>
+      </div>
+      <section class="overview-rates">
+        <h4>Mnożniki serwera</h4>
+        {% for key, label in [('exp', 'Doświadczenie'), ('drop', 'Drop przedmiotów'), ('yang', 'Drop Yang')] %}
+          <div><span>{{ label }}</span><b id="rate-{{ key }}">{{ summary.rates[key] }}%</b></div>
+        {% endfor %}
+      </section>
+      <section class="overview-maps" id="overview-maps">
+        <h4>Boty na mapach</h4>
+        <p class="muted">Ładowanie…</p>
+      </section>
+    </aside>
+  </div>
+</section>
+
+<section class="widget-grid">
+  <article class="panel">
+    <h2>{{ 'Obciążenie Dockera' if settings.monitor_mode == 'docker' else 'Obciążenie hosta' }}</h2>
+    {% if telemetry %}
+      <div class="donuts">
+        <div class="donut"><canvas id="cpu-donut"></canvas>
+          <b>{{ telemetry.cpu_percent }}%<small>CPU</small></b></div>
+        <div class="donut"><canvas id="ram-donut"></canvas>
+          <b>{{ telemetry.ram_percent }}%<small>RAM</small></b></div>
+        {% if settings.monitor_mode == 'vps' %}
+          <div class="donut"><canvas id="disk-donut"></canvas>
+            <b>{{ telemetry.disk_percent }}%<small>Dysk</small></b></div>
+        {% endif %}
+      </div>
+      <dl class="readouts">
+        <div><dt>Pamięć</dt><dd>{{ telemetry.ram_used_mb }} / {{ telemetry.ram_total_mb }} MB</dd></div>
+        {% if settings.monitor_mode == 'vps' %}
+          <div><dt>Dysk</dt>
+            <dd>{{ '%.1f'|format((telemetry.disk_used_mb or 0) / 1024) }} /
+                {{ '%.1f'|format((telemetry.disk_total_mb or 0) / 1024) }} GB</dd></div>
+        {% endif %}
+      </dl>
+      <p><a class="ghost-link" href="{{ url_for('system.index') }}">Pełna telemetria →</a></p>
+    {% else %}
+      <p class="muted">Kolektor nie wykonał jeszcze pierwszego odczytu.</p>
+    {% endif %}
+  </article>
+
+  <article class="panel">
+    <h2>Boty według map</h2>
+    <div class="donut donut-wide"><canvas id="map-donut"></canvas></div>
+    <script id="map-data" type="application/json">{{ map_load|tojson }}</script>
+  </article>
+
+  <article class="panel carousel">
+    <header class="carousel-head">
+      <div>
+        <h2 id="carousel-title">{{ quick_rankings[0].title }}</h2>
+        <p class="muted" id="carousel-subtitle">{{ quick_rankings[0].subtitle }}</p>
+      </div>
+      <div class="carousel-arrows">
+        <button type="button" id="carousel-prev" aria-label="Poprzedni ranking">‹</button>
+        <button type="button" id="carousel-next" aria-label="Następny ranking">›</button>
+      </div>
+    </header>
+    <div id="carousel-slides">
+      {% for board in quick_rankings %}
+        <ol class="carousel-slide" data-title="{{ board.title }}"
+            data-subtitle="{{ board.subtitle }}" {% if not loop.first %}hidden{% endif %}>
+          {% for row in board['items'] %}
+            <li class="{{ 'leader' if row.id == leader_id }}">
+              <a href="{{ url_for('characters.profile', pid=row.id) }}">
+                <img class="portrait portrait-tiny" src="{{ class_portrait(row.job) }}"
+                     alt="" aria-hidden="true" loading="lazy">{{ row.name }}</a>
+              <b>{{ row.value }}</b>
+            </li>
+          {% else %}
+            <li class="muted">Brak danych.</li>
+          {% endfor %}
+        </ol>
+      {% endfor %}
+    </div>
+    <div class="carousel-dots">
+      {% for board in quick_rankings %}
+        <button type="button" class="{{ 'active' if loop.first }}"
+                data-slide="{{ loop.index0 }}" aria-label="{{ board.title }}"></button>
+      {% endfor %}
+    </div>
+  </article>
+</section>
+
+<section class="ticker" id="ticker" aria-live="polite">
+  <span class="ticker-label">✦ Ze świata</span>
+  <button type="button" id="ticker-toggle" class="ghost" aria-expanded="true">Ukryj</button>
+  <div class="ticker-window">
+    <ol id="news-feed"><li class="muted">Ładowanie wydarzeń…</li></ol>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+<script src="{{ url_for('static', filename='js/live-map.js') }}"></script>
+<script src="{{ url_for('static', filename='js/news.js') }}"></script>
+{% endblock %}

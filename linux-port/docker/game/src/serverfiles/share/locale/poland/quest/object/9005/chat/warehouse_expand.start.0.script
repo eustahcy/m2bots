@@ -1,0 +1,24 @@
+npc_name ( ) 
+if pc . get_level ( ) < 30 then 
+say_split ( translate . warehouse_expand . state_start . npc_low_level ) 
+return 
+end 
+say_split ( string . format ( translate . warehouse_expand . state_start . npc_talk1 , get_map_name ( get_player_map2_index ( ) ) ) ) 
+wait ( ) 
+npc_name ( ) 
+say_split ( translate . warehouse_expand . state_start . npc_talk2 ) 
+say ( ) 
+say_reward ( translate . warehouse_expand . state_start . add_info ) 
+if select ( translate . general . yes , translate . general . no ) == 2 then 
+setskin ( NOWINDOW ) 
+return 
+end 
+npc_name ( ) 
+if horse . is_riding ( ) then 
+say_split ( translate . warehouse_expand . state_start . riding_horse ) 
+return 
+end 
+say_split ( translate . warehouse_expand . state_start . npc_talk3 ) 
+affect . add_new ( AFFECT_QUEST_USE , POINT_MOV_SPEED , - 30 , 600 , AFF_QUEST_BOX , true ) 
+pc . setqf ( "start_quest" , get_time ( ) + 600 ) 
+set_state ( "progress" ) 

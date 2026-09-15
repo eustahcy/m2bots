@@ -1,0 +1,28 @@
+Companion pack 1.0.0 / build line 2.x / server 2.0.14 / revision 41023
+Validated 2026-09-12.
+
+PASS: 51 isolated installer assertions, using Windows PowerShell subprocesses.
+Includes install/uninstall/rollback byte equality, repeat install, adoption of
+existing changes, refusal of later edits and version/dependency mismatches,
+backup corruption, interrupted application/backup and operation locking.
+
+Fake Docker tests verified game-only build/deployment commands, no rebuild for
+an already deployed matching install, recoverable build failure, rollback after
+build failure, and resumption after deployment failure.
+
+PASS: all 18 baseline/payload SHA-256 hashes and all three overlay pairs.
+PASS: read-only compatibility check against the current live source tree.
+Seven managed files already match; the source/overlay combat headers need the
+exact owner-buff restore recovered from the final referenced conversation.
+
+NOT RUN: a real Docker build or in-game acceptance test of this packaged snapshot.
+No live source files, databases, containers or images were changed by packaging.
+
+Installer revision r2: four additional real-shell tests with a mock database
+client cover existing table without root, fresh table initialization, rejected
+credentials and denied game-account access. Credentials containing spaces and
+shell punctuation are preserved. Live database authentication is not verified.
+
+Uninstall baseline provenance is recorded per file in manifest.json. This is a
+strict package for these captured hashes, not a certification of every stock
+2.0.14 installation. Unknown hashes require review, even with a matching VERSION.

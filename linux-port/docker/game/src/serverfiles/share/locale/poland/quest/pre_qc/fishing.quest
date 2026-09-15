@@ -1,0 +1,22 @@
+quest fishing_quest begin
+	state start begin
+		when fishing begin
+			debug("fishing quest trigger!")
+			local fishingState = pc.get_fishing_state()
+			if fishingState == 1 then
+				fishing_manage.success()
+			elseif fishingState == 2 then
+				fishing_manage.predict_fish()
+			end
+		end
+
+		when 12.use_type begin
+			if item.get_sub_type() == 0 then
+				fishing_drop.open_fish(item.get_vnum())
+				item.remove(1)
+			end
+		end
+	end
+end
+
+

@@ -1,0 +1,11 @@
+quest xyz_refine_exchange begin
+    state start begin
+        when 9005.chat.translate.item_exchange.refineitem_chat begin
+            npc_name()
+            say_split(translate.item_exchange.refineitem_talk1)
+            wait()
+            setskin(NOWINDOW)
+            item_exchange.open(item_exchange.REFINEITEM_EXCHANGE)
+        end
+    end
+end

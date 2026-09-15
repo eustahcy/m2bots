@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="pl" data-theme="{{ current.theme }}" data-density="{{ current.density }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Pierwsza konfiguracja · {{ panel_codename }}</title>
+  <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/tuike.css') }}">
+</head>
+<body class="centred">
+<form method="post" class="card setup-card">
+  <div class="brand brand-stacked">
+    <span class="brand-mark">{{ panel_codename[0] }}</span>
+    <span class="brand-text"><b>{{ panel_codename }}</b><small>{{ panel_tagline }}</small></span>
+  </div>
+
+  <h1>Skonfiguruj panel</h1>
+  <p class="muted">Wszystko poniżej można później zmienić w Zarządzaniu.</p>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for _category, message in messages %}
+      <p class="flash error">{{ message }}</p>
+    {% endfor %}
+  {% endwith %}
+
+  <label class="field"><span>Nazwa panelu</span>
+    <input name="panel_name" maxlength="48" value="{{ current.panel_name }}" required></label>
+  <label class="field"><span>Alarm bez ruchu</span>
+    <input name="stuck_minutes" type="number" min="1" max="120"
+           value="{{ current.stuck_minutes }}" required><small>minut</small></label>
+  <label class="field"><span>Motyw</span>
+    <select name="theme">
+      {% for key, label in themes %}
+        <option value="{{ key }}" {{ 'selected' if current.theme == key }}>{{ label }}</option>
+      {% endfor %}
+    </select></label>
+  <label class="field"><span>Zagęszczenie</span>
+    <select name="density">
+      {% for key, label in densities %}
+        <option value="{{ key }}" {{ 'selected' if current.density == key }}>{{ label }}</option>
+      {% endfor %}
+    </select></label>
+  <label class="field"><span>Źródło monitoringu</span>
+    <select name="monitor_mode">
+      {% for key, label in monitor_modes %}
+        <option value="{{ key }}" {{ 'selected' if current.monitor_mode == key }}>{{ label }}</option>
+      {% endfor %}
+    </select></label>
+
+  <label class="switch"><span>Ochrona hasłem</span>
+    <input id="enable-auth" type="checkbox" name="auth_enabled" value="1">
+    <small>włącz, jeśli panel jest dostępny spoza tego komputera</small></label>
+  <label class="field" id="setup-password" hidden><span>Hasło panelu</span>
+    <input name="panel_password" type="password" minlength="8" autocomplete="new-password"
+           placeholder="co najmniej 8 znaków"></label>
+
+  <button type="submit">Zapisz i otwórz panel</button>
+</form>
+
+<script>
+  const toggle = document.getElementById('enable-auth');
+  const password = document.getElementById('setup-password');
+  toggle.addEventListener('change', () => { password.hidden = !toggle.checked; });
+</script>
+</body>
+</html>

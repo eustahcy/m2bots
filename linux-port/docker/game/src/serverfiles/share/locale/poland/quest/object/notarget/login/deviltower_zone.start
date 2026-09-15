@@ -1,0 +1,17 @@
+if pc . get_map_index ( ) == 66 then 
+if pc . getqf ( "pass_enter" ) == 0 then 
+pc . warp ( ( 5376 + 532 ) * 100 , ( 512 + 596 + 4 ) * 100 , 65 ) 
+return 
+end 
+pc . delqf ( "pass_enter" ) 
+end 
+if in_dungeon ( 66 ) then 
+pc . set_exit_location ( 66 , 1397 , 8550 ) 
+pc . set_warp_location ( 66 , 1397 , 8550 ) 
+if d . get_level ( ) == 5 then 
+d . affect_all ( AFFECT_DEVILTOWER_DAMAGE , POINT_CURSE_PCT , d . getf ( "damage" ) * 5 , INFINITE_AFFECT_DURATION ) 
+end 
+elseif pc . has_affect ( AFFECT_DEVILTOWER_DAMAGE ) then 
+affect . remove_new ( AFFECT_DEVILTOWER_DAMAGE ) 
+debug ( "usuwam?" ) 
+end 

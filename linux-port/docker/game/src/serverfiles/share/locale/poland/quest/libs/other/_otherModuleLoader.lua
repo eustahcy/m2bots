@@ -1,0 +1,6 @@
+dofile( LIBDIR .. "other/game_commands.lua")
+dofile( LIBDIR .. "other/reward_data.lua")
+dofile( LIBDIR .. "other/hunting_data.lua")
+dofile( LIBDIR .. "other/collect_data.lua")
+dofile( LIBDIR .. "other/busy_action.lua")
+dofile( LIBDIR .. "other/potion_system.lua")

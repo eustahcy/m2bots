@@ -1,0 +1,2 @@
+say_title ( gameforge . arena_manager . _20_sayTitle ) 
+say ( gameforge . arena_manager . _30_say ) 

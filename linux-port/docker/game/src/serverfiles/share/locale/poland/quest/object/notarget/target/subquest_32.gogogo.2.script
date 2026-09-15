@@ -1,0 +1,47 @@
+target . delete ( "__TARGET2__" ) 
+if pc . getf ( "subquest_32" , "jewel_done" ) == 0 then 
+say_title ( gameforge . find_squareguard . _130_sayTitle ) 
+say ( gameforge . subquest_32 . _300_say ) 
+wait ( ) 
+say_title ( gameforge . subquest_27 . _160_sayTitle ) 
+say ( gameforge . subquest_32 . _310_say ) 
+say_item_vnum ( 30143 ) 
+say_item_vnum ( 30144 ) 
+say ( gameforge . subquest_32 . _320_say ) 
+wait ( ) 
+say_title ( gameforge . subquest_27 . _160_sayTitle ) 
+say ( gameforge . subquest_32 . _330_say ) 
+local s = select ( gameforge . subquest_01 . _50_select , gameforge . subquest_01 . _60_select ) 
+if 2 == s then 
+say ( gameforge . subquest_32 . _60_say ) 
+local a = select ( gameforge . subquest_12 . _select_yes , gameforge . subquest_12 . _select_no ) 
+if 2 == a then 
+say_title ( gameforge . subquest_27 . _160_sayTitle ) 
+say ( gameforge . subquest_32 . _340_say ) 
+return 
+end 
+say_title ( gameforge . subquest_27 . _160_sayTitle ) 
+say ( gameforge . subquest_32 . _350_say ) 
+set_state ( "__GIVEUP__" ) 
+return 
+end 
+say_title ( gameforge . subquest_27 . _160_sayTitle ) 
+say ( gameforge . subquest_32 . _360_say ) 
+pc . setqf ( "jewel_done" , 1 ) 
+return 
+end 
+if pc . count_item ( 30141 ) < 1 and pc . count_item ( 30143 ) >= 1 and pc . count_item ( 30144 ) >= 10 then 
+target . delete ( "__TARGET2__" ) 
+say_title ( gameforge . subquest_27 . _160_sayTitle ) 
+say ( gameforge . subquest_32 . _380_say ) 
+pc . give_item2 ( 30141 ) 
+pc . remove_item ( 30143 , 1 ) 
+pc . remove_item ( 30144 , 10 ) 
+if pc . count_item ( 30140 ) > 0 and pc . count_item ( 30139 ) >= 100 then 
+set_state ( "all_item_done" ) 
+return 
+end 
+return 
+end 
+pc . setqf ( "jewel_done" , 0 ) 
+setskin ( NOWINDOW ) 

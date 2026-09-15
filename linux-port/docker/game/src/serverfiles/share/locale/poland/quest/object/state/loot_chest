@@ -1,0 +1,15 @@
+loot_chest={["start"]=0,get_chest_max_level= function ()local race = npc . get_race ( ) 
+local max_level_by_race = { 
+[ 20702 ] = 36 , 
+[ 20703 ] = 52 , 
+[ 20704 ] = 52 , 
+[ 20705 ] = 68 , 
+[ 20706 ] = 68 , 
+[ 20709 ] = 99 , 
+[ 20710 ] = 99 , 
+} 
+if max_level_by_race [ race ] == nil then 
+return npc . get_level ( ) + 20 
+end 
+return max_level_by_race [ race ] 
+end }

@@ -1,0 +1,13 @@
+local duration = pc . getqf ( "start_quest" ) - get_time ( ) 
+debug ( "left: %d" , duration ) 
+if duration < 1 then 
+warehouse_expand . abort_quest ( ) 
+return 
+end 
+send_letter ( translate . warehouse_expand . quest_name ) 
+if pc . get_map_index ( ) == get_player_map2_index ( ) then 
+send_target ( 9005 ) 
+end 
+q . set_clock ( "Czas" , duration ) 
+timer ( "warehouse_expand_time" , duration ) 
+loop_timer ( "warehouse_expand_ambush" , 30 ) 

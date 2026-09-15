@@ -1,0 +1,32 @@
+target . delete ( "__TARGET__" ) 
+if pc . count_item ( 30271 ) >= 1 then 
+say_title ( gameforge . find_squareguard . _130_sayTitle ) 
+say ( gameforge . subquest_10 . _200_say ) 
+wait ( ) 
+pc . remove_item ( 30271 , 1 ) 
+say_title ( gameforge . collect_herb_lv4 . _130_sayTitle ) 
+set_state ( "__COMPLETE__" ) 
+give_reward ( "subquest_10" ) 
+clear_letter ( ) 
+else 
+say_title ( gameforge . find_squareguard . _130_sayTitle ) 
+say ( gameforge . subquest_10 . _220_say ) 
+say_item_vnum ( 30271 ) 
+local s = select ( gameforge . locale . levelup . prev_quest_go , gameforge . subquest_10 . _230_select ) 
+if 2 == s then 
+say ( gameforge . subquest_10 . _240_say ) 
+local a = select ( gameforge . subquest_12 . _select_yes , gameforge . subquest_12 . _select_no ) 
+if 2 == a then 
+say_title ( gameforge . find_squareguard . _130_sayTitle ) 
+say ( gameforge . subquest_10 . _250_say ) 
+set_state ( "information" ) 
+return 
+end 
+say_title ( gameforge . find_squareguard . _130_sayTitle ) 
+say ( gameforge . subquest_10 . _260_say ) 
+set_state ( "__GIVEUP__" ) 
+return 
+end 
+say_title ( gameforge . find_squareguard . _130_sayTitle ) 
+say ( gameforge . subquest_10 . _270_say ) 
+end 

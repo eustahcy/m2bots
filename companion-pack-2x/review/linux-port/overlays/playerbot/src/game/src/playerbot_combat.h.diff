@@ -1,0 +1,85 @@
+diff --git a/linux-port/overlays/playerbot/src/game/src/playerbot_combat.h b/linux-port/overlays/playerbot/src/game/src/playerbot_combat.h
+index 3e91050..f11c761 100644
+--- a/linux-port/overlays/playerbot/src/game/src/playerbot_combat.h
++++ b/linux-port/overlays/playerbot/src/game/src/playerbot_combat.h
+@@ -140,7 +140,79 @@ namespace
+ 				buffVnum == 109;    // Leczenie           (Szaman)
+ 	}
+ 
+-	bool ManagePlayerBotCombatBuffs(LPCHARACTER ch, TPlayerBotAIState& state, DWORD dwNow)
++	bool ManagePlayerBotCompanionOwnerBuffs(
++	LPCHARACTER ch,
++	LPCHARACTER owner,
++	TPlayerBotAIState& state,
++	DWORD dwNow)
++{
++	if (!ch || !owner || ch->IsDead() || owner->IsDead())
++		return false;
++
++	if (ch->GetJob() != JOB_SHAMAN || ch->GetSkillGroup() == 0)
++		return false;
++
++	if (ch->GetMapIndex() != owner->GetMapIndex())
++		return false;
++
++	if (DISTANCE_APPROX(
++			ch->GetX() - owner->GetX(),
++			ch->GetY() - owner->GetY()) > 2000)
++		return false;
++
++	const TJobSkillBuild build =
++		GetPlayerBotSkillBuild(
++			ch->GetJob(),
++			ch->GetSkillGroup(),
++			ch->GetPlayerID());
++
++	for (size_t i = 0;
++		i < sizeof(build.dwBuffSkills) / sizeof(build.dwBuffSkills[0]);
++		++i)
++	{
++		const DWORD buffVnum = build.dwBuffSkills[i];
++
++		if (buffVnum == 0 || ch->GetSkillLevel(buffVnum) == 0)
++			continue;
++
++		if (buffVnum == 109)
++		{
++			if (owner->GetMaxHP() <= 0 ||
++				(owner->GetHP() * 100) / owner->GetMaxHP() > 60)
++				continue;
++		}
++		else
++		{
++			if (IsPlayerBotBuffActive(owner, buffVnum, dwNow, state))
++				continue;
++		}
++
++		if (!ch->UseSkill(buffVnum, owner))
++			continue;
++
++		SendPlayerBotSkillPacket(ch, buffVnum);
++
++		state.dwLastBotSkillTime = dwNow;
++		state.dwNextAttackTime = dwNow + PLAYERBOT_SKILL_ANIMATION_LOCK;
++
++		if (buffVnum != 109)
++			state.mapBuffActiveUntil[buffVnum] =
++				dwNow + PLAYERBOT_BUFF_FALLBACK_DURATION;
++
++		sys_log(0,
++			"PLAYERBOT_COMPANION: owner buff pid=%u owner_pid=%u vnum=%u",
++			ch->GetPlayerID(),
++			owner->GetPlayerID(),
++			buffVnum);
++
++		return true;
++	}
++
++	return false;
++}
++
++
++bool ManagePlayerBotCombatBuffs(LPCHARACTER ch, TPlayerBotAIState& state, DWORD dwNow)
+ 	{
+ 		if (!ch || ch->GetSkillGroup() == 0 || dwNow < state.dwNextBuffCheckTime)
+ 			return false;

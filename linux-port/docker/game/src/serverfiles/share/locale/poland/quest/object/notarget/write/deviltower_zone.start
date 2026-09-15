@@ -1,0 +1,11 @@
+if mes . get_message ( ) == "deviltower_jump_smith" and pc . is_gm ( ) and in_dungeon ( 66 ) then if d . get_level ( ) > 1 then 
+syschat ( "GM: Musisz byc na 1 lub 2 pietrze DT." ) 
+return 
+end 
+d . reset_warp_at_eliminate ( ) 
+d . set_level ( 4 ) 
+d . clear_regen ( ) 
+local fifth_location = deviltower_zone . get_level_location ( 5 ) 
+d . regen_file ( fifth_location . regen ) 
+d . jump_all ( fifth_location . x , fifth_location . y ) 
+ return end 

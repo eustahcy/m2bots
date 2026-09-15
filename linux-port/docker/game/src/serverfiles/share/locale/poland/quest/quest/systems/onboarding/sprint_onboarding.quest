@@ -1,0 +1,19 @@
+quest sprint_onboarding begin
+    state start begin
+        when login or levelup with pc.get_level() >= 3 begin
+            set_state(information)
+        end
+    end
+    state information begin
+        when login or enter begin
+            send_letter(translate.sprint_onboarding.letter)
+        end
+        when button or info begin
+            cmdchat("SprintOnboarding")
+            clear_letter()
+            set_state(complete)
+        end
+    end
+    state complete begin
+    end
+end

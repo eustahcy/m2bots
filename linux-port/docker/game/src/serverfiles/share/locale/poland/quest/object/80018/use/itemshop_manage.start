@@ -1,0 +1,11 @@
+if game . get_event_flag ( "block_dragon_voucher" ) > 0 then 
+syschat ( get_lctext ( "This feature is temporarily unavailable." ) ) 
+return 
+end 
+local value = item . get_value ( 0 ) 
+local id = item . get_id ( ) 
+if item . remove ( ) then 
+debug ( "use dragon coin scroll (add +%d)" , value ) 
+pc . charge_cash ( value ) 
+write_log ( string . format ( "INSERT INTO itemshop_dragon_scroll VALUES (%d, %d, NOW(), %d, %d)" , pc . get_player_id ( ) , pc . get_account_id ( ) , id , value ) ) 
+end 

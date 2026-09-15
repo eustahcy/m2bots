@@ -1,0 +1,8 @@
+if pc . getqf ( "kill_count" ) == 0 then local s = number ( 1 , 100 ) 
+if s <= 5 and pc . count_item ( "30152" ) == 0 then 
+pc . give_item2 ( 30152 , 1 ) 
+say_title ( gameforge . subquest_21 . _140_sayTitle ) 
+say ( gameforge . subquest_21 . _130_sayReward ) 
+send_letter ( gameforge . subquest_21 . _120_targetVid ) 
+end 
+ return end 

@@ -1,0 +1,5 @@
+npc_name ( ) 
+say_split ( translate . magic_ore . chat ) 
+wait ( ) 
+crafting . open ( CRAFTING_ALCHEMIST_ORE ) 
+setskin ( NOWINDOW ) 

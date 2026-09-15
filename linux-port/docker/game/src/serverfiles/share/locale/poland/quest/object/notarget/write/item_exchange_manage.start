@@ -1,0 +1,13 @@
+if mes . get_message ( ) == "item_exchange" then local args = mes . get_arguments ( ) 
+if table . getn ( args ) ~= 1 then 
+debug ( "wrong parameters" ) 
+return 
+end 
+local option = args [ 1 ] 
+if option == "close" then 
+item_exchange . close ( ) 
+else 
+local inven_slots = item_exchange . get_inventory_slots_from_argument ( option ) 
+item_exchange . exchange ( inven_slots ) 
+end 
+ return end 

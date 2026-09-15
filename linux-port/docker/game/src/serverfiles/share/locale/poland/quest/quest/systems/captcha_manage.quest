@@ -1,0 +1,26 @@
+quest captcha_manage begin
+    state start begin
+        when write with mes.get_message() == "captcha_respond" begin
+            if not pc.is_captcha() then
+                return
+            end
+
+            local args = mes.get_arguments()
+            local args_len = table.getn(args)
+            if args_len < 1 or args_len > 2 then
+                return
+            end
+
+            if args[1] == "verify" then
+                if args_len < 2 then
+                    return
+                end
+                
+                local code = args[2]
+                pc.captcha_verify(code)
+            elseif args[1] == "change_request" then
+                pc.captcha_request_change()
+            end
+        end
+    end
+end

@@ -1,0 +1,28 @@
+quest trade_chat begin
+    state start begin
+        when login or levelup with pc.get_level() >= 20 begin
+            set_state(information)
+        end
+    end
+    state information begin
+        when letter begin
+            send_letter(translate.trade_chat.letter)
+        end
+        when button or info begin
+            say_title(translate.trade_chat.letter)
+            say()
+            say_split(translate.trade_chat.info1)
+            say()
+            say_orange(translate.trade_chat.example)
+            say()
+            say_split(translate.trade_chat.info2)
+            say_split(translate.trade_chat.warning, say_reward)
+            set_state(complete)
+        end
+    end
+    state complete begin
+        when enter begin
+            q.done()
+        end
+    end
+end

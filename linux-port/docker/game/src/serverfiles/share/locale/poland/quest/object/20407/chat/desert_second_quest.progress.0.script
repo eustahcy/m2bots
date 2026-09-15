@@ -1,0 +1,16 @@
+npc_name ( ) 
+local task_data = desert_second_quest . task_data ( ) [ pc . getqf ( "quest_index" ) ] 
+if pc . count_item ( task_data [ 1 ] ) < task_data [ 2 ] then 
+say_split ( translate . reputation_desert . second . no_items ) 
+say_item_vnum ( task_data [ 1 ] ) 
+say_reward ( msg ( translate . reputation_desert . second . task , task_data [ 2 ] , item_name ( task_data [ 1 ] ) ) ) 
+return 
+end 
+pc . remove_item ( task_data [ 1 ] , task_data [ 2 ] ) 
+say_split ( translate . reputation_desert . quest_done ) 
+say ( ) 
+set_state ( "start" ) 
+give_reward ( "desert_rep2" ) 
+say_reward ( msg ( translate . reputation . quest_reward_reputation , 750 , translate . reputation_desert . fraction_name ) ) 
+pc . add_reputation ( FRACTION_DESERT , 750 ) 
+clear_letter ( ) 

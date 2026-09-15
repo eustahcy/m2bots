@@ -1,0 +1,20 @@
+target . delete ( "__TARGET__" ) 
+npc_name ( ) 
+say_split ( translate . herbalism . prime_quest . state_progress . talk1 ) 
+wait ( ) 
+npc_name ( ) 
+say_split ( translate . herbalism . prime_quest . state_progress . talk2 ) 
+wait ( ) 
+if pc . get_empty_inventory_count ( ) < 2 then 
+say_info ( ) 
+say ( translate . general . no_inventory_space ) 
+return 
+end 
+npc_name ( ) 
+say_split ( translate . herbalism . prime_quest . state_progress . talk3 ) 
+say_item_vnum ( 50909 ) 
+say_split ( translate . herbalism . prime_quest . state_progress . talk4 ) 
+pc . give_item2 ( 50909 , 1 ) 
+pc . give_item2 ( 50901 , 5 ) 
+pc . setf ( "herbalism_onboarding" , "completed" , 1 ) 
+set_state ( "craft" ) 

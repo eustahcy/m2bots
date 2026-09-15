@@ -1,0 +1,1 @@
+return horse . get_level ( ) >= 1 and pc . get_special_flag ( "horse_inventory_slot" ) < 1

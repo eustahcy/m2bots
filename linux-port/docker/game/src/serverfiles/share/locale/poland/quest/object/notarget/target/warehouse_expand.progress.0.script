@@ -1,0 +1,19 @@
+target . delete ( "__TARGET__" ) 
+if not pc . has_affect ( AFFECT_QUEST_USE ) then 
+warehouse_expand . abort_quest ( ) 
+clear_letter ( ) 
+return 
+else 
+affect . remove ( AFFECT_QUEST_USE ) 
+end 
+q . set_clock ( "Czas" , 0 ) 
+npc_name ( ) 
+say_split ( translate . warehouse_expand . state_progress . npc_talk1 ) 
+wait ( ) 
+say_title_pc_name ( ) 
+say_split ( translate . warehouse_expand . state_progress . pc_talk1 ) 
+wait ( ) 
+npc_name ( ) 
+say_split ( string . format ( translate . warehouse_expand . state_progress . npc_talk2 , get_map_name ( get_player_map1_index ( ) ) ) ) 
+clear_letter ( ) 
+set_state ( "reward" ) 

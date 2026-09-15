@@ -1,0 +1,4 @@
+if item . vnum >= 29201 and item . vnum < 29210 and item . get_socket ( 0 ) ~= item . get_value ( 2 ) then if not check_safe_item ( ) then return end 
+npc_name ( ) 
+say_split ( translate . herbalism . refine_low_points ) 
+ return end 

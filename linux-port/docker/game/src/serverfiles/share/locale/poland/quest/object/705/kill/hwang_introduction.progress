@@ -1,0 +1,6 @@
+if is_kill_drop ( 2 ) then 
+say_info ( ) 
+say_split ( translate . hwang_introduction . state_progress . get_item ) 
+pc . give_item2 ( 35003 , 1 ) 
+set_state ( "reward" ) 
+end 

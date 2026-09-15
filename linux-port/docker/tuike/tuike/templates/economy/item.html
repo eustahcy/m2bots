@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+{% from 'partials/macros.html' import character_link, empty_row with context %}
+{% block title %}{{ item.item_name }}{% endblock %}
+
+{% block content %}
+<a class="back" href="{{ url_for('economy.index') }}">← Wróć do gospodarki</a>
+
+<header class="page-head">
+  <p class="eyebrow">HISTORIA PRZEDMIOTU</p>
+  <h1>
+    {% if item_icon(item.vnum) %}
+      <img class="item-icon item-icon-large" src="{{ item_icon(item.vnum) }}" alt="">
+    {% endif %}{{ item.item_name }}
+  </h1>
+  <p class="lead">VNUM {{ item.vnum }}</p>
+</header>
+
+<section class="panel">
+  <h2>Sztuk na serwerze · ostatnie 14 dni</h2>
+  {% if history %}
+    <div class="chart"><canvas id="item-chart"></canvas></div>
+    <script id="item-data" type="application/json">{{ history|tojson }}</script>
+  {% else %}
+    <p class="muted">Kolektor nie zapisał jeszcze historii tego przedmiotu.</p>
+  {% endif %}
+</section>
+
+<section class="widget-grid">
+  <article class="panel">
+    <h2>Aktualne oferty na straganach</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Sprzedawca</th><th class="numeric">Ilość</th><th class="numeric">Cena</th></tr></thead>
+        <tbody>
+          {% for listing in listings %}
+            <tr>
+              <td>{{ character_link(listing.owner_id, listing.owner_name) }}</td>
+              <td class="numeric">{{ listing.count }}</td>
+              <td class="numeric">{% if listing.price %}{{ thousands(listing.price) }}{% else %}<span class="muted">—</span>{% endif %}</td>
+            </tr>
+          {% else %}
+            {{ empty_row(3, 'Nikt aktualnie nie sprzedaje tego przedmiotu.') }}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </article>
+
+  <article class="panel">
+    <h2>Ostatnie sprzedaże</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Kupujący</th><th>Sprzedawca</th><th class="numeric">Cena</th><th class="numeric">Kiedy</th></tr></thead>
+        <tbody>
+          {% for trade in trades %}
+            <tr>
+              <td>{% if trade.buyer_name %}{{ character_link(trade.buyer_id, trade.buyer_name) }}{% else %}<span class="muted">—</span>{% endif %}</td>
+              <td>{% if trade.seller_name %}{{ character_link(trade.seller_id, trade.seller_name) }}{% else %}<span class="muted">—</span>{% endif %}</td>
+              <td class="numeric">{{ thousands(trade.yang) }}</td>
+              <td class="numeric muted">{{ trade.time }}</td>
+            </tr>
+          {% else %}
+            {{ empty_row(4, 'Ten przedmiot nigdy jeszcze nie sprzedał się na straganie.') }}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </article>
+</section>
+{% endblock %}
+
+{% block scripts %}
+{% if history %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+{% endif %}
+{% endblock %}

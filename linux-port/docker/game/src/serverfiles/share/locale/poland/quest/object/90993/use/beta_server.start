@@ -1,0 +1,20 @@
+if beta_server . is_beta_etap2 ( ) then local min_level = item . get_limit ( ) 
+if pc . get_level ( ) < min_level then 
+syschat ( msg ( translate . general . low_lvl , min_level ) ) 
+return 
+end 
+local applies = { item . get_apply ( ) } 
+local data = { 
+[ 99 ] = { affect = SKILL_BLESSING , flag = AFF_SKILL_BLESSING , } , 
+[ 40 ] = { affect = SKILL_DRAGON_HELP , flag = AFF_SKILL_DRAGON_HELP , } , 
+[ 79 ] = { affect = SKILL_REFLECT , flag = AFF_SKILL_REFLECT , } , 
+} 
+if not affect . is_loaded ( ) then 
+return 
+end 
+for i in range ( 1 , table . getn ( applies ) , 2 ) begin 
+local point = applies [ i ] 
+local value = applies [ i + 1 ] 
+affect . add_new ( data [ point ] . affect , point , value , 60 * 10 , data [ point ] . flag , true , true ) 
+end 
+ return end 

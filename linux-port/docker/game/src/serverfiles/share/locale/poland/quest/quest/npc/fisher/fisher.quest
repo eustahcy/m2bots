@@ -1,0 +1,36 @@
+quest fisher begin
+    state start begin
+		when 9009.chat.gameforge.fisher._10_npcChat begin
+		    npc.open_shop()
+			setskin(NOWINDOW)
+		end
+	
+		when 9009.chat.gameforge.fisher._20_npcChat begin
+			say_title(gameforge.fisher._30_sayTitle)
+			say(gameforge.fisher._40_say)
+		end
+
+		when 9009.take with item.vnum < 27400 or item.vnum > 27490 begin
+			if not check_safe_item() then return end
+			say_title(gameforge.fisher._30_sayTitle)
+			say(gameforge.fisher._50_say)
+		end
+
+		when 9009.take with item.vnum == 27490 begin
+			if not check_safe_item() then return end
+			say_title(gameforge.fisher._30_sayTitle)
+			say(gameforge.fisher._60_say)
+		end
+
+		when 9009.take with item.vnum >= 27400 and item.vnum < 27490 and item.get_socket(0)!= item.get_value(2) begin
+			if not check_safe_item() then return end
+			say_title(gameforge.fisher._30_sayTitle)
+			say(gameforge.fisher._70_say)
+			say()
+			say(locale.fishing.recipe_requirements)
+			fishing_manage.ShowRodRefineRequirement()
+		end
+    end
+end
+
+

@@ -1,0 +1,34 @@
+﻿{% extends 'base.html' %}
+{% from 'partials/macros.html' import page_head, search_form, character_link, empty_row with context %}
+{% block title %}Gildie{% endblock %}
+
+{% block content %}
+{{ page_head('SPOŁECZNOŚĆ', 'Gildie') }}
+{{ search_form(query, 'Nazwa gildii lub nick lidera') }}
+
+<section class="panel table-wrap">
+  <table>
+    <thead>
+      <tr><th>Gildia</th><th>Lider</th><th>Poziom</th>
+          <th class="numeric">Członkowie</th><th class="numeric">Ranking</th><th>Wojny</th></tr>
+    </thead>
+    <tbody>
+      {% for guild in guilds %}
+        <tr>
+          <td><a href="{{ url_for('guilds.detail', guild_id=guild.id) }}">{{ guild.name }}</a></td>
+          <td>
+            {% if guild.leader_id %}{{ character_link(guild.leader_id, guild.leader_name) }}
+            {% else %}<span class="muted">brak</span>{% endif %}
+          </td>
+          <td>{{ guild.level or 0 }}</td>
+          <td class="numeric">{{ guild.member_count }}</td>
+          <td class="numeric">{{ thousands(guild.ladder_point) }}</td>
+          <td>{{ guild.win }} / {{ guild.draw }} / {{ guild.loss }}</td>
+        </tr>
+      {% else %}
+        {{ empty_row(6, 'Nie znaleziono gildii.') }}
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

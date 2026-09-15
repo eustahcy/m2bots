@@ -1,0 +1,27 @@
+warehouse_expand={["start"]=0,["__COMPLETE__"]=668443392,["progress"]=570552902,["reward"]=1322349139,abort_quest= function ()say_info ( ) 
+say_split ( translate . warehouse_expand . state_progress . fail , say_reward ) 
+cleartimer ( "warehouse_expand_time" ) 
+cleartimer ( "warehouse_expand_ambush" ) 
+q . set_clock ( "Czas" , 0 ) 
+if pc . has_affect ( AFFECT_QUEST_USE ) then 
+affect . remove ( AFFECT_QUEST_USE ) 
+end 
+set_state ( "start" ) 
+end ,ambush= function ()local spawnMobs = { 554 , 554 , 552 , 552 , 553 } 
+for i , vnum in ipairs ( spawnMobs ) begin 
+local random_pos = number ( 1 , 100 ) / 100 
+local x , y = getPositionOnCircle ( pc . get_x ( ) , pc . get_y ( ) , 7 , random_pos ) 
+local vid = spawn_mob ( vnum , x * 100 , y * 100 , 0 , pc . get_vid ( ) ) 
+if vid > 0 then 
+npc . set_custom_npc_flag ( vid , CUSTOM_NPC_FLAG_PURGE_ON_AGGRO_LOSE ) 
+npc . say ( vid , table_get_random_item ( translate . warehouse_expand . state_progress . ambush_mob_say ) ) 
+end 
+end 
+local rnd = number ( 1 , 2 ) 
+if rnd == 1 then 
+affect . add_new ( AFFECT_STUN , POINT_NONE , 0 , number ( 4 , 7 ) , AFF_STUN , true ) 
+elseif rnd == 2 then 
+pc . knockback ( 250 ) 
+affect . add_new ( AFFECT_SLOW , POINT_MOV_SPEED , - 40 , 15 , AFF_SLOW , true ) 
+end 
+end }

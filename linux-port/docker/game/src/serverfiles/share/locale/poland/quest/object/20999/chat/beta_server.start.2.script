@@ -1,0 +1,31 @@
+npc_name ( ) 
+local shops = { } 
+if beta_server . is_beta_etap3plus ( ) then 
+table . insert ( shops , { name = translate . beta . shop . base_shop , vnum = 999 } ) 
+table . insert ( shops , { name = translate . beta . shop . herb_shop , vnum = 998 } ) 
+table . insert ( shops , { name = translate . beta . shop . refine_item_shop1 , vnum = 997 } ) 
+table . insert ( shops , { name = translate . beta . shop . refine_item_shop2 , vnum = 996 } ) 
+table . insert ( shops , { name = translate . beta . shop . refine_item_shop3 , vnum = 995 } ) 
+if beta_server . is_beta_etap4 ( ) then 
+table . insert ( shops , { name = translate . beta . shop . high_item , vnum = 991 } ) 
+table . insert ( shops , { name = translate . beta . shop . high_item2 , vnum = 990 } ) 
+table . insert ( shops , { name = translate . beta . shop . potion_shop , vnum = 989 } ) 
+else 
+table . insert ( shops , { name = translate . beta . shop . high_weapon , vnum = 994 } ) 
+end 
+elseif beta_server . is_beta_etap3 ( ) then 
+table . insert ( shops , { name = translate . beta . shop . base_shop , vnum = 992 } ) 
+elseif beta_server . is_beta_etap2 ( ) then 
+table . insert ( shops , { name = translate . beta . shop . base_shop , vnum = 993 } ) 
+end 
+local options = { } 
+for i , v in pairs ( shops ) begin 
+table . insert ( options , v . name ) 
+end 
+table . insert ( options , "Anuluj" ) 
+local x = select_table ( options ) 
+if x == table . getn ( options ) then 
+return 
+end 
+setskin ( NOWINDOW ) 
+npc . open_shop ( shops [ x ] . vnum ) 

@@ -1,0 +1,58 @@
+quest special_shop begin
+    state start begin
+        when write with mes.get_message() == "special_shop" begin
+            local args = mes.get_arguments()
+            local argsLen = table.getn(args)
+
+            if argsLen < 1 then
+                debug("no parameters")
+                return
+            end
+
+            local commands = {
+                ["close"] = { args=1 },
+                ["buy"] = { args=2 },
+            }
+            local cmd = args[1]
+            local cmdArgs = commands[cmd]
+            if cmdArgs != nil and argsLen < cmdArgs.args then
+                debug("no parameters (need %d parameters)", cmdArgs.args)
+                return
+            end
+
+            if cmd == "close" then
+                pc.close_special_shop()
+            elseif cmd == "buy" then
+                local index = tonumber(args[2])
+                pc.buy_special_shop(index)
+            end
+        end
+
+        when 20406.chat.translate.general.open_shop begin
+            setskin(NOWINDOW)
+            pc.open_special_shop(20406)
+        end
+
+        when 9006.chat.translate.general.open_shop begin
+            npc_name()
+            say_split(translate.marriage_shop.talk)
+
+            local next_update = special_shop_get_last_update(9006) + 3600 * 12
+            local left_time = math.max(next_update - get_time(), 0)
+            say_split(msg(translate.marriage_shop.next, second_to_smart_time(left_time)), say_reward)
+            wait()
+            setskin(NOWINDOW)
+            pc.open_special_shop(9006)
+        end
+
+        when
+            20409.chat.translate.general.open_shop or
+            20410.chat.translate.general.open_shop or
+            20411.chat.translate.general.open_shop with
+            npc.get_empire() == pc.get_empire()
+        begin
+            setskin(NOWINDOW)
+            pc.open_special_shop(10)
+        end
+    end
+end

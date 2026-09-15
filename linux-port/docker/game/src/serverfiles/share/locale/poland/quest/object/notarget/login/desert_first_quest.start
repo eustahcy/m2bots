@@ -1,0 +1,4 @@
+if pc . get_map_index ( ) == 63 then if desert_first_quest . can_start_quest ( ) == "ok" then 
+send_target ( 20406 ) 
+end 
+ return end 

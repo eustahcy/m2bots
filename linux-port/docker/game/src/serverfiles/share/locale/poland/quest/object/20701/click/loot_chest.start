@@ -1,0 +1,35 @@
+if busy_action . is_busy ( "chest_open" ) then 
+debug ( "already busy" ) 
+return 
+elseif not npc . is_near ( 2 ) then 
+syschat ( translate . general . too_far ) 
+return 
+elseif pc . is_mount ( ) then 
+syschat ( translate . loot_chest . no_horse ) 
+return 
+elseif pc . is_polymorphed ( ) then 
+syschat ( translate . general . polymorph ) 
+return 
+elseif pc . get_level ( ) < npc . get_level ( ) then 
+syschat ( string . format ( translate . loot_chest . low_lvl , npc . get_level ( ) ) ) 
+return 
+elseif pc . get_level ( ) > loot_chest . get_chest_max_level ( ) then 
+syschat ( translate . loot_chest . high_lvl ) 
+debug ( "max level %d" , loot_chest . get_chest_max_level ( ) ) 
+return 
+elseif pc . getqf ( "wait" ) > get_time ( ) then 
+local left_seconds = pc . getqf ( "wait" ) - get_time ( ) 
+syschat ( msg ( translate . loot_chest . wait , second_to_smart_time ( left_seconds ) ) ) 
+return 
+elseif pc . count_item ( 30380 ) < 1 then 
+syschat ( translate . loot_chest . no_picklock ) 
+return 
+end 
+local delay = 9 
+if is_test_server ( ) and game . get_event_flag ( "loot_chest_debug" ) > 0 then 
+delay = 1 
+end 
+timer ( "chest_open" , delay ) 
+pc . remove_item ( 30380 , 1 ) 
+busy_action . start ( "chest_open" , BUSY_ACTION_GENERAL , delay ) 
+save_npc ( ) 

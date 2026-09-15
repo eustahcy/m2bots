@@ -1,0 +1,2 @@
+if pc . count_item ( 50050 ) > 0 then setstate ( "start" ) 
+ return end 

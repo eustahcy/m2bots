@@ -1,0 +1,13 @@
+say_info ( ) 
+say ( translate . hunting . letterInfo ) 
+local mobSelectTable = hunting . getMobSelectTable ( ) 
+local slct = select_table ( mobSelectTable ) 
+if slct == table . getn ( mobSelectTable ) then return end 
+local mobData = hunting . getData ( ) . mobData [ slct ] 
+pc . setqf ( "huntingMobVnum" , mobData [ 1 ] ) 
+pc . setqf ( "huntingMobCount" , mobData [ 2 ] ) 
+hunting . show_quest_board ( ) 
+select ( gameforge . locale . confirm ) 
+clearmapsignal ( ) 
+setskin ( NOWINDOW ) 
+set_state ( "kill" ) 

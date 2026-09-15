@@ -1,0 +1,47 @@
+if busy_action . is_busy ( "herb_pick" ) then 
+if not item . select_wear ( WEAR_WEAPON ) or item . get_vnum ( ) < 29201 or item . get_vnum ( ) > 29210 then 
+syschat ( translate . herbalism . knife_needed ) 
+busy_action . stop ( BUSY_ACTION_HERB , "herb_pick" , false ) 
+return 
+end 
+local knife_add_chance = item . get_value ( 0 ) 
+local npc_vid = get_saved_npc ( ) 
+local fail_bonus = pc . getf ( "herbalism" , "fail_bonus" ) 
+local gather_chance = 30 + knife_add_chance + pc . get_mining_skill_bonus ( ) + fail_bonus 
+local has_herbalist_bonus = pc . has_affect ( AFFECT_HERBALIST_BONUS ) 
+if has_herbalist_bonus then 
+gather_chance = gather_chance + 2 
+end 
+debug ( "gather chance %d%%" , gather_chance ) 
+local is_success = number ( 1 , 100 ) <= gather_chance 
+if not release_npc ( ) then 
+syschat ( translate . herbalism . fail ) 
+busy_action . stop ( BUSY_ACTION_HERB , "herb_pick" , false ) 
+return 
+end 
+herbalism . upgrade_knife ( is_success ) 
+local drop_item = npc . get_drop_item ( ) 
+busy_action . stop ( BUSY_ACTION_HERB , "herb_pick" , is_success ) 
+if is_success and drop_item > 0 then 
+syschat ( table_get_random_item ( translate . herbalism . success_info ) ) 
+pc . setf ( "herbalism" , "fail_bonus" , 0 ) 
+pc . pickup ( npc_vid ) 
+local item_count = number ( 2 , 3 ) 
+if has_herbalist_bonus and number ( 1 , 5 ) == 1 then 
+item_count = item_count + 2 
+syschat ( translate . herbalism . count_2_bonus ) 
+end 
+pc . give_item2 ( drop_item , item_count , - 1 , true ) 
+pc . add_player_stat ( PLAYER_STATS_HERBALISM_FLAG , item_count ) 
+npc . set_string_flag ( "herb" , npc . get_string_flag ( "herb" ) + 1 ) 
+local current_progress = npc . get_string_flag ( "herb" ) 
+local purge_chance_data = { 0 , 15 , 40 , 60 , 80 , 100 } 
+local purge_chance = purge_chance_data [ current_progress ] 
+if current_progress >= table . getn ( purge_chance_data ) or number ( 1 , 100 ) <= purge_chance then 
+npc . purge ( ) 
+end 
+else 
+syschat ( table_get_random_item ( translate . herbalism . fail_info ) ) 
+pc . setf ( "herbalism" , "fail_bonus" , math . min ( fail_bonus + 4 , 20 ) , true ) 
+end 
+end 

@@ -1,0 +1,7 @@
+target . delete ( "__TARGET__" ) 
+say_title ( gameforge . find_squareguard . _30_sayTitle ) 
+say ( gameforge . subquest_12 . _180_say ) 
+say_title ( gameforge . collect_herb_lv4 . _130_sayTitle ) 
+set_state ( "__COMPLETE__" ) 
+give_reward ( "subquest_12" ) 
+clear_letter ( ) 

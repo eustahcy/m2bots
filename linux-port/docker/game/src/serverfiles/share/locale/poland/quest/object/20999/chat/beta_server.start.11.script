@@ -1,0 +1,4 @@
+npc_name ( ) 
+say_split ( translate . beta . reputation . success ) 
+pc . set_special_flag ( "reputation_orc_valley" , 38500 ) 
+pc . set_special_flag ( "reputation_desert" , 38500 ) 

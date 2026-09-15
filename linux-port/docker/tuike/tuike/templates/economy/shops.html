@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% from 'partials/macros.html' import page_head with context %}
+{% block title %}Stragany{% endblock %}
+
+{% block content %}
+<a class="back" href="{{ url_for('economy.index') }}">← Wróć do gospodarki</a>
+
+{{ page_head('RYNEK', 'Aktywne stragany',
+             'Każdy stragan to obecnie otwarty sklep Ikarus Shop. Kliknij, aby zobaczyć jego towar i ceny.') }}
+
+<p class="muted">{{ shops|length }} straganów otwartych teraz.</p>
+
+<div class="card-grid">
+  {% for shop in shops %}
+    <a class="item-card" href="{{ url_for('economy.shop', owner_id=shop.owner) }}">
+      <div>
+        <b>{{ shop.shop_name }}</b>
+        <small>{{ shop.owner_name }} · {{ shop.item_count }} przedmiotów{% if shop.is_premium %} · premium{% endif %}</small>
+      </div>
+    </a>
+  {% else %}
+    <p class="muted">Nikt aktualnie nie prowadzi straganu.</p>
+  {% endfor %}
+</div>
+{% endblock %}

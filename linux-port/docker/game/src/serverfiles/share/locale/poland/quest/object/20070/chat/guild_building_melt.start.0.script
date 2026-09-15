@@ -1,0 +1,2 @@
+crafting . open ( npc . get_vnum ( ) ) 
+setskin ( NOWINDOW ) 

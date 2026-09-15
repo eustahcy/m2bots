@@ -1,0 +1,109 @@
+define AMBUSH_MOB_VNUM 504
+define TARGET_COUNT 5
+quest test_target begin
+    state start begin
+        function is_ambush()
+            for i=1, TARGET_COUNT do
+                local vid = pc.getqf("kill_target"..i)
+                if vid > 0 and npc.exist(vid) then
+                    return true
+                end
+            end
+            return false
+        end
+        
+        function reset_ambush()
+            pc.delqf("ambush_delay")
+            pc.delqf("kill_count")
+            for i=1, TARGET_COUNT do
+                pc.delqf("kill_target"..i) -- to jest bardzo wazne, zwlaszcza przy tworzeniu targetu
+                --[[
+                    dlaczego to takie wazne:
+                    VID to unikatowe ID potwora na kazdy proces
+                    quest flagi s¹ globalne
+                    jezeli zmienimy kanal, na innym kanale te same VIDy to moga byc inne moby
+                    przez co bedize wykrywalo ze moby istnieja, nie bedzie odpalalo kolejnego ambushu,
+                    a tak na prawde to sprawdza inne mobki
+                ]]
+            end
+        end
+
+        when login begin
+            test_target.reset_ambush()
+        end
+
+        when write with mes.get_message() == "test_target" begin
+            local args = mes.get_arguments()
+            local x = tonumber(args[1])
+            local y = tonumber(args[2])
+            local is_send_to_client = 0
+            local trigger_radius = 1000
+
+            test_target.reset_ambush()
+            target.pos("__TARGET__", x, y, pc.get_map_index(), "", is_send_to_client, trigger_radius)
+            debug("stworzylem target na %d, %d", x, y)
+            say("udaj sie do drugiego miasta pod ruiny swiatyni")
+        end
+
+        when __TARGET__.target.arrive begin
+            if pc.is_dead() then
+                return
+            elseif pc.getqf("ambush_delay") > get_time() then
+                return
+            elseif test_target.is_ambush() then
+                debug("ambush trwa wiec nie przyzywam znowu mobow")
+                return
+            end
+
+            pc.setqf("ambush_delay", get_time() + 60)
+
+            debug("wbiles na target")
+            pc.delqf("kill_count")
+
+            local monster_start_attack_say = {
+                "Po¿a³ujesz tego!",
+                "Mam cie!",
+                "Nie powinno ciebie tu byæ!",
+                "Giñ!",
+            }
+
+            local vnum = AMBUSH_MOB_VNUM
+            local killCount = TARGET_COUNT
+            for i=1, TARGET_COUNT do
+                local random_pos = number(1,100) / 100
+                local x, y = getPositionOnCircle(pc.get_x(), pc.get_y(), 10, random_pos)
+                local vid = spawn_mob(vnum, x*100, y*100, 0, pc.get_vid())
+                if vid > 0 then
+                    npc.set_custom_npc_flag(vid, CUSTOM_NPC_FLAG_PURGE_ON_AGGRO_LOSE)
+                    npc.say(vid, table_get_random_item(monster_start_attack_say))
+                    pc.setqf("kill_target"..i, vid)
+                    debug("spawn mob with vid %d", vid)
+                else
+                    killCount = killCount - 1 -- na wypadek jakby jakis mob sie nie zespawnil (np. koordy bylyby w scianie)
+                end
+            end
+
+            pc.setqf("max_kill_count", killCount)
+        end
+
+        when kill with not npc.is_pc() begin
+            local killVID = npc.get_vid()
+            for i=1, TARGET_COUNT do
+                local flagName = "kill_target"..i
+                if pc.getqf(flagName) > 0 and pc.getqf(flagName) == killVID then
+                    pc.setqf("kill_count", pc.getqf("kill_count")+1)
+                    pc.delqf(flagName)
+                end
+            end
+
+            if  pc.getqf("max_kill_count") > 0 and pc.getqf("kill_count") >= pc.getqf("max_kill_count") then
+                say("pokonales wszystkie moby!")
+                test_target.reset_ambush()
+                target.delete("__TARGET__")
+                set_state(complete)
+            end
+        end
+    end
+    state complete begin
+    end
+end

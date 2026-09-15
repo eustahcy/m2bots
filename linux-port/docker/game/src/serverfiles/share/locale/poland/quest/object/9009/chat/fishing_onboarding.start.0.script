@@ -1,0 +1,11 @@
+if pc . get_level ( ) < 30 then 
+npc_name ( ) 
+say_split ( translate . fishing . onboarding . state_start . low_lvl ) 
+return 
+end 
+npc_name ( ) 
+say_split ( translate . fishing . onboarding . state_start . talk1 ) 
+wait ( ) 
+npc_name ( ) 
+say_split ( translate . fishing . onboarding . state_start . talk2 ) 
+set_state ( "go_baekgo" ) 

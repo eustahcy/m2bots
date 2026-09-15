@@ -1,0 +1,267 @@
+define BEAR_MINI 154
+define BEAR_BOSS 193
+define DESERT_MAP_INDEX 63
+quest fishing_onboarding begin
+    state start begin
+        when 9009.chat.translate.fishing.onboarding.state_start.npc_chat begin
+            if pc.get_level() < 30 then
+                npc_name()
+                say_split(translate.fishing.onboarding.state_start.low_lvl)
+                return
+            end
+            npc_name()
+            say_split(translate.fishing.onboarding.state_start.talk1)
+            wait()
+            npc_name()
+            say_split(translate.fishing.onboarding.state_start.talk2)
+            set_state(go_baekgo)
+        end
+    end
+    state go_baekgo begin
+        when letter begin
+            send_letter(translate.fishing.onboarding.state_go_baekgo.letter_name)
+            send_target(20018)
+        end
+
+        when button or info begin
+            say_info()
+            say_split(translate.fishing.onboarding.state_go_baekgo.letter_info)
+        end
+
+        when __TARGET__.target.click or 20018.chat.translate.fishing.onboarding.state_go_baekgo.npc_chat begin
+            target.delete("__TARGET__")
+            npc_name()
+            say_split(translate.fishing.onboarding.state_go_baekgo.talk1)
+            wait()
+            npc_name()
+            say_split(translate.fishing.onboarding.state_go_baekgo.talk2)
+            set_state(go_uriel)
+        end
+    end
+    state go_uriel begin
+        when letter begin
+            send_letter(translate.fishing.onboarding.state_go_uriel.letter_name)
+            send_target(20011)
+        end
+
+        when button or info begin
+            say_info()
+            say_split(translate.fishing.onboarding.state_go_uriel.letter_info)
+        end
+
+        when __TARGET__.target.click or 20011.chat.translate.fishing.onboarding.state_go_uriel.npc_chat begin
+            target.delete("__TARGET__")
+            npc_name()
+            say_split(translate.fishing.onboarding.state_go_uriel.talk1)
+            say()
+            say_title_pc_name()
+            say_split(translate.fishing.onboarding.state_go_uriel.player_talk1)
+            wait()
+            npc_name()
+            say_split(translate.fishing.onboarding.state_go_uriel.talk2)
+            wait()
+            npc_name()
+            say_split(translate.fishing.onboarding.state_go_uriel.talk3)
+            wait()
+            npc_name()
+            say_split(translate.fishing.onboarding.state_go_uriel.talk4)
+            say_item_vnum(30361)
+            say_split(translate.fishing.onboarding.state_go_uriel.say_item1)
+            say_item_vnum(30362)
+            say_split(translate.fishing.onboarding.state_go_uriel.say_item2)
+            wait()
+            npc_name()
+            say_split(translate.fishing.onboarding.state_go_uriel.talk5)
+            set_state(progress)
+        end
+    end
+    state progress begin
+        when login begin
+            if pc.count_item(30361) > 0 and pc.count_item(30362) > 0 then
+                set_state(return_uriel)
+            end
+        end
+
+        when letter begin
+            send_letter(translate.fishing.onboarding.state_progress.letter_name)
+
+            if pc.get_map_index() == DESERT_MAP_INDEX and pc.count_item(30362) == 0 then
+                target.pos("__TARGET__", 949, 667, DESERT_MAP_INDEX, "")
+            end
+        end
+
+        when button or info begin
+            say_info()
+            say_split(translate.fishing.onboarding.state_progress.letter_info)
+            say()
+            say_split(translate.fishing.onboarding.state_progress.letter_item1)
+            say_split(translate.fishing.onboarding.state_progress.letter_item2)
+        end
+
+        when kill with not npc.is_pc() and pc.count_item(30361) < 1 begin
+            local race = npc.get_race()
+            local chance = 0
+            if race == BEAR_MINI then
+                chance = 50
+            elseif race == BEAR_BOSS then
+                chance = 100
+            elseif race >= 110 and race <= 113 or race >= 139 and race <= 142 then
+                chance = 1
+            else
+                return
+            end
+
+            if number(1,100) <= chance then
+                say_info()
+                say_split(translate.fishing.onboarding.state_progress.get_item1)
+                pc.give_item2(30361, 1)
+
+                if pc.count_item(30361) > 0 and pc.count_item(30362) > 0 then
+                    wait()
+                    say_info()
+                    say_split(translate.fishing.onboarding.state_progress.get_all)
+                    set_state(return_uriel)
+                end
+            end
+        end
+
+        when __TARGET__.target.arrive begin
+            target.delete("__TARGET__")
+            if pc.count_item(30362) > 0 then
+                return
+            end
+            say_info()
+            say_split(translate.fishing.onboarding.state_progress.get_item2_chat1, say_reward)
+            say()
+            say_split(translate.fishing.onboarding.state_progress.get_item2_chat2)
+            if select(translate.general.yes, translate.general.no) == 2 then
+                say_info()
+                say_split(translate.fishing.onboarding.state_progress.get_item2_chat3_refuse, say_reward)
+                return
+            end
+            say_info()
+            say_split(translate.fishing.onboarding.state_progress.get_item2_chat3_get, say_reward)
+            pc.give_item2(30362, 1)
+
+            if pc.count_item(30361) > 0 and pc.count_item(30362) > 0 then
+                wait()
+                say_info()
+                say_split(translate.fishing.onboarding.state_progress.get_all)
+                set_state(return_uriel)
+            end
+        end
+
+    end
+    state return_uriel begin
+        when letter begin
+            send_letter(translate.fishing.onboarding.state_return_uriel.letter_name)
+            send_target(20011)
+        end
+
+        when button or info begin
+            say_info()
+            say_split(translate.fishing.onboarding.state_return_uriel.letter_info)
+        end
+
+        when __TARGET__.target.click or 20011.chat.translate.fishing.onboarding.state_return_uriel.npc_chat begin
+            target.delete("__TARGET__")
+            say_title_pc_name()
+            say_split(translate.fishing.onboarding.state_return_uriel.player_talk1)
+            say()
+            npc_name()
+            say_split(translate.fishing.onboarding.state_return_uriel.talk1)
+            say()
+            say_split(translate.fishing.onboarding.state_return_uriel.talk2, say_reward)
+            pc.remove_item(30361, 1)
+            pc.remove_item(30362, 1)
+            wait()
+            npc_name()
+            say_split(translate.fishing.onboarding.state_return_uriel.talk3)
+            pc.give_item2(30363, 1)
+            set_state(clear_water)
+        end
+    end
+    state clear_water begin
+        when letter begin
+            send_letter(translate.fishing.onboarding.state_clear_water.letter_name)
+        end
+
+        when button or info begin
+            say_info()
+            say_split(translate.fishing.onboarding.state_clear_water.letter_info)
+        end
+
+        when 30363.use begin
+			if not pc.is_near_attr(ATTR_WATER) then
+				syschat(translate.fishing.stand_near_water)
+				return
+			end
+			if item.remove(1) then
+				pc.show_effect(SE_FRESH_WATER)
+				say_info()
+				say_split(translate.fishing.onboarding.state_clear_water.info1, say_reward)
+                wait()
+                say_info()
+				say_split(translate.fishing.onboarding.state_clear_water.info2, say_reward)
+                say()
+                say_split(translate.fishing.onboarding.state_clear_water.info3)
+                set_state(reward)
+			end
+		end
+    end
+    state reward begin
+        when letter begin
+            send_letter(translate.fishing.onboarding.state_reward.letter_name)
+            send_target(9009)
+        end
+
+        when button or info begin
+            say_info()
+            say_split(translate.fishing.onboarding.state_reward.letter_info)
+        end
+
+        when __TARGET__.target.click or 9009.chat.translate.fishing.onboarding.state_reward.npc_chat begin
+            target.delete("__TARGET__")
+            npc_name()
+            say_split(translate.fishing.onboarding.state_reward.talk1)
+            wait()
+            npc_name()
+            say_split(translate.fishing.onboarding.state_complete.talk1)
+            wait()
+            npc_name()
+            say_split(translate.fishing.onboarding.state_complete.talk2)
+            wait()
+            npc_name()
+            say_split(translate.fishing.onboarding.state_complete.talk3)
+            wait()
+            npc_name()
+            say_split(translate.fishing.onboarding.state_complete.talk4)
+            wait()
+            npc_name()
+            say_split(translate.fishing.onboarding.state_complete.talk5)
+            say()
+            set_state(complete)
+            give_reward("fishing_onboarding")
+            pc.setf("fishing_onboarding", "completed", 1)
+            clear_letter()
+        end
+    end
+    state complete begin
+        when 9009.chat.translate.fishing.onboarding.state_complete.npc_chat begin
+            npc_name()
+            say_split(translate.fishing.onboarding.state_complete.talk1)
+            wait()
+            npc_name()
+            say_split(translate.fishing.onboarding.state_complete.talk2)
+            wait()
+            npc_name()
+            say_split(translate.fishing.onboarding.state_complete.talk3)
+            wait()
+            npc_name()
+            say_split(translate.fishing.onboarding.state_complete.talk4)
+            wait()
+            npc_name()
+            say_split(translate.fishing.onboarding.state_complete.talk5)
+        end
+    end
+end

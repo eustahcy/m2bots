@@ -1,0 +1,35 @@
+if mes . get_message ( ) == "remove_affect" then local args = mes . get_arguments ( ) 
+local aff = AFFECT_NONE 
+local point = POINT_NONE 
+if table . getn ( args ) == 2 then 
+aff = tonumber ( args [ 1 ] ) 
+point = tonumber ( args [ 2 ] ) 
+else 
+return 
+end 
+if aff then 
+aff = math . abs ( aff ) 
+if not affect_remove . is_affect_removable ( aff ) then 
+return 
+end 
+if aff == AFFECT_POLYMORPH then 
+if pc . is_polymorphed ( ) then 
+if pc . get_point ( POINT_POLYMORPH ) == 5003 then 
+syschat ( translate . monkey_curse . remove_poly_info ) 
+return 
+end 
+pc . remove_polymorph ( ) 
+end 
+return 
+end 
+if point then 
+if pc . has_affect ( aff , point ) then 
+affect . remove_new ( aff , point ) 
+end 
+else 
+if pc . has_affect ( aff ) then 
+affect . remove_new ( aff ) 
+end 
+end 
+end 
+ return end 

@@ -1,0 +1,5 @@
+if mes . get_message ( ) == "guild_exit_war" and is_on_war_map ( ) then local e = guild . get_any_war ( ) 
+if e ~= 0 then 
+guild . leave_war ( ) 
+end 
+ return end 

@@ -1,0 +1,47 @@
+# Końce linii. To nie jest kosmetyka: repozytorium jedzie z Windows na Linuksa,
+# a połowa tego drzewa to skrypty uruchamiane wewnątrz kontenerów Debiana.
+# Plik z CRLF-em ma w shebangu `#!/bin/sh\r` i wywala się komunikatem
+# "no such file or directory", który nie wskazuje na końce linii.
+#
+# Domyślnie: w repozytorium zawsze LF, na dysku LF. git sam rozpoznaje binaria.
+* text=auto eol=lf
+
+# Skrypty Windows muszą zostać z CRLF — PowerShell i cmd.exe tego wymagają
+# przy plikach .bat/.cmd, a launcher uruchamia się właśnie z nich.
+*.ps1   text eol=crlf
+*.psm1  text eol=crlf
+*.psd1  text eol=crlf
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+
+# Wymuszone LF tam, gdzie pomyłka jest kosztowna, a nie tylko brzydka.
+*.sh        text eol=lf
+*.quest     text eol=lf
+Dockerfile  text eol=lf
+*.cnf       text eol=lf
+
+# Binaria — bez konwersji i bez prób diffowania.
+*.png    binary
+*.jpg    binary
+*.jpeg   binary
+*.gif    binary
+*.ico    binary
+*.tga    binary
+*.zip    binary
+*.gz     binary
+*.tgz    binary
+*.bz2    binary
+*.xz     binary
+*.7z     binary
+*.exe    binary
+*.dll    binary
+*.so     binary
+*.data   binary
+*.index  binary
+*.pyc    binary
+
+# Duże, generowane, nieczytane przez człowieka — nie zaśmiecaj nimi diffów
+# i przeglądu commitów na GitHubie.
+*.sql                    linguist-generated=true
+linux-port/docker/panel/app/items.json  linguist-generated=true
+linux-port/docker/game/src/extern/**    linguist-vendored=true

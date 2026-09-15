@@ -1,0 +1,23 @@
+say_title ( gameforge . new_quest_lv7 . _020_say_title ) 
+if ( pc . count_item ( 30171 ) >= 1 and pc . count_item ( 30170 ) >= 1 and pc . count_item ( 30169 ) >= 1 ) then 
+say ( gameforge . new_quest_lv7 . _093_say ) 
+clear_letter ( ) 
+set_state ( "return_oldwoman" ) 
+say ( gameforge . new_quest_lv7 . _091_say ) 
+say ( "" ) 
+say ( string . format ( gameforge . new_quest_lv7 . _042_say , get_map_name_by_number ( 1 ) ) ) 
+else 
+say ( gameforge . new_quest_lv7 . _092_say ) 
+end 
+if pc . count_item ( 30169 ) < 1 then 
+say_reward ( string . format ( gameforge . new_quest_lv7 . _085_1_say_reward , 1 - 
+pc . count_item ( 30169 ) ) ) 
+end 
+if pc . count_item ( 30170 ) < 1 then 
+say_reward ( string . format ( gameforge . new_quest_lv7 . _085_2_say_reward , 1 - 
+pc . count_item ( 30170 ) ) ) 
+end 
+if pc . count_item ( 30171 ) < 1 then 
+say_reward ( string . format ( gameforge . new_quest_lv7 . _085_3_say_reward , 1 - 
+pc . count_item ( 30171 ) ) ) 
+end 

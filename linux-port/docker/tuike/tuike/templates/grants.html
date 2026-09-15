@@ -1,0 +1,171 @@
+{% extends 'base.html' %}
+{% from 'partials/macros.html' import page_head, csrf_field, character_link, empty_row with context %}
+{% block title %}Masowe nadawanie{% endblock %}
+
+{% block content %}
+<a class="back" href="{{ url_for('manage.index') }}">← Zarządzanie</a>
+{{ page_head('MASOWE NADAWANIE', 'Przedmioty dla postaci i botów',
+             'Panel nie tworzy przedmiotów. Tworzy je gra, po jednej postaci naraz, przez kolejkę questa web_admin.') }}
+
+<div class="split grants-top">
+  <section class="panel">
+    <h2>Warunki odbiorców</h2>
+    <form method="get" class="settings-form">
+      <div data-item-search class="item-search-wrap">
+        <label class="field item-search-field">
+          <span>Przedmiot</span>
+          <input data-item-lookup placeholder="Wpisz nazwę albo VNUM…"
+                 autocomplete="off" role="combobox" aria-expanded="false"
+                 value="{{ item.name }}">
+          <ul data-item-results class="lookup-results" role="listbox" hidden></ul>
+        </label>
+        <label class="field"><span>VNUM przedmiotu</span>
+          <input name="vnum" data-item-vnum type="number" min="1" max="2147483647"
+                 required value="{{ vnum }}"></label>
+      </div>
+      <label class="field"><span>Ilość na postać</span>
+        <input name="quantity" type="number" min="1" max="{{ max_quantity }}" required
+               value="{{ quantity }}"><small>maks. {{ max_quantity }}</small></label>
+      {% for name, label, maximum, _sql, _scale, _text in fields %}
+        <label class="field"><span>{{ label }}</span>
+          <input name="{{ name }}" type="number" min="0" max="{{ maximum }}"
+                 value="{{ criteria.get(name, '') }}"></label>
+      {% endfor %}
+      <label class="field"><span>Klasa</span>
+        <select name="job">
+          {% for value, label in jobs %}
+            <option value="{{ value }}"
+                    {{ 'selected' if value != '' and criteria.get('job') == value|int }}>{{ label }}</option>
+          {% endfor %}
+        </select></label>
+      <label class="switch"><span>Tylko bez tego przedmiotu</span>
+        <input name="only_missing" type="hidden" value="0">
+        <input name="only_missing" type="checkbox" value="1" {{ 'checked' if only_missing }}>
+        <small>sprawdza plecak, założone i magazyny konta</small></label>
+      <button type="submit">Pokaż odbiorców</button>
+    </form>
+  </section>
+
+  <section class="panel grants-summary">
+    <h2>
+      {% if item_icon(vnum) %}<img class="item-icon" src="{{ item_icon(vnum) }}" alt="">{% endif %}
+      {{ item.name }} <span class="muted">· VNUM {{ vnum }}</span>
+    </h2>
+    <p class="grants-count"><b>{{ recipients|length }}</b> odbiorców
+      <span class="muted">· {{ quantity }}× na postać · {{ criteria_text(criteria) }}</span></p>
+    <p class="muted">Gra obsługuje do {{ max_pending }} odbiorców naraz, więc duże partie idą
+      seriami. Postacie offline czekają na zalogowanie. Restart nie jest potrzebny.</p>
+
+    <form method="post">
+      {{ csrf_field() }}
+      {% for key, value in request.args.items() %}
+        <input type="hidden" name="{{ key }}" value="{{ value }}">
+      {% endfor %}
+      <input type="hidden" name="vnum" value="{{ vnum }}">
+      <input type="hidden" name="quantity" value="{{ quantity }}">
+      <input type="hidden" name="only_missing" value="{{ 1 if only_missing else 0 }}">
+      <button type="submit" {{ 'disabled' if not recipients }}>
+        Nadaj {{ quantity }}× każdemu odbiorcy</button>
+    </form>
+
+    <details class="table-wrap">
+      <summary>Podgląd odbiorców ({{ recipients|length }})</summary>
+      <table>
+        <thead><tr><th>Postać</th><th>Lv</th><th>Koń</th>
+                   <th class="numeric">Czas gry</th><th class="numeric">Jeździectwo</th></tr></thead>
+        <tbody>
+          {% for row in recipients %}
+            <tr>
+              <td>{{ character_link(row.id, row.name) }}</td>
+              <td>{{ row.level }}</td>
+              <td>{{ row.horse_level }}</td>
+              <td class="numeric">{{ hours(row.playtime) }} h</td>
+              <td class="numeric">{{ row.riding }}</td>
+            </tr>
+          {% else %}
+            {{ empty_row(5, 'Żadna postać nie spełnia tych warunków.') }}
+          {% endfor %}
+        </tbody>
+      </table>
+    </details>
+  </section>
+</div>
+
+<section class="panel">
+  <header class="panel-head">
+    <h2>Stan nadawania</h2>
+    <span class="pill {{ 'pill-ok' if stats.alive else '' }}">
+      {{ 'Worker działa' if stats.alive else 'Worker nie odpowiada' }}</span>
+  </header>
+  {% if stats.alive %}
+    <p class="ok">Ostatni tick {{ stats.heartbeat_age }} s temu.</p>
+  {% elif stats.heartbeat_age is none %}
+    <p class="warn">Worker nigdy się nie odezwał. Kontener <code>tuike-grants</code>
+      nie działa albo nie ma dostępu do bazy; bez niego zlecenia zostaną w stanie
+      „Czeka na wysłanie”. Uruchom go: <code>docker compose up -d tuike-grants</code>.</p>
+  {% else %}
+    <p class="warn">Worker milczy od {{ stats.heartbeat_age }} s. Kontener
+      <code>tuike-grants</code> stanął: <code>docker compose up -d tuike-grants</code>.</p>
+  {% endif %}
+
+  {% if stats.last_error %}<p class="warn">Ostatni błąd workera: <code>{{ stats.last_error }}</code></p>{% endif %}
+  {% if stats.queue_stale %}
+    <p class="warn">W kolejce gry leży zlecenie sprzed {{ stats.oldest_pending }} s,
+      którego nikt nie odebrał. Quest <code>web_admin</code> budzi się przy pierwszym
+      logowaniu po starcie serwera — zaloguj się dowolną postacią.</p>
+  {% endif %}
+
+  <dl class="readouts readouts-grid">
+    <div><dt>Czeka na wysłanie</dt>
+      <dd>{{ stats.counts.get('waiting', 0) }}
+        {% if stats.oldest_waiting is not none %}<small>najstarsze {{ stats.oldest_waiting }} s</small>{% endif %}</dd></div>
+    <div><dt>Przekazano do gry</dt>
+      <dd>{{ stats.counts.get('queued', 0) }}
+        {% if stats.oldest_queued is not none %}<small>najstarsze {{ stats.oldest_queued }} s</small>{% endif %}</dd></div>
+    <div><dt>W kolejce gry</dt><dd>{{ stats.pending }}</dd></div>
+    <div><dt>Do sprawdzenia</dt><dd>{{ stats.counts.get('review', 0) }}</dd></div>
+    <div><dt>Nadano</dt><dd>{{ stats.counts.get('done', 0) }}</dd></div>
+  </dl>
+  <p class="muted">Postać offline wraca do kolejki co dwie minuty, aż się zaloguje.
+    „Czeka na wysłanie” przy żywym workerze i pustej kolejce gry oznacza właśnie to.</p>
+</section>
+
+<section class="panel table-wrap">
+  <header class="panel-head">
+    <h2>Ostatnie nadania</h2>
+    <a class="ghost-link" href="{{ url_for('grants.index', vnum=vnum) }}">Odśwież wyniki</a>
+  </header>
+  <table>
+    <thead><tr><th>Postać</th><th>Przedmiot</th><th>Warunki</th>
+               <th>Wynik</th><th>Aktualizacja</th><th></th></tr></thead>
+    <tbody>
+      {% for grant in history %}
+        <tr>
+          <td>{{ character_link(grant.player_id, grant.player_name) }}</td>
+          <td>{{ grant.quantity }}× {{ grant.vnum }}</td>
+          <td class="muted">{{ grant.criteria_text }}</td>
+          <td>{{ grant.status_label }}</td>
+          <td class="muted">{{ grant.updated }}</td>
+          <td>
+            {% if grant.status == 'waiting' %}
+              <form method="post">
+                {{ csrf_field() }}
+                <input type="hidden" name="vnum" value="{{ vnum }}">
+                <input type="hidden" name="quantity" value="{{ quantity }}">
+                <input type="hidden" name="batch" value="{{ grant.batch }}">
+                <button name="action" value="cancel" class="ghost" type="submit">Anuluj partię</button>
+              </form>
+            {% endif %}
+          </td>
+        </tr>
+      {% else %}
+        {{ empty_row(6, 'Nie zlecono jeszcze żadnego nadania.') }}
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/item-search.js') }}"></script>
+{% endblock %}

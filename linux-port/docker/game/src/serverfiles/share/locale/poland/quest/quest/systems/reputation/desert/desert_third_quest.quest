@@ -1,0 +1,124 @@
+define MIN_LEVEL_TO_START 50
+define MIN_REPUTATION_TO_START 15000
+define REPUTATION_REWARD 750
+quest desert_third_quest begin
+    state start begin
+        function task_data()
+            return {
+                {8008, 1},
+                {8009, 1},
+                {8010, 1},
+            }
+        end
+
+        function can_start_quest()
+            if pc.get_level() < MIN_LEVEL_TO_START then
+                return "low_lvl"
+            elseif pc.get_reputation(FRACTION_DESERT) < MIN_REPUTATION_TO_START then
+                return "low_reputation"
+            elseif pc.getqf("reset_time") > get_time() then
+                return "delay"
+            end
+
+            return "ok"
+        end
+
+        when login with pc.get_map_index() == 63 begin
+            if desert_third_quest.can_start_quest() == "ok" then
+                send_target(20406)
+            end
+        end
+
+        when 20406.chat.translate.reputation_desert.third.name with pc.get_reputation(FRACTION_DESERT) >= MIN_REPUTATION_TO_START begin
+            target.delete("__TARGET__")
+            npc_name()
+
+            local can_start = desert_third_quest.can_start_quest()
+            if can_start == "low_lvl" then
+                say_split(msg(translate.reputation.quest_low_lvl, MIN_LEVEL_TO_START))
+                return
+            elseif can_start == "low_reputation" then
+                local rank = get_reputation_rank_by_total_value(MIN_REPUTATION_TO_START)
+                say_split(msg(translate.reputation.quest_low_reputation, translate.reputation.reputation_rank[rank+1]))
+                return
+            elseif can_start == "delay" then
+                say_split(translate.reputation.quest_wait)
+                return
+            end
+
+            say_split(translate.reputation_desert.third.desc)
+            say()
+
+            local data = desert_third_quest.task_data()
+            local quest_index = number(1, table.getn(data))
+            local task_data = data[quest_index]
+            say_reward(msg(translate.reputation_desert.third.task, task_data[2], mob_name(task_data[1])))
+
+            pc.setqf("quest_index", quest_index)
+            pc.setqf("reset_time", get_time() + time_until_hour(GLOBAL_COOLDOWN_RESET_HOUR))
+            pc.setqf("progress", task_data[2])
+            set_state(progress)
+        end
+    end
+    state progress begin
+        when login with desert_third_quest.can_start_quest() == "ok" begin
+            set_state(start)
+        end
+
+        when letter begin
+            send_letter_ex(translate.reputation_desert.third.name, "ex", "scroll_open_blue")
+            q.set_counter(translate.general.left, pc.getqf("progress"))
+        end
+
+        when button or info begin
+            say_info()
+            say_split(translate.reputation_desert.third.desc)
+            say()
+
+            local task_data = desert_third_quest.task_data()[pc.getqf("quest_index")]
+            say_reward(msg(translate.reputation_desert.third.task, task_data[2], mob_name(task_data[1])))
+            say_reward(translate.general.left..": "..pc.getqf("progress"))
+        end
+
+        when kill with not npc.is_pc() begin
+            local task_data = desert_third_quest.task_data()[pc.getqf("quest_index")]
+            if npc.get_race() == task_data[1] then
+                pc.setqf("progress", pc.getqf("progress") - 1)
+                q.set_counter(translate.general.left, pc.getqf("progress"))
+                if pc.getqf("progress") < 1 then
+                    set_state(reward)
+                end
+            end
+        end
+    end
+    state reward begin
+        when login with desert_third_quest.can_start_quest() == "ok" begin
+            set_state(start)
+        end
+
+        when letter begin
+            send_letter_ex(translate.reputation_desert.third.name, "ex", "scroll_open_blue")
+            send_target(20406)
+        end
+
+        when button or info begin
+            say_info()
+            say_split(translate.reputation.quest_done_letter)
+        end
+
+        when 20406.chat.translate.reputation_desert.third.name begin
+            target.delete("__TARGET__")
+            npc_name()
+            say_split(translate.reputation_desert.quest_done)
+            say()
+            set_state(start)
+
+            give_reward("desert_rep3")
+            
+            say_reward(msg(translate.reputation.quest_reward_reputation, REPUTATION_REWARD, translate.reputation_desert.fraction_name))
+            pc.add_reputation(FRACTION_DESERT, REPUTATION_REWARD)
+
+            clear_letter()
+        end
+    end
+end

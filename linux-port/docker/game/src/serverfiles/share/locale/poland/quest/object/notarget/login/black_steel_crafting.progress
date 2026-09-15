@@ -1,0 +1,4 @@
+if pc . get_map_index ( ) == 69 and pc . getqf ( "min_sun_uriel" ) == 1 then pc . setqf ( "min_sun_uriel" , 0 ) 
+say_title ( mob_name ( 20402 ) .. "[ENTER]" ) 
+say_split ( translate . black_steel_crafting . state_progress . uriel_talk1 ) 
+ return end 

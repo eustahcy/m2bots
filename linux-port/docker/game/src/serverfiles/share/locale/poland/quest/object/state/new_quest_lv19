@@ -1,0 +1,16 @@
+new_quest_lv19={["start"]=0,["__COMPLETE__"]=668443392,["gotouriel"]=-574011659,["gotouriel2"]=-673222184,["killanimals"]=60030669,killanimal= function (animal)local animals = { 30331 , 30332 , 30333 } 
+if pc . count_item ( animals [ animal ] ) < 5 then 
+local s = number ( 1 , 100 ) 
+if s <= 20 then 
+pc . give_item2 ( animals [ animal ] , 1 ) 
+return true 
+else 
+return false 
+end 
+end 
+end ,check_if_all_gather= function ()if pc . count_item ( 30331 ) >= 5 and pc . count_item ( 30332 ) >= 5 and pc . count_item ( 30333 ) >= 5 then 
+return true 
+else 
+return false 
+end 
+end }

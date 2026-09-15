@@ -1,0 +1,40 @@
+npc_name ( ) 
+local is_off_exp_rate = pc . getqf ( "off_exp_rate" ) > 0 
+local exp_bonus = 400 + pc . getqf ( "exp_rate" ) 
+if is_off_exp_rate then 
+exp_bonus = 0 
+end 
+say_reward ( string . format ( translate . beta . custom_exp . status , exp_bonus ) ) 
+say ( ) 
+say_split ( translate . beta . custom_exp . ask ) 
+local exp_options = { 
+400 
+} 
+local beta_progress = game . get_event_flag ( "beta_server" ) 
+if beta_progress >= 2 then 
+table . insert ( exp_options , 600 ) 
+end 
+if beta_progress >= 3 then 
+table . insert ( exp_options , 800 ) 
+end 
+if beta_progress >= 4 then 
+table . insert ( exp_options , 1000 ) 
+end 
+exp_select_table = { } 
+for i , v in pairs ( exp_options ) begin 
+table . insert ( exp_select_table , string . format ( "%d%%" , v ) ) 
+end 
+table . insert ( exp_select_table , translate . beta . custom_exp . turn_off ) 
+table . insert ( exp_select_table , translate . general . cancel ) 
+local x = select_table ( exp_select_table ) 
+if x == table . getn ( exp_select_table ) then 
+return 
+end 
+npc_name ( ) 
+say ( translate . beta . custom_exp . success ) 
+if x <= table . getn ( exp_options ) then 
+pc . setqf ( "exp_rate" , exp_options [ x ] - 400 ) 
+pc . setqf ( "off_exp_rate" , 0 ) 
+else 
+pc . setqf ( "off_exp_rate" , 1 ) 
+end 

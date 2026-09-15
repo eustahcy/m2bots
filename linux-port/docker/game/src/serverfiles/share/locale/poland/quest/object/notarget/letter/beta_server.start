@@ -1,0 +1,2 @@
+if beta_server . is_beta ( ) then send_letter ( translate . beta . intro . letter ) 
+ return end 

@@ -1,0 +1,2 @@
+if monkey_curse . is_in_dungeon ( ) then pc . setqf ( "logout_time" , get_time ( ) ) 
+ return end 

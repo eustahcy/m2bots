@@ -1,0 +1,1 @@
+return not pc . hasguild ( ) and pc . get_empire ( ) == npc . get_empire ( )

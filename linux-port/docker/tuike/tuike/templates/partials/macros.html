@@ -1,0 +1,95 @@
+{# Reusable pieces. Anything that appears on more than one page lives here. #}
+
+{% macro page_head(eyebrow, title, lead=None) %}
+<header class="page-head">
+  <p class="eyebrow">{{ eyebrow }}</p>
+  <h1>{{ title }}</h1>
+  {% if lead %}<p class="lead">{{ lead }}</p>{% endif %}
+</header>
+{% endmacro %}
+
+
+{% macro search_form(query, placeholder, action=None) %}
+<form class="search" {% if action %}action="{{ action }}"{% endif %} method="get" role="search">
+  <input name="q" value="{{ query }}" placeholder="{{ placeholder }}" autocomplete="off">
+  <button type="submit">Szukaj</button>
+  {% if query %}<a class="ghost-link" href="{{ action or request.path }}">Wyczyść</a>{% endif %}
+</form>
+{% endmacro %}
+
+
+{% macro stat(label, value, note=None, tone=None, id=None) %}
+<article class="stat {{ tone or '' }}">
+  <span class="stat-label">{{ label }}</span>
+  <strong class="stat-value"{% if id %} id="{{ id }}"{% endif %}>{{ value }}</strong>
+  {% if note %}<small class="stat-note">{{ note }}</small>{% endif %}
+</article>
+{% endmacro %}
+
+
+{% macro character_link(pid, name, job=None) %}
+<a class="character-link" href="{{ url_for('characters.profile', pid=pid) }}">
+  {% if job is not none %}
+    <img class="portrait portrait-tiny" src="{{ class_portrait(job) }}"
+         alt="" aria-hidden="true" loading="lazy">
+  {% endif %}{{ name }}</a>
+{% endmacro %}
+
+
+{% macro empire_badge(empire, compact=false) %}
+{% set kingdom = empire_info(empire) %}
+{% if kingdom.flag %}
+  <span class="empire{% if compact %} empire-compact{% endif %}" title="{{ kingdom.name }}">
+    <img src="{{ empire_flag(empire) }}" alt="" aria-hidden="true" loading="lazy">
+    {%- if not compact %}{{ kingdom.name }}{% endif -%}
+  </span>
+{% else %}<span class="muted">—</span>{% endif %}
+{% endmacro %}
+
+
+{% macro exp_meter(experience) %}
+<span class="exp-meter" title="{{ experience.percent }}% doświadczenia">
+  <span class="exp-track"><i style="width:{{ experience.percent }}%"></i></span>
+  <b>{{ experience.percent }}%</b>
+</span>
+{% endmacro %}
+
+
+{# The in-game item tooltip: name, base properties, bonuses, socketed stones. #}
+{% macro item_tooltip(item) %}
+<div class="tooltip" role="tooltip">
+  <b class="tooltip-name">{{ item.item_name }}</b>
+  <span class="tooltip-vnum">VNUM {{ item.vnum }}</span>
+  {% if item.count and item.count > 1 %}<span>Ilość: {{ item.count }}</span>{% endif %}
+  {% for line in item.base_stats %}<span class="tooltip-base">{{ line }}</span>{% endfor %}
+  {% for bonus in item.bonuses %}
+    <span class="tooltip-bonus{% if '-' in bonus %} negative{% endif %}">{{ bonus }}</span>
+  {% endfor %}
+  {% for stone in item.stones %}
+    <span class="tooltip-stone">{{ stone.name }}</span>
+    {% for bonus in stone.bonuses %}
+      <span class="tooltip-bonus{% if '-' in bonus %} negative{% endif %}">{{ bonus }}</span>
+    {% endfor %}
+  {% endfor %}
+</div>
+{% endmacro %}
+
+
+{% macro item_image(item) %}
+{% set icon = item_icon(item.vnum) %}
+{% if icon %}
+  <img src="{{ icon }}" alt="{{ item.item_name }}" loading="lazy">
+{% else %}
+  <span class="item-fallback">{{ item.vnum }}</span>
+{% endif %}
+{% endmacro %}
+
+
+{% macro empty_row(columns, message) %}
+<tr><td colspan="{{ columns }}" class="muted empty">{{ message }}</td></tr>
+{% endmacro %}
+
+
+{% macro csrf_field() %}
+<input type="hidden" name="csrf" value="{{ csrf_token() }}">
+{% endmacro %}

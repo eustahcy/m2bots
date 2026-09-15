@@ -1,0 +1,38 @@
+if collect_data . is_wait ( ) then 
+say_title ( gameforge . collect_quest_lv60 . _50_sayTitle ) 
+say ( gameforge . collect_quest_lv70 . _170_say ) 
+return 
+end 
+if pc . count_item ( 30165 ) < 1 then 
+say_title ( gameforge . collect_quest_lv60 . _50_sayTitle ) 
+say ( gameforge . collect_quest_lv70 . _165_say ) 
+return 
+end 
+say_title ( gameforge . collect_quest_lv60 . _50_sayTitle ) 
+say ( gameforge . collect_quest_lv70 . _130_say ) 
+pc . remove_item ( 30165 , 1 ) 
+wait ( ) 
+local if_fail_show_wait_info = not collect_data . is_no_time_on_fail ( ) 
+if collect_data . take_chance ( 60 ) then 
+if pc . getqf ( "collect_count" ) < 24 then 
+local index = pc . getqf ( "collect_count" ) + 1 
+pc . setqf ( "collect_count" , index ) 
+say_title ( gameforge . collect_quest_lv60 . _50_sayTitle ) 
+say ( string . format ( gameforge . collect_quest_lv70 . _140_say , 25 - pc . getqf ( "collect_count" ) ) ) 
+return 
+end 
+say_title ( gameforge . collect_quest_lv60 . _50_sayTitle ) 
+say ( gameforge . collect_quest_lv70 . _150_say ) 
+pc . setqf ( "collect_count" , 0 ) 
+collect_data . reset_time ( ) 
+set_state ( "key_item" ) 
+return 
+else 
+say_title ( gameforge . collect_quest_lv60 . _50_sayTitle ) 
+say ( gameforge . collect_quest_lv70 . _160_say ) 
+say ( ) 
+if if_fail_show_wait_info then 
+say ( gameforge . collect_quest_lv70 . fail_wait_info ) 
+end 
+return 
+end 

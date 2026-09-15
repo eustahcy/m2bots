@@ -1,0 +1,5 @@
+say_title ( gameforge . pony_levelup . _720_makequestbutton ) 
+say_reward ( gameforge . pony_levelup . _730_sayReward ) 
+pc . setqf ( "next_time" , 0 ) 
+clear_letter ( ) 
+setstate ( "start" ) 

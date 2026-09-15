@@ -1,0 +1,6 @@
+say_title ( gameforge . patrol_townaround . _420_makequestbutton ) 
+say_reward ( gameforge . patrol_townaround . _430_sayReward ) 
+setstate ( "__COMPLETE__" ) 
+pc . give_exp2 ( 200 ) 
+pc . change_money ( 200 ) 
+q . done ( ) 

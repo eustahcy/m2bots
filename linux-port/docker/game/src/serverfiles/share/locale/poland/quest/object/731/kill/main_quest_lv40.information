@@ -1,0 +1,4 @@
+if is_kill_drop ( 5 ) and pc . count_item ( "30150" ) == 0 then 
+pc . give_item2 ( 30150 , 1 ) 
+set_state ( "gototeacher1" ) 
+end 

@@ -1,0 +1,2 @@
+send_letter ( translate . fishing . onboarding . state_return_uriel . letter_name ) 
+send_target ( 20011 ) 

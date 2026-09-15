@@ -1,0 +1,7 @@
+target . delete ( "__TARGET4__" ) 
+say_title ( gameforge . new_quest_lv26 . _020_say_title ) 
+say ( gameforge . new_quest_lv26 . _063_say ) 
+set_state ( "__COMPLETE__" ) 
+give_reward ( "new_quest_lv26" ) 
+q . done ( ) 
+clear_letter ( ) 

@@ -1,0 +1,24 @@
+dungeon_return={["start"]=0,get_seconds_from_dungeon_exit= function ()return get_time ( ) - pc . getqf ( "dungeon_leave_time" ) 
+end ,is_dungeon_exist= function ()if pc . getqf ( "dungeon_index" ) < 1 then 
+return false 
+end 
+return d . find ( pc . getqf ( "dungeon_index" ) , 
+pc . getqf ( "dungeon_last_x" ) * 100 , 
+pc . getqf ( "dungeon_last_y" ) * 100 , 
+pc . get_player_id ( ) 
+) 
+end ,get_last_dungeon_name= function ()local dungeon_index = pc . getqf ( "dungeon_index" ) 
+local map_index = math . floor ( dungeon_index / 10000 ) 
+local map_name = translate . general . map_names [ map_index ] 
+if map_name == nil then 
+return "Nieznany" 
+end 
+return map_name 
+end ,is_no_return_dungeon= function ()local indices = { 79 } 
+for i , v in pairs ( indices ) begin 
+if in_dungeon ( v ) then 
+return true 
+end 
+end 
+return false 
+end }

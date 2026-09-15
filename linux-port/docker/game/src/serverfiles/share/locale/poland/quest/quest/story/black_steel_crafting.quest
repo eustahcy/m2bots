@@ -1,0 +1,145 @@
+define ITEM_QUEST1 35005
+define ITEM_QUEST2 35006
+define ITEM_QUEST3 35007
+quest black_steel_crafting begin
+    state start begin
+        when login or levelup with pc.get_level() >= 70 begin
+            if pc.getf("deviltower_zone", "6_done") >= 1 then
+                set_state(pre_start)
+            end
+        end
+    end
+    state pre_start begin
+        when 20402.chat.translate.black_steel_crafting.state_pre_start.chat begin
+            npc_name()
+            say_split(translate.black_steel_crafting.state_pre_start.talk1)
+            wait()
+            npc_name()
+            say_split(translate.black_steel_crafting.state_pre_start.talk2)
+            wait()
+            npc_name()
+            say_split(translate.black_steel_crafting.state_pre_start.talk3)
+            say_item_vnum(ITEM_QUEST1)
+            wait()
+            npc_name()
+            say_split(translate.black_steel_crafting.state_pre_start.talk4)
+            say_item_vnum(ITEM_QUEST2)
+            wait()
+            npc_name()
+            say_split(translate.black_steel_crafting.state_pre_start.talk5)
+            say_item_vnum(ITEM_QUEST3)
+            set_state(progress)
+        end
+    end
+    state progress begin
+        when letter begin
+            send_letter(translate.black_steel_crafting.state_progress.letter)
+        end
+
+        when button or info begin
+            say_info()
+            say_split(translate.black_steel_crafting.state_progress.info)
+            
+            local items = 0
+            if pc.count_item(ITEM_QUEST1) > 0 then
+                say_reward(msg(translate.black_steel_crafting.state_progress.info_get_item, item_name(ITEM_QUEST1)))
+                items = items + 1
+            end
+
+            if pc.count_item(ITEM_QUEST2) > 0 then
+                say_reward(msg(translate.black_steel_crafting.state_progress.info_get_item, item_name(ITEM_QUEST2)))
+                items = items + 1
+            end
+
+            if pc.count_item(ITEM_QUEST3) > 0 then
+                say_reward(msg(translate.black_steel_crafting.state_progress.info_get_item, item_name(ITEM_QUEST3)))
+                items = items + 1
+            end
+
+            if items >= 3 then
+                wait()
+                say_info()
+                say_split(translate.black_steel_crafting.state_progress.info_done, say_reward)
+            end
+        end
+
+        when 20075.chat.translate.black_steel_crafting.state_progress.blacksmith_chat with pc.count_item(ITEM_QUEST1) < 1 begin
+            npc_name()
+            say_split(translate.black_steel_crafting.state_progress.blacksmith_talk1)
+            wait()
+            say_title_pc_name()
+            say_split(translate.black_steel_crafting.state_progress.blacksmith_pc_talk1)
+            say()
+            npc_name()
+            say_split(translate.black_steel_crafting.state_progress.blacksmith_talk2)
+            say()
+            say_title_pc_name()
+            say_split(translate.black_steel_crafting.state_progress.blacksmith_pc_talk2)
+            wait()
+            npc_name()
+            say_split(translate.black_steel_crafting.state_progress.blacksmith_talk3)
+            say_split(translate.black_steel_crafting.state_progress.blacksmith_talk4)
+            wait()
+            npc_name()
+            say_split(translate.black_steel_crafting.state_progress.blacksmith_talk5)
+            say_split(translate.black_steel_crafting.state_progress.blacksmith_talk6)
+            wait()
+            npc_name()
+            say_split(translate.black_steel_crafting.state_progress.blacksmith_talk7)
+            say_split(translate.black_steel_crafting.state_progress.blacksmith_talk8)
+            pc.give_item2(ITEM_QUEST1)
+        end
+
+        when 20011.chat.translate.black_steel_crafting.state_progress.blacksmith_chat with pc.count_item(ITEM_QUEST1) > 0 begin
+            setskin(NOWINDOW)
+            pc.warp(6328*100, 11953*100) -- teleport do min-sun
+            pc.setqf("min_sun_uriel", 1)
+        end
+
+        when login with pc.get_map_index() == 69 and pc.getqf("min_sun_uriel") == 1 begin
+            pc.setqf("min_sun_uriel", 0)
+            say_title(mob_name(20402).."[ENTER]")
+            say_split(translate.black_steel_crafting.state_progress.uriel_talk1)
+        end
+
+        when 20405.click with pc.count_item(ITEM_QUEST2) < 1 begin
+            if npc.select(pc.getqf("tree_vid")) < 1 then
+                local vid = spawn_mob(2317, 11172*100, 42*100, 0, pc.get_vid())
+                if vid > 0 then
+                    npc.set_custom_npc_flag(vid, CUSTOM_NPC_FLAG_PURGE_ON_AGGRO_LOSE)
+                    npc.say(vid, translate.black_steel_crafting.state_progress.red_forest_awake_mob)
+                    pc.setqf("tree_vid", vid)
+                end
+            end
+        end
+
+        when 2317.kill with pc.count_item(ITEM_QUEST2) < 1 begin
+            pc.give_item2(ITEM_QUEST2)
+            pc.setqf("tree_vid", 0)
+        end
+
+        when 2281.kill or 2282.kill with pc.count_item(ITEM_QUEST3) < 1 begin
+            if number(1,2) == 1 then
+                pc.give_item2(ITEM_QUEST3)
+            end
+        end
+
+        when 20402.chat.translate.black_steel_crafting.state_progress.reward_chat with pc.count_item(ITEM_QUEST1) > 0 and pc.count_item(ITEM_QUEST2) > 0 and pc.count_item(ITEM_QUEST3) > 0 begin
+            npc_name()
+            say_split(translate.black_steel_crafting.state_progress.reward_talk1)
+            wait()
+            npc_name()
+            say_split(translate.black_steel_crafting.state_progress.reward_talk2)
+            pc.remove_item(ITEM_QUEST1, 1)
+            pc.remove_item(ITEM_QUEST2, 1)
+            pc.remove_item(ITEM_QUEST3, 1)
+            set_state(complete)
+        end
+    end
+    state complete begin
+        when 20402.chat.translate.black_steel_crafting.craft_chat begin
+            setskin(NOWINDOW)
+            crafting.open(CRAFTING_BLACK_STEEL)
+        end
+    end
+end

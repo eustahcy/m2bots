@@ -1,0 +1,50 @@
+{# Deliberately standalone: the panel's own layout reads the database, and the
+   database is what has just failed. Everything this page needs is inline. #}
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Uszkodzona tabela bazy danych</title>
+  <style>
+    body { font-family: system-ui, "Segoe UI", Arial, sans-serif; max-width: 52em;
+           margin: 3em auto; padding: 0 1.5em; line-height: 1.6; color: #222; }
+    h1 { font-size: 1.5em; }
+    code { background: #f2f2f2; padding: .15em .35em; border-radius: 3px; }
+    pre { background: #f2f2f2; padding: 1em; border-radius: 5px; overflow-x: auto; }
+    .note { background: #fff8e1; border-left: 4px solid #e0a800;
+            padding: .8em 1em; margin: 1.5em 0; }
+    .detail { margin-top: 2em; color: #666; font-size: .9em; }
+  </style>
+</head>
+<body>
+  <h1>Uszkodzona tabela bazy danych</h1>
+
+  <p>{% if table %}Tabela <code>{{ table }}</code>{% else %}Jedna z tabel bazy{% endif %}
+    jest oznaczona jako uszkodzona, więc panel nie może jej odczytać. Silnik gry używa
+    tabel MyISAM, a te nie przeżywają nagłego zatrzymania — wystarczy zamknięcie Dockera
+    w trakcie zapisu albo zanik zasilania.</p>
+
+  <div class="note"><strong>Aktualizacja serwera tego nie naprawi.</strong>
+    Uszkodzenie jest w danych na dysku, a nie w programie — nowa wersja czyta te same pliki.</div>
+
+  <h2>Jak naprawić</h2>
+  <p>Otwórz terminal w folderze serwera, w podkatalogu <code>linux-port/docker</code>,
+    i uruchom:</p>
+  <pre>docker compose exec mariadb mysqlcheck -uroot -p --auto-repair --databases log player account common</pre>
+  <p>Zapyta o hasło — to <code>M2_DB_ROOT_PASSWORD</code> z pliku <code>.env</code>
+    w tym samym folderze. Naprawa dużej tabeli logów potrafi potrwać kilka minut.</p>
+
+  <h2>Jeśli naprawa się nie uda</h2>
+  <p>Baza <code>log</code> to wyłącznie historia: co kto podniósł, ulepszył i powiedział.
+    Gra jej nie czyta i żadna postać, przedmiot ani bot od niej nie zależą. Jeśli
+    <code>mysqlcheck</code> zgłosi, że nie da rady, te tabele można opróżnić bez straty
+    dla świata:</p>
+  <pre>docker compose exec mariadb mariadb -uroot -p -e "TRUNCATE log.log; TRUNCATE log.levellog; TRUNCATE log.shout_log;"</pre>
+
+  <div class="note">Nie rób tego dla baz <code>player</code>, <code>account</code>
+    ani <code>common</code> — tam są postacie, konta i boty.</div>
+
+  <p class="detail">Błąd bazy: {{ errno }} ({{ detail }})</p>
+</body>
+</html>

@@ -1,0 +1,5 @@
+d . advance_level ( ) 
+notice_multiline ( gameforge . deviltower_zone . _270_dNotice , d . notice ) 
+local eighth_location = deviltower_zone . get_level_location ( 8 ) 
+d . jump_all ( eighth_location . x , eighth_location . y ) 
+d . regen_file ( eighth_location . regen ) 

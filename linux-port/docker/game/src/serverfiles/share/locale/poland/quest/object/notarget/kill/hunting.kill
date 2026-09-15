@@ -1,0 +1,15 @@
+if npc . get_race ( ) == pc . getf ( "hunting" , "huntingMobVnum" ) then pc . setqf ( "huntingMobCount" , pc . getqf ( "huntingMobCount" ) - 1 ) 
+hunting . refreshCounter ( ) 
+if pc . getqf ( "huntingMobCount" ) <= 0 then 
+say_info ( ) 
+say_split ( translate . hunting . complete ) 
+say ( ) 
+say_reward ( translate . hunting . rewardInfo ) 
+hunting . giveReward ( ) 
+pc . delqf ( "huntingMobVnum" ) 
+pc . delqf ( "huntingMobCount" ) 
+pc . setqf ( "huntingProgress" , pc . getqf ( "huntingProgress" ) + 1 ) 
+clear_letter ( ) 
+set_state ( "start" ) 
+end 
+ return end 

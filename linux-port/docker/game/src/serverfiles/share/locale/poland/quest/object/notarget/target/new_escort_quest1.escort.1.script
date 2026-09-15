@@ -1,0 +1,45 @@
+local vid = pc . getqf ( "escort_vid" ) 
+if npc . select ( vid ) < 1 then 
+debug ( "cant select npc" ) 
+return 
+end 
+local current_waypoint = new_escort_quest1 . get_waypoints ( ) [ pc . get_map_index ( ) ] [ pc . getqf ( "waypoint_index" ) ] 
+wp_x , wp_y = map_local_to_global_position ( pc . get_map_index ( ) , current_waypoint [ 1 ] , current_waypoint [ 2 ] ) 
+if npc . distance_to_point ( wp_x * 100 , wp_y * 100 ) > 50 then 
+debug ( "waiting for NPC" ) 
+return 
+end 
+target . delete ( "__ESCORT__" ) 
+cleartimer ( "escort_abort" ) 
+x , y , is_last = new_escort_quest1 . create_waypoint ( ) 
+if is_last then 
+debug ( "LAST POINT" ) 
+local special_x = npc . get_x ( ) 
+local special_y = npc . get_y ( ) 
+npc . purge ( ) 
+local spawnMobs = { 501 , 501 , 502 , 502 , 505 } 
+for i , vnum in ipairs ( spawnMobs ) begin 
+local is_special = vnum == 505 
+local x , y ; 
+if is_special then 
+x = special_x 
+y = special_y 
+else 
+local random_pos = number ( 1 , 100 ) / 100 
+x , y = getPositionOnCircle ( pc . get_x ( ) , pc . get_y ( ) , 10 , random_pos ) 
+end 
+local vid = spawn_mob ( vnum , x * 100 , y * 100 , 0 , pc . get_vid ( ) ) 
+if vid > 0 then 
+npc . set_custom_npc_flag ( vid , CUSTOM_NPC_FLAG_PURGE_ON_AGGRO_LOSE ) 
+if is_special then 
+npc . say ( vid , translate . new_escort_quest1 . state_start . escort_end ) 
+else 
+npc . say ( vid , translate . new_escort_quest1 . state_start . attack_start ) 
+end 
+end 
+end 
+else 
+debug ( "GO TO NEXT POINT" ) 
+npc . say_me ( table_get_random_item ( translate . new_escort_quest1 . state_start . escort_talk ) ) 
+npc . go_to ( x , y ) 
+end 

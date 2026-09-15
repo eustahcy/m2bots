@@ -1,0 +1,2 @@
+if pc . get_level ( ) >= 24 and pc . get_level ( ) <= 36 then set_state ( "information" ) 
+ return end 

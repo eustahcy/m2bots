@@ -1,0 +1,7 @@
+if pc . count_item ( 30526 ) == 0 then 
+say_title ( gameforge . find_brother_article . _130_sendLetter ) 
+say ( gameforge . find_brother_article . _140_sayReward ) 
+else 
+say_title ( gameforge . find_brother_article . _135_sendLetter ) 
+say ( gameforge . find_brother_article . _136_say ) 
+end 

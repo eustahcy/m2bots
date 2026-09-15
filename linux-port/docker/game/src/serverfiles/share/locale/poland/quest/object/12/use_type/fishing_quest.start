@@ -1,0 +1,4 @@
+if item . get_sub_type ( ) == 0 then 
+fishing_drop . open_fish ( item . get_vnum ( ) ) 
+item . remove ( 1 ) 
+end 

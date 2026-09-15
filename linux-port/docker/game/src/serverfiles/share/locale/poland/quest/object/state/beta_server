@@ -1,0 +1,7 @@
+beta_server={["start"]=0,is_beta= function ()return get_server_version ( ) < 1e+06 and game . get_event_flag ( "beta_server" ) > 0 
+end ,is_beta_etap2= function ()return get_server_version ( ) < 1e+06 and game . get_event_flag ( "beta_server" ) > 1 
+end ,is_beta_etap3= function ()return get_server_version ( ) < 1e+06 and game . get_event_flag ( "beta_server" ) > 2 
+end ,is_beta_etap3plus= function ()return get_server_version ( ) < 1e+06 and game . get_event_flag ( "beta_server" ) > 3 
+end ,is_beta_etap4= function ()return get_server_version ( ) < 1e+06 and game . get_event_flag ( "beta_server" ) > 4 
+end ,get_test_state= function ()return game . get_event_flag ( "beta_server" ) 
+end }

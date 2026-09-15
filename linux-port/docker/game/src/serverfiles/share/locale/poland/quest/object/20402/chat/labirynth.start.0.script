@@ -1,0 +1,30 @@
+if pc . getf ( "deviltower_zone" , "6_done" ) < 1 then 
+npc_name ( ) 
+say_split ( translate . labirynth . not_unlocked ) 
+return 
+end 
+npc_name ( ) 
+say_split ( translate . labirynth . chat1 ) 
+if select ( translate . labirynth . select1 , translate . labirynth . select2 ) == 2 then 
+npc_name ( ) 
+say_split ( translate . labirynth . cancel_chat1 ) 
+return 
+end 
+npc_name ( ) 
+say_split ( translate . labirynth . chat2 ) 
+if select ( translate . labirynth . select3 , translate . labirynth . select4 ) == 2 then 
+npc_name ( ) 
+say_split ( translate . labirynth . cancel_chat2 ) 
+return 
+end 
+if party . is_party ( ) then 
+npc_name ( ) 
+say_split ( translate . labirynth . is_in_party ) 
+return 
+end 
+if not pc . can_warp then 
+say_info ( ) 
+say_split ( translate . general . wait_after_exchange ) 
+return 
+end 
+d . join ( 79 ) 

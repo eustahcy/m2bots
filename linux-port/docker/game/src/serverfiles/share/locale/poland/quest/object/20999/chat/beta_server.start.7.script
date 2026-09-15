@@ -1,0 +1,43 @@
+npc_name ( ) 
+say_split ( translate . beta . collect . ask ) 
+say ( ) 
+local collect_quests = { 
+{ name = "collect_quest_lv30" , level = 30 , bonus = { POINT_MOV_SPEED , 10 } } , 
+{ name = "collect_quest_lv40" , level = 40 , bonus = { POINT_ATT_SPEED , 5 } } , 
+{ name = "collect_quest_lv50" , level = 50 , bonus = { POINT_DEF_GRADE_BONUS , 60 } } , 
+{ name = "collect_quest_lv60" , level = 60 , bonus = { POINT_ATT_GRADE_BONUS , 50 } } , 
+{ name = "collect_quest_lv70" , level = 70 , bonus = { POINT_DEF_BONUS , 10 , POINT_MOV_SPEED , 11 } } , 
+{ name = "collect_quest_lv80" , level = 80 , bonus = { POINT_ATT_SPEED , 5 , POINT_ATT_BONUS , 10 } } , 
+{ name = "collect_quest_lv85" , level = 85 , bonus = { POINT_RESIST_HUMAN , 10 } } , 
+{ name = "collect_quest_lv90" , level = 90 , bonus = { POINT_ATTBONUS_HUMAN , 8 } } , 
+} 
+local options = { } 
+for i , v in pairs ( collect_quests ) begin 
+table . insert ( options , msg ( "Badania Biologa %d lvl" , v . level ) ) 
+end 
+table . insert ( options , "Anuluj" ) 
+local x = select_table ( options ) 
+if x == table . getn ( options ) then 
+return 
+end 
+local collect = collect_quests [ x ] 
+if pc . get_level ( ) < collect . level then 
+npc_name ( ) 
+say_split ( msg ( translate . beta . collect . low_lvl , collect . level ) ) 
+say ( ) 
+return 
+end 
+if tostring ( get_quest_state ( collect . name ) ) == "557528158" then 
+npc_name ( ) 
+say_split ( translate . beta . collect . already_completed ) 
+say ( ) 
+return 
+end 
+for j in range ( 1 , table . getn ( collect . bonus ) , 2 ) begin 
+local point = collect . bonus [ j ] 
+local value = collect . bonus [ j + 1 ] 
+affect . add_collect ( point , value ) 
+end 
+set_quest_state ( collect . name , "__complete" ) 
+npc_name ( ) 
+say_split ( translate . beta . collect . success ) 

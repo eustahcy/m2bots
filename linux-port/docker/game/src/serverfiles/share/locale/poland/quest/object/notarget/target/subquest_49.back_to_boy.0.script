@@ -1,0 +1,24 @@
+target . delete ( "__TARGET__" ) 
+if pc . count_item ( "30149" ) > 0 then 
+pc . remove_item ( 30149 , 1 ) 
+say_title ( gameforge . npc_talk . _680_sayTitle ) 
+say ( gameforge . subquest_49 . _380_say ) 
+set_state ( "__COMPLETE__" ) 
+give_reward ( "subquest_49" ) 
+clear_letter ( ) 
+else 
+say_title ( gameforge . npc_talk . _680_sayTitle ) 
+say ( gameforge . subquest_49 . _420_say ) 
+say_item_vnum ( 30149 ) 
+wait ( ) 
+say_pc_name ( ) 
+say ( gameforge . subquest_49 . _430_say ) 
+local s = select ( gameforge . subquest_49 . _440_select , gameforge . subquest_49 . _450_select ) 
+if s == 2 then 
+say_pc_name ( ) 
+say ( gameforge . subquest_49 . _460_say ) 
+clear_letter ( ) 
+set_state ( "__GIVEUP__" ) 
+end 
+set_state ( "gain_ice" ) 
+end 

@@ -1,0 +1,7 @@
+debug ( "fishing quest trigger!" ) 
+local fishingState = pc . get_fishing_state ( ) 
+if fishingState == 1 then 
+fishing_manage . success ( ) 
+elseif fishingState == 2 then 
+fishing_manage . predict_fish ( ) 
+end 

@@ -1,0 +1,8 @@
+if pc . count_item ( "30026" ) < 1 then 
+if is_kill_drop ( 5 ) then 
+pc . give_item2 ( "30026" , 1 ) 
+say_title ( gameforge . main_quest_lv2 . _140_sayTitle ) 
+say ( gameforge . subquest_07 . _85_say ) 
+set_state ( "back_to2" ) 
+end 
+end 

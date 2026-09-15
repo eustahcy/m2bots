@@ -1,0 +1,34 @@
+quest item_exchange_manage begin
+    state start begin
+        when write with mes.get_message() == "item_exchange" begin
+            local args = mes.get_arguments()
+            if table.getn(args) != 1 then
+                debug("wrong parameters")
+                return
+            end
+            local option = args[1]
+            if option == "close" then
+                item_exchange.close()
+            else
+                local inven_slots = item_exchange.get_inventory_slots_from_argument(option)
+                item_exchange.exchange(inven_slots)
+            end
+        end
+
+        when 20001.chat.translate.item_exchange.soul_stone_chat begin
+            npc_name()
+            say_split(translate.item_exchange.soul_stone_talk1)
+            wait()
+            setskin(NOWINDOW)
+            item_exchange.open(item_exchange.SOUL_STONE_EXCHANGE)
+        end
+
+        when 20023.chat.translate.item_exchange.skillbook_chat begin
+            npc_name()
+            say_split(translate.item_exchange.skillbook_talk1)
+            wait()
+            setskin(NOWINDOW)
+            item_exchange.open(item_exchange.SKILLBOOK_EXCHANGE)
+        end
+    end
+end

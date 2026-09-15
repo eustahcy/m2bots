@@ -1,0 +1,4 @@
+hunting . show_quest_board ( ) 
+select ( gameforge . locale . confirm ) 
+clearmapsignal ( ) 
+setskin ( NOWINDOW ) 

@@ -1,0 +1,15 @@
+local is_exit = true 
+if pc . has_affect ( AFFECT_MONKEY_CURSE_EASY ) and pc . get_map_index ( ) < 100 then 
+is_exit = false 
+elseif pc . has_affect ( AFFECT_MONKEY_CURSE_NORMAL ) and pc . get_map_index ( ) == 108 then 
+is_exit = false 
+elseif pc . has_affect ( AFFECT_MONKEY_CURSE_HARD ) and pc . get_map_index ( ) == 109 then 
+is_exit = false 
+end 
+debug ( "jestem!" ) 
+if is_exit then 
+pc . polymorph ( 5003 , 5 * 60 ) 
+monkey_curse . exit_dungeon ( ) 
+else 
+timer ( "monkey_curse" , monkey_curse . get_delay ( ) ) 
+end 

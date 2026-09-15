@@ -1,0 +1,16 @@
+desert_first_quest={["start"]=0,["progress"]=570552902,["reward"]=1322349139,task_data= function ()return { 
+{ 2001 , 25 } , 
+{ 2003 , 20 } , 
+{ 2102 , 20 } , 
+{ 2104 , 15 } , 
+{ 2106 , 15 } , 
+} 
+end ,can_start_quest= function ()if pc . get_level ( ) < 30 then 
+return "low_lvl" 
+elseif pc . get_reputation ( FRACTION_DESERT ) < 0 then 
+return "low_reputation" 
+elseif pc . getqf ( "reset_time" ) > get_time ( ) then 
+return "delay" 
+end 
+return "ok" 
+end }

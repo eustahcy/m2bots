@@ -1,0 +1,8 @@
+if not npc . is_pc ( ) and pc . get_map_index ( ) == 63 then if npc_is_stone ( ) then 
+pc . add_reputation ( FRACTION_DESERT , 15 ) 
+elseif npc_is_boss ( ) then 
+pc . add_reputation ( FRACTION_DESERT , 50 ) 
+elseif npc . get_race ( ) == 2181 or npc . get_race ( ) == 2182 then 
+pc . add_reputation ( FRACTION_DESERT , 20 ) 
+end 
+ return end 

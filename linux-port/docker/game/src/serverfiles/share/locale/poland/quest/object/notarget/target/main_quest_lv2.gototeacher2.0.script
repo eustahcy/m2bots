@@ -1,0 +1,8 @@
+target . delete ( "__TARGET__" ) 
+say_title ( gameforge . main_quest_lv1 . _60_sayTitle ) 
+say ( gameforge . main_quest_lv2 . _210_say ) 
+set_state ( "__COMPLETE__" ) 
+set_quest_state ( "main_quest_lv3" , "run" ) 
+give_reward ( "main_quest_lv2" ) 
+pc . setqf ( "state" , 0 ) 
+clear_letter ( ) 

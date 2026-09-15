@@ -1,0 +1,31 @@
+if npc . is_custom_flag2 ( CUSTOM_NPC_FLAG_LOCK_INTERACTION ) then 
+setskin ( NOWINDOW ) 
+return 
+end 
+npc . set_custom_npc_flag2 ( CUSTOM_NPC_FLAG_LOCK_INTERACTION ) 
+npc_name ( ) 
+say ( gameforge . deviltower_zone . _190_say ) 
+wait ( ) 
+if pc . get_level ( ) >= 75 or pc . is_gm ( ) then 
+npc_name ( ) 
+say ( gameforge . deviltower_zone . _200_say ) 
+local s = select ( gameforge . deviltower_zone . _210_select , gameforge . locale . cancel , gameforge . deviltower_zone . _220_select ) 
+if s == 3 then 
+pc . warp ( 590500 , 110900 ) 
+npc . set_custom_npc_flag2 ( CUSTOM_NPC_FLAG_LOCK_INTERACTION , false ) 
+return 
+end 
+if s == 2 then 
+npc . set_custom_npc_flag2 ( CUSTOM_NPC_FLAG_LOCK_INTERACTION , false ) 
+return 
+end 
+timer ( "devil_jump_7" , 6 ) 
+d . purge ( ) 
+return 
+end 
+npc_name ( ) 
+say ( gameforge . deviltower_zone . _230_say ) 
+wait ( ) 
+pc . warp ( 590500 , 110500 ) 
+npc . set_custom_npc_flag2 ( CUSTOM_NPC_FLAG_LOCK_INTERACTION , false ) 
+return 

@@ -1,0 +1,7 @@
+target . delete ( "__TARGET__" ) 
+say_title ( gameforge . blacksmith . _20_sayTitle ) 
+say ( gameforge . subquest_04 . _280_say ) 
+say_title ( gameforge . collect_herb_lv4 . _130_sayTitle ) 
+set_state ( "__COMPLETE__" ) 
+give_reward ( "subquest_04" ) 
+clear_letter ( ) 

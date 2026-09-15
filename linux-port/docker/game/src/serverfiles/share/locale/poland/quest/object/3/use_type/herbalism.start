@@ -1,0 +1,11 @@
+if item . get_sub_type ( ) == USE_CRAFT_RECIPE then if not herbalism . can_craft ( ) then 
+syschat ( translate . herbalism . prime_quest . complete_quest_first ) 
+return 
+end 
+local vnum = item . get_value ( 0 ) 
+local chance = item . get_value ( 1 ) 
+local max_read = item . get_value ( 2 ) 
+if crafting . learn_recipe ( vnum , chance , max_read ) then 
+item . remove ( 1 ) 
+end 
+ return end 

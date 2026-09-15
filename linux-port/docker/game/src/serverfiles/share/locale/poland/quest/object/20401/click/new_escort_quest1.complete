@@ -1,0 +1,1 @@
+npc . say_me ( table_get_random_item ( translate . new_escort_quest1 . state_complete . random_msg ) ) 

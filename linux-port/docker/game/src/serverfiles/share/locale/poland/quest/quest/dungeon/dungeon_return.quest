@@ -1,0 +1,74 @@
+quest dungeon_return begin
+    state start begin
+        function get_seconds_from_dungeon_exit()
+            return get_time() - pc.getqf("dungeon_leave_time")
+        end
+
+        function is_dungeon_exist()
+            if pc.getqf("dungeon_index") < 1 then
+                return false
+            end
+            return d.find(pc.getqf("dungeon_index"),
+                pc.getqf("dungeon_last_x")*100,
+                pc.getqf("dungeon_last_y")*100,
+                pc.get_player_id()
+            )
+        end
+
+        function get_last_dungeon_name()
+            local dungeon_index = pc.getqf("dungeon_index")
+            local map_index = math.floor(dungeon_index / 10000)
+            
+            local map_name = translate.general.map_names[map_index]
+            if map_name == nil then
+                return "Nieznany"
+            end
+            return map_name
+        end
+
+        function is_no_return_dungeon()
+            local indices = {79}
+            for i,v in pairs(indices) do
+                if in_dungeon(v) then
+                    return true
+                end
+            end
+            return false
+        end
+
+        when login begin
+            if pc.in_dungeon() and not dungeon_return.is_no_return_dungeon() then
+                pc.setqf("dungeon_index", pc.get_map_index())
+                pc.setqf("dungeon_last_x", pc.get_x())
+                pc.setqf("dungeon_last_y", pc.get_y())
+            elseif pc.getqf("dungeon_index") > 0 and dungeon_return.get_seconds_from_dungeon_exit() < 300 then
+                send_letter_ex(translate.dungeon_return.letter_name, "ex", "scroll_open_green")
+            end
+        end
+
+        when logout with pc.in_dungeon() and not dungeon_return.is_no_return_dungeon() begin
+            pc.setqf("dungeon_leave_time", get_time())
+            pc.setqf("dungeon_last_x", pc.get_x())
+            pc.setqf("dungeon_last_y", pc.get_y())
+        end
+
+        when button or info begin
+            say_title(translate.dungeon_return.letter_name)
+            say()
+            say_reward(string.format(translate.dungeon_return.last_dungeon, dungeon_return.get_last_dungeon_name()))
+            say_split(translate.dungeon_return.info)
+            if select(translate.general.yes, translate.general.no) == 2 then return end
+            if not dungeon_return.is_dungeon_exist() then
+                say_info()
+                say("Szukam lochu")
+                setdelay(2000)
+                say("..........")
+                resetdelay()
+                say_split(translate.dungeon_return.too_late)
+                clear_letter()
+                return
+            end
+            pc.warp(pc.getqf("dungeon_last_x")*100, pc.getqf("dungeon_last_y")*100, pc.getqf("dungeon_index"))
+        end
+    end
+end

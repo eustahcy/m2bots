@@ -1,0 +1,3 @@
+if pc . get_level ( ) >= 19 then 
+setstate ( "gotouriel" ) 
+end 

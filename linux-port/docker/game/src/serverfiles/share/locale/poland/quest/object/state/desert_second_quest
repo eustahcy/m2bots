@@ -1,0 +1,22 @@
+desert_second_quest={["start"]=0,["progress"]=570552902,task_data= function ()return { 
+{ 50721 , 15 } , 
+{ 50722 , 15 } , 
+{ 50723 , 10 } , 
+{ 50724 , 10 } , 
+{ 50725 , 10 } , 
+{ 50603 , 30 } , 
+{ 50604 , 30 } , 
+{ 50606 , 30 } , 
+{ 50607 , 30 } , 
+{ 27803 , 2 } , 
+{ 27804 , 2 } , 
+} 
+end ,can_start_quest= function ()if pc . get_level ( ) < 40 then 
+return "low_lvl" 
+elseif pc . get_reputation ( FRACTION_DESERT ) < 3000 then 
+return "low_reputation" 
+elseif pc . getqf ( "reset_time" ) > get_time ( ) then 
+return "delay" 
+end 
+return "ok" 
+end }

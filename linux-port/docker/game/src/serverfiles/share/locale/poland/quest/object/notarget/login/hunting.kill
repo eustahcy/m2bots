@@ -1,0 +1,5 @@
+if pc . getf ( "hunting" , "huntingMobVnum" ) == 0 then 
+local mobData = hunting . getData ( ) . mobData [ 1 ] 
+pc . setqf ( "huntingMobVnum" , mobData [ 1 ] ) 
+pc . setqf ( "huntingMobCount" , mobData [ 2 ] ) 
+end 

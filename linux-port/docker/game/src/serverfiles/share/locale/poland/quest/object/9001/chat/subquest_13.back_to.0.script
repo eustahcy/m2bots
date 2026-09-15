@@ -1,0 +1,17 @@
+target . delete ( "__TARGET__" ) 
+say_title ( gameforge . subquest_08 . _120_sayTitle ) 
+say ( gameforge . subquest_13 . _310_say ) 
+wait ( ) 
+say_title ( gameforge . subquest_13 . _320_sayTitle ) 
+set_state ( "__COMPLETE__" ) 
+give_reward ( "subquest_13" ) 
+local weapon_reward_by_job = { 
+[ JOB_SHAMAN ] = { 5023 , 7043 } , 
+[ JOB_ASSASSIN ] = { 1023 , 2043 } , 
+[ JOB_WARRIOR ] = { 53 , 3043 } , 
+[ JOB_SURA ] = { 53 } 
+} 
+select_weapon_reward ( weapon_reward_by_job [ pc . job ] ) 
+clear_letter ( ) 
+pc . setqf ( "cloth_done" , 0 ) 
+pc . setqf ( "iron_done" , 0 ) 

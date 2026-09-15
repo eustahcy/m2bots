@@ -1,0 +1,5 @@
+target . delete ( "__TARGET__" ) 
+say ( gameforge . pony_levelup . _510_say ) 
+say ( ) 
+say_reward ( gameforge . pony_levelup . last_point ) 
+setstate ( "report" ) 

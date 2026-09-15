@@ -1,0 +1,39 @@
+quest inventory_remove_item begin
+    state start begin
+        when write with mes.get_message() == "inventory_remove" begin
+            if pc.is_busy() then
+                syschat(translate.inventory_remove.is_busy)
+                return
+            end
+
+            local args = mes.get_arguments()
+            local args_len = table.getn(args)
+            if args_len < 1 then
+                return
+            end
+
+            if !tonumber(args[1]) then
+                return
+            end
+
+            local slot = tonumber(args[1])
+            if item.select_cell(slot) then
+                if item.has_antiflag(ITEM_ANTIFLAG_DELETE) then
+                    syschat(translate.inventory_remove.is_antidelete)
+                    return
+                end
+                local item_id = item.get_id()
+                local item_vnum = item.get_vnum()
+                local item_count = item.get_count()
+                item_log ( item_id , "INVEN_DEL" , string.format("%s %d %d", get_item_name(item_vnum), item_count, slot), true) 
+                if item.remove() then
+                    if item_count > 1 then
+                        syschat(msg(translate.inventory_remove.delete_info2, item_count, get_item_name(item_vnum)))
+                    else
+                        syschat(msg(translate.inventory_remove.delete_info1, get_item_name(item_vnum)))
+                    end
+                end
+            end
+        end
+    end
+end

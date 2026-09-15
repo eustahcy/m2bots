@@ -1,0 +1,9 @@
+if in_dungeon ( 66 ) and d . get_level ( ) == 4 then d . kill_all ( ) 
+notice_multiline ( gameforge . deviltower_zone . _150_dNotice , d . notice ) 
+d . check_eliminated ( ) 
+notice_multiline ( gameforge . deviltower_zone . _160_dNotice , d . notice ) 
+local reward_alchemist = { 20074 , 20075 , 20076 } 
+d . spawn_mob ( table_get_random_item ( reward_alchemist ) , 425 , 216 ) 
+d . setqf2 ( "deviltower_zone" , "can_refine" , 1 ) 
+d . setqf2 ( "deviltower_zone" , "6_done" , 1 ) 
+ return end 

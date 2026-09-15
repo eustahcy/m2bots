@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+{% from 'partials/macros.html' import page_head, csrf_field, empire_badge, empty_row with context %}
+{% block title %}Konta i GM{% endblock %}
+
+{% block content %}
+{{ page_head('ADMINISTRACJA', 'Konta i postacie GM',
+             'Zwykłe konto to jeden wiersz. Konto game mastera tworzy od razu postać z uprawnieniami.') }}
+
+<section class="panel">
+  <h2>Nowe konto</h2>
+  <form method="post" id="account-form" class="account-form">
+    {{ csrf_field() }}
+
+    <div class="account-form-grid">
+      <fieldset class="account-fieldset">
+        <legend>Dane konta</legend>
+        <label class="field"><span>Login</span>
+          <input required name="login" maxlength="{{ login_max }}" pattern="[A-Za-z0-9_]+"
+                 autocomplete="off"><small>3–{{ login_max }} znaków: litery, cyfry, _</small></label>
+        <label class="field"><span>Hasło</span>
+          <input required name="password" type="password" minlength="6"
+                 autocomplete="new-password"><small>minimum 6 znaków</small></label>
+        <label class="field"><span>E-mail</span>
+          <input name="email" type="email" autocomplete="off"><small>opcjonalny</small></label>
+        <label class="field"><span>Kod usunięcia postaci</span>
+          <input required name="deletion_code" type="password" inputmode="numeric"
+                 minlength="7" maxlength="7" pattern="[0-9]{7}" placeholder="dokładnie 7 cyfr"
+                 autocomplete="off"><small>dokładnie 7 cyfr</small></label>
+      </fieldset>
+
+      <fieldset class="account-fieldset">
+        <legend>Rodzaj konta</legend>
+        <div class="chip-grid" id="account-kind-chips">
+          {% for value, name, note in account_kinds %}
+            <label class="chip">
+              <input type="radio" name="authority" value="{{ value }}"
+                     {{ 'checked' if loop.first }}>
+              <span><b>{{ name }}</b><small>{{ note }}</small></span>
+            </label>
+          {% endfor %}
+        </div>
+
+        <div class="gm-fields" hidden>
+          <div class="field-row">
+            <label class="field"><span>Królestwo</span>
+              <select name="empire">
+                {% for id, kingdom in empires.items() %}
+                  <option value="{{ id }}">{{ kingdom.name }}</option>
+                {% endfor %}
+              </select></label>
+            <label class="field"><span>Nick postaci</span>
+              <input name="gm_name" maxlength="24" pattern="{{ name_pattern }}"
+                     placeholder="np. [GM]Seban" autocomplete="off">
+              <small>2–24 znaki, opcjonalny prefiks w nawiasach</small></label>
+          </div>
+          <div class="field-row">
+            <label class="field"><span>Klasa</span>
+              <select name="gm_job">
+                {% for value, label in jobs %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+              </select></label>
+            <label class="field"><span>Płeć</span>
+              <select name="gm_gender">
+                {% for value, label in genders %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+              </select></label>
+          </div>
+          <p class="muted">Postać powstaje razem z kontem i jest dostępna od razu;
+            same uprawnienia GM stają się aktywne po restarcie usług gry.</p>
+        </div>
+      </fieldset>
+    </div>
+
+    <div class="button-row">
+      <button type="submit">Utwórz konto</button>
+    </div>
+  </form>
+</section>
+
+<section class="panel table-wrap">
+  <header class="panel-head">
+    <h2>Konta serwera</h2>
+    <form class="search" method="get">
+      <input name="q" value="{{ query }}" placeholder="Login lub nick postaci" autocomplete="off">
+      <label class="field field-inline"><span class="sr-only">Ile wyświetlać</span>
+        <select name="display">
+          {% for size in display_sizes %}
+            <option value="{{ size }}" {{ 'selected' if display == size }}>
+              {{ 'Wszystkie' if size == 'all' else size }}</option>
+          {% endfor %}
+        </select></label>
+      <button type="submit">Szukaj</button>
+    </form>
+  </header>
+  <table>
+    <thead><tr><th>ID</th><th>Login</th><th>E-mail</th><th>Królestwo</th>
+               <th>Utworzono</th><th>Ostatnia gra</th></tr></thead>
+    <tbody>
+      {% for account in accounts %}
+        <tr>
+          <td class="muted">{{ account.id }}</td>
+          <td>{{ account.login }}</td>
+          <td>{{ account.email or '—' }}</td>
+          <td>{{ empire_badge(account.empire) }}</td>
+          <td>{{ account.create_time }}</td>
+          <td>{{ account.last_play or '—' }}</td>
+        </tr>
+      {% else %}
+        {{ empty_row(6, 'Brak kont pasujących do wyszukiwania.') }}
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/accounts.js') }}"></script>
+{% endblock %}

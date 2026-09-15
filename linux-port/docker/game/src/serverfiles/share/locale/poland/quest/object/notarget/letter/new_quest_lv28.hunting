@@ -1,0 +1,4 @@
+new_quest_lv28_mob1 = 193 
+new_quest_lv28_drop1 = 30174 
+send_letter ( gameforge . new_quest_lv28 . _040_npcChat ) 
+notice_multiline ( gameforge . new_quest_lv28 . _025_notice , notice ) 

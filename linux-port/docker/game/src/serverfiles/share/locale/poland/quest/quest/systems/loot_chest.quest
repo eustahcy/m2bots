@@ -1,0 +1,108 @@
+quest loot_chest begin
+    state start begin
+        function get_chest_max_level()
+            local race = npc.get_race()
+
+            local max_level_by_race = {
+                [20702] = 36,
+                [20703] = 52,
+                [20704] = 52,
+                [20705] = 68,
+                [20706] = 68,
+                [20709] = 99,
+                [20710] = 99,
+            }
+
+            if max_level_by_race[race] == nil then
+                return npc.get_level() + 20
+            end
+            return max_level_by_race[race]
+        end
+
+        when 20701.click or
+        20702.click or
+        20703.click or
+        20704.click or
+        20705.click or
+        20706.click or
+        20707.click or
+        20708.click or
+        20709.click or
+        20710.click begin
+            if busy_action.is_busy("chest_open") then
+                debug("already busy")
+                return
+            elseif not npc.is_near(2) then
+                syschat(translate.general.too_far)
+                return
+            elseif pc.is_mount() then
+                syschat(translate.loot_chest.no_horse)
+                return
+            elseif pc.is_polymorphed() then
+                syschat(translate.general.polymorph)
+                return
+            elseif pc.get_level() < npc.get_level() then
+                syschat(string.format(translate.loot_chest.low_lvl, npc.get_level()))
+                return
+            elseif pc.get_level() > loot_chest.get_chest_max_level() then
+                syschat(translate.loot_chest.high_lvl)
+                debug("max level %d", loot_chest.get_chest_max_level())
+                return
+            elseif pc.getqf("wait") > get_time() then
+                local left_seconds = pc.getqf("wait") - get_time()
+                syschat(msg(translate.loot_chest.wait, second_to_smart_time(left_seconds)))
+                return
+            elseif pc.count_item(30380) < 1 then
+                syschat(translate.loot_chest.no_picklock)
+                return
+            end
+
+            local delay = 9
+            if is_test_server() and game.get_event_flag("loot_chest_debug") > 0 then
+                delay = 1
+            end
+            timer("chest_open", delay)
+            pc.remove_item(30380, 1)
+            busy_action.start("chest_open", BUSY_ACTION_GENERAL, delay)
+            save_npc()
+        end
+        when chest_open.timer begin
+            if busy_action.is_busy("chest_open") then
+                if not release_npc() then
+                    syschat(translate.loot_chest.fail)
+                    busy_action.stop(BUSY_ACTION_GENERAL, "chest_open", false)
+                    return
+                end
+
+                if npc.is_dead() then
+                    syschat(translate.loot_chest.fail)
+                    busy_action.stop(BUSY_ACTION_GENERAL, "chest_open", false)
+                    return
+                end
+                local drop_item = npc.get_drop_item()
+                npc.kill()
+                
+                busy_action.stop(BUSY_ACTION_GENERAL, "chest_open", true)
+
+                pc.add_player_stat(PLAYER_STATS_CHEST_FLAG)
+
+                local is_drop_premium = pc.get_premium_remain_sec(PREMIUM_ITEM)
+                local count = 1
+                if is_drop_premium then
+                    count = count + 1
+                end
+                
+                debug("DROP COUNT %d", count)
+                
+                pc.setqf("wait", get_time() + 3600)
+
+                local drop_items = get_special_items(drop_item, count, true)
+
+                for i,v in pairs(drop_items) do
+                    local rare_pct = math.max(v.rare_pct, 20)
+                    pc.give_item_from_special_item_group2(v.vnum, v.count, rare_pct)
+                end
+            end
+        end
+    end
+end

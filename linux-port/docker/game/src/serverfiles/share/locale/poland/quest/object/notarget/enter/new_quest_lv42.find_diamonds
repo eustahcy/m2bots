@@ -1,0 +1,13 @@
+send_letter ( gameforge . new_quest_lv42 . _037_send_letter ) 
+q . start ( ) 
+q . set_title ( gameforge . new_quest_lv42 . _037_send_letter ) 
+notice_multiline ( gameforge . new_quest_lv42 . _061_notice , notice ) 
+if 20 <= pc . count_item ( 50601 ) then 
+send_letter ( gameforge . new_quest_lv42 . _037_send_letter ) 
+local v = find_npc_by_vnum ( 20016 ) 
+if 0 == v then 
+else 
+target . vid ( "__TARGET4__" , v , gameforge . new_quest_lv42 . _050_target ) 
+end 
+else 
+end 

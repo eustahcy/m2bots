@@ -1,0 +1,6 @@
+npc_name ( ) 
+say_split ( translate . deviltower_zone . chat_shop ) 
+say ( ) 
+wait ( ) 
+setskin ( NOWINDOW ) 
+pc . open_special_shop ( 101 ) 

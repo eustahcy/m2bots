@@ -1,0 +1,21 @@
+if pc . get_premium_subscription_remain_sec ( ) > 0 or pc . getqf ( "use_premium_token" ) > get_time ( ) then 
+syschat ( translate . premium_token . has_premium ) 
+return 
+end 
+say_info ( ) 
+say_split ( translate . premium_token . info ) 
+say ( ) 
+if select ( translate . general . yes , translate . general . no ) == 2 then 
+return 
+end 
+if not check_safe_item ( ) then return end 
+if not pc . can_warp ( ) then 
+say_info ( ) 
+say_split ( translate . general . wait_after_exchange ) 
+say ( ) 
+return 
+end 
+if item . remove ( ) then 
+pc . add_vip ( 8 , 720 ) 
+pc . setqf ( "use_premium_token" , get_time ( ) + 3600 * 24 ) 
+end 

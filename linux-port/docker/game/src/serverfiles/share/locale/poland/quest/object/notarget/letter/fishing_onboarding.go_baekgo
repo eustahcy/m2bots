@@ -1,0 +1,2 @@
+send_letter ( translate . fishing . onboarding . state_go_baekgo . letter_name ) 
+send_target ( 20018 ) 

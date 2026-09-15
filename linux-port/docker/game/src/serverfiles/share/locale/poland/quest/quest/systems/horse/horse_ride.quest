@@ -1,0 +1,26 @@
+quest horse_ride begin
+    state start begin
+		when 20349.chat.gameforge.horse_ride._10_npcChat with pc.level>=10 and not pc.is_mount() begin
+			say_title(gameforge.horse_exchange_ticket._20_sayTitle)
+			say(gameforge.horse_ride._20_say)
+			local horse_ticket_vnum = 50083
+			say(msg)
+			local s= select(gameforge.locale.quiz_5_3_choice, gameforge.horse_ride._30_select)
+			if s==1 then
+				if pc.countitem(horse_ticket_vnum)>0 then
+					if true == horse.is_summon() then
+						horse.unsummon()
+					end
+
+					pc.removeitem(horse_ticket_vnum, 1)
+					pc.mount(20030, 600)
+				else
+					npc_name()
+					say(gameforge.horse_ride._40_say)
+				end
+			end
+		end
+    end
+end
+
+

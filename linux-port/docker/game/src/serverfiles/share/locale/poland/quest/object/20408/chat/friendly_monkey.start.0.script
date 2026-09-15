@@ -1,0 +1,20 @@
+if pc . is_busy ( ) then 
+syschat ( translate . general . is_busy ) 
+setskin ( NOWINDOW ) 
+return 
+end 
+say_info ( ) 
+say_split ( translate . friendly_monkey . talk ) 
+if pc . count_item ( 50736 ) > 0 then 
+if select ( translate . friendly_monkey . give , translate . general . cancel ) == 2 then 
+return 
+end 
+npc_name ( ) 
+say ( translate . friendly_monkey . talk2 ) 
+pc . remove_item ( 50736 , 1 ) 
+wait ( ) 
+setskin ( NOWINDOW ) 
+pc . open_special_shop ( 20408 ) 
+else 
+say_item_vnum ( 50736 ) 
+end 

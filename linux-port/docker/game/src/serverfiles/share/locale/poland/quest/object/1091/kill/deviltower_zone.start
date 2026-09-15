@@ -1,0 +1,4 @@
+if in_dungeon ( 66 ) and d . get_level ( ) == 1 then local third_location = deviltower_zone . get_level_location ( 3 ) 
+d . set_warp_at_eliminate ( 8 , d . get_map_index ( ) , third_location . x , third_location . y , third_location . regen ) 
+d . check_eliminated ( ) 
+ return end 

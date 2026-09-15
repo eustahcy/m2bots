@@ -1,0 +1,8 @@
+target . delete ( "__TARGET__" ) 
+say_title ( gameforge . main_quest_lv10 . _30_sayTitle ) 
+say ( gameforge . main_quest_lv10 . _200_say ) 
+say_title ( gameforge . collect_herb_lv4 . _130_sayTitle ) 
+set_state ( "__COMPLETE__" ) 
+set_quest_state ( "main_quest_lv12" , "run" ) 
+give_reward ( "main_quest_lv10" ) 
+clear_letter ( ) 

@@ -1,0 +1,5 @@
+say_info ( ) 
+say_split ( translate . fishing . onboarding . state_progress . letter_info ) 
+say ( ) 
+say_split ( translate . fishing . onboarding . state_progress . letter_item1 ) 
+say_split ( translate . fishing . onboarding . state_progress . letter_item2 ) 

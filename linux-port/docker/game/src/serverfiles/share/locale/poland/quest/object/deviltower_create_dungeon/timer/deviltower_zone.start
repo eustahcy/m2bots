@@ -1,0 +1,6 @@
+local first_location = deviltower_zone . get_level_location ( 1 ) 
+debug ( "%d %d" , first_location . x , first_location . y ) 
+d . new_jump_all ( 66 , first_location . x , first_location . y ) 
+d . regen_file ( first_location . regen ) 
+local second_location = deviltower_zone . get_level_location ( 2 ) 
+d . set_warp_at_eliminate ( 4 , d . get_map_index ( ) , second_location . x , second_location . y , second_location . regen ) 

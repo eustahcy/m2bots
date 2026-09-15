@@ -1,0 +1,19 @@
+target . delete ( "__TARGET__" ) 
+if pc . count_item ( 30029 ) >= 1 then 
+say_title ( gameforge . collect_quest_lv30 . _340_sayTitle ) 
+say ( gameforge . subquest_03 . _120_say ) 
+say_item_vnum ( 30029 ) 
+pc . remove_item ( 30029 ) 
+say ( gameforge . subquest_03 . _130_say ) 
+wait ( ) 
+say_title ( gameforge . collect_quest_lv30 . _340_sayTitle ) 
+say ( gameforge . subquest_03 . _140_say ) 
+say_title ( gameforge . locale . reward ) 
+set_state ( "__COMPLETE__" ) 
+give_reward ( "subquest_03" ) 
+clear_letter ( ) 
+else 
+npc_name ( ) 
+say_split ( gameforge . subquest_03 . no_item ) 
+set_state ( "hunt_for_wolf" ) 
+end 

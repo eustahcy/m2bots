@@ -1,0 +1,8 @@
+if pc . get_level ( ) < 38 then 
+syschat ( msg ( translate . quest_scroll . low_level , 38 ) ) 
+return 
+end 
+if item . remove ( ) then 
+syschat ( msg ( translate . quest_scroll . accept , translate . hwang_introduction . title ) ) 
+set_state ( "information" ) 
+end 

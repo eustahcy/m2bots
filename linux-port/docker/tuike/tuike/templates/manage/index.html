@@ -1,0 +1,417 @@
+{% extends 'base.html' %}
+{% from 'partials/macros.html' import page_head, csrf_field, empty_row with context %}
+{% set weight_min, weight_max, weight_neutral = weight_bounds %}
+{% block title %}Zarządzanie{% endblock %}
+
+{% block content %}
+{{ page_head('ADMINISTRACJA ŚWIATA', 'Zarządzanie serwerem',
+             'Mnożniki i respawny rdzeń czyta przy starcie, więc wchodzą w życie po restarcie. Zachowanie botów działa od ręki.') }}
+
+<section class="status-strip status-{{ status.state }}">
+  <span class="status-dot" aria-hidden="true"></span>
+  <b>{{ status.label }}</b>
+  <span class="muted">logowanie {{ 'działa' if status.auth else 'nie odpowiada' }}
+    · świat {{ 'działa' if status.world else 'nie odpowiada' }}
+    · {{ status.bots }} botów w świecie</span>
+  <span class="status-language">Język gry: <b>{{ language_name }}</b></span>
+</section>
+
+{% if not helper.ready %}
+  <section class="panel notice">
+    <h2>Integracja gry nie zgłasza gotowości</h2>
+    <p>{{ helper.message }}</p>
+    {% if helper.can_clear %}
+      <form action="{{ url_for('manage.clear_stale') }}" method="post">
+        {{ csrf_field() }}
+        <button class="ghost" type="submit">Usuń zaległe zlecenie</button>
+      </form>
+    {% endif %}
+  </section>
+{% endif %}
+
+{# Six tabs instead of eight stacked panels - all switched client-side, no
+   reload: every panel below is rendered by the server regardless of which one
+   is showing, so nothing here changes what data reaches the page. See
+   manage.js for the switcher and the old-anchor compatibility map (a bookmark
+   or a link to #behavior still opens the right tab). #}
+<nav class="tabs tabs-wrap" id="manage-tabs" aria-label="Sekcje zarządzania">
+  <button type="button" class="active" data-tab="world">🌍 Świat i restart</button>
+  <button type="button" data-tab="updates">🔄 Aktualizacje</button>
+  <button type="button" data-tab="behavior">🤖 Zachowanie botów</button>
+  <button type="button" data-tab="tools">🎁 Narzędzia</button>
+  <button type="button" data-tab="appearance">🎨 Wygląd i dostęp</button>
+  <button type="button" data-tab="population">👥 Populacja</button>
+</nav>
+
+<div data-tab-panel="world">
+  <form action="{{ url_for('manage.restart_config') }}" method="post">
+    {{ csrf_field() }}
+
+    <section class="panel" id="rates">
+      <p class="eyebrow">WCHODZI W ŻYCIE PO RESTARCIE</p>
+      <h2>Mnożniki i respawn map</h2>
+      <p class="muted">Gotowe zestawy wpisują wartości w pola poniżej; zapiszesz je
+        przyciskiem na dole tej sekcji.</p>
+      <div class="chip-grid chip-grid-wide">
+        {% for name, note, exp, drop, yang in rate_presets %}
+          <button type="button" class="chip chip-button" data-rates="{{ exp }} {{ drop }} {{ yang }}">
+            <span><b>{{ name }}</b><small>{{ note }}</small>
+              <small class="muted">EXP {{ exp }}% · drop {{ drop }}% · Yang {{ yang }}%</small></span>
+          </button>
+        {% endfor %}
+      </div>
+      <div class="field-row">
+        {% for key, label in rate_labels %}
+          <label class="field">
+            <span>{{ label }}</span>
+            <input required type="number" min="1" max="10000" name="{{ key }}" value="{{ rates[key] }}">
+            <small>%</small>
+          </label>
+        {% endfor %}
+      </div>
+
+      <h3>Respawn na mapach</h3>
+      <p class="muted">Potwory i Metiny mają osobne czasy. Puste pole przywraca oryginalne
+        wartości z wydania gry. Zakres: 1–3600 sekund.</p>
+
+      <div class="respawn-table">
+        <div class="respawn-head">
+          <span>Mapa</span><span>Potwory · s</span><span>Metiny · s</span>
+        </div>
+        {% for index, name in respawn_options %}
+          <div class="respawn-row">
+            <div class="respawn-name">{{ name }} <small>ID {{ index }}</small></div>
+            <div class="respawn-cell">
+              <span class="respawn-label">Potwory</span>
+              <label class="sr-only" for="map_{{ index }}">{{ name }} — potwory, sekundy</label>
+              <input id="map_{{ index }}" name="map_{{ index }}" type="number" min="1" max="3600"
+                     value="{{ respawn_status['values'].get(index, '') }}" placeholder="domyślne">
+              <button type="button" class="ghost" data-clear
+                      aria-label="{{ name }} — potwory: domyślne">Domyślne</button>
+            </div>
+            {% if index in stone_respawn_ids %}
+              <div class="respawn-cell">
+                <span class="respawn-label">Metiny</span>
+                <label class="sr-only" for="map_stone_{{ index }}">{{ name }} — Metiny, sekundy</label>
+                <input id="map_stone_{{ index }}" name="map_stone_{{ index }}" type="number"
+                       min="1" max="3600" value="{{ respawn_status['stones'].get(index, '') }}"
+                       placeholder="domyślne">
+                <button type="button" class="ghost" data-clear
+                        aria-label="{{ name }} — Metiny: domyślne">Domyślne</button>
+              </div>
+            {% else %}
+              <div class="respawn-cell muted">
+                <span class="respawn-label">Metiny</span>
+                Ta mapa nie ma osobnego pliku respawnu Metinów
+              </div>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+
+      <div class="section-divider"></div>
+
+      <h3>Zastosowanie zmian</h3>
+      <div class="button-row restart-buttons">
+        <button name="submit_action" value="apply" type="submit">Zapisz i zleć restart</button>
+        <button name="submit_action" value="restart" type="submit"
+                class="ghost" formnovalidate>Zleć sam restart</button>
+      </div>
+      <p class="muted">„Zleć sam restart” podnosi serwer z zapisanymi wcześniej ustawieniami
+        i pomija zmiany w polach powyżej.</p>
+
+      <div class="progress" role="progressbar" aria-label="Postęp restartu"
+           aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ restart.percent }}">
+        <i id="restart-fill" style="width:{{ restart.percent }}%"></i>
+      </div>
+      <p id="restart-stage" aria-live="polite">{{ restart.percent }}% · {{ restart.stage }}</p>
+      <p>Ostatni ukończony restart: <strong id="restart-last">—</strong></p>
+      <p class="muted" id="restart-origin"></p>
+      <p class="muted" id="restart-core"></p>
+    </section>
+  </form>
+
+  <section class="panel danger-zone" id="restart">
+    <p class="eyebrow">TO ROZŁĄCZY WSZYSTKICH</p>
+    <h2>Restart z potwierdzeniem</h2>
+    <p class="muted">Podnosi serwer natychmiast, z ustawieniami jakie ma teraz — bez zapisywania
+      pól z sekcji powyżej. Wpisz {{ confirmation }}, aby potwierdzić.</p>
+    <form action="{{ url_for('manage.restart') }}" method="post" class="inline-form">
+      {{ csrf_field() }}
+      <input name="confirmation" placeholder="{{ confirmation }}" autocomplete="off"
+             aria-label="Potwierdzenie restartu">
+      <button class="danger" type="submit">Restartuj serwer</button>
+    </form>
+  </section>
+
+  <section class="panel" id="language">
+    <h2>Język serwera</h2>
+    <p class="muted">Panel prosi, a kontener gry podmienia cztery pliki i uruchamia rdzenie
+      ponownie — one czytają je tylko przy starcie. Rozłącza to graczy na tyle samo,
+      co zmiana mnożników. Klient gry ma własny pakiet językowy, wybierany przez
+      <code>locale.cfg</code> obok pliku uruchamiającego, i ta zmiana go nie dotyczy.</p>
+    <form action="{{ url_for('manage.language') }}" method="post" class="inline-form">
+      {{ csrf_field() }}
+      <label class="field field-inline">
+        <span class="sr-only">Język gry</span>
+        <select name="lang">
+          {% for code, name in languages %}
+            <option value="{{ code }}" {{ 'selected' if language == code }}>{{ name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <button type="submit" class="ghost">Zmień język gry</button>
+    </form>
+  </section>
+</div>
+
+<div data-tab-panel="updates" hidden>
+  <section class="panel" id="updater">
+    <p class="eyebrow">PLAYERBOTS · AKTUALIZACJE</p>
+    <h2>Aktualizator</h2>
+    <p>Zlecenie trafia do osobnego kontenera <code>updater</code>, który pobiera wydanie,
+      przygotowuje obrazy i uruchamia wdrożenie. Panel nie ma dostępu do socketu Dockera
+      i nie przekazuje żadnych komend ani ścieżek z przeglądarki.</p>
+
+    <div class="readouts readouts-grid">
+      <div><dt>Wersja Playerbots</dt>
+        <dd><b class="tone-{{ release.tone }}">{{ release.installed }}</b>
+          <small>{% if release.latest %}GitHub: {{ release.latest }} · {% endif %}{{ release.label }}</small></dd></div>
+      <div><dt>Stan</dt><dd id="updater-state">{{ updater.state }}</dd></div>
+      <div><dt>Postęp</dt><dd id="updater-percent">{{ updater.percent }}%</dd></div>
+      <div><dt>Usługa</dt>
+        <dd id="updater-worker">{{ 'gotowa' if updater.watcher_ready else 'nie uruchomiona' }}</dd></div>
+    </div>
+
+    <div class="progress" role="progressbar" aria-label="Postęp aktualizacji"
+         aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ updater.percent }}">
+      <i id="updater-fill" style="width:{{ updater.percent }}%"></i>
+    </div>
+    <p class="muted" id="updater-message">{{ updater.message }}</p>
+
+    {% if updater.protected %}
+      <form action="{{ url_for('manage.update') }}" method="post">
+        {{ csrf_field() }}
+        <button id="updater-submit" type="submit"
+                {% if not updater.watcher_ready or updater.state == 'running' %}disabled{% endif %}>
+          Pobierz i zainstaluj aktualizację
+        </button>
+      </form>
+    {% else %}
+      <p class="flash error">Aktualizacje z panelu wymagają włączonej ochrony hasłem.
+        Włącz ją w zakładce „Wygląd i dostęp” i zaloguj się ponownie.</p>
+    {% endif %}
+
+    <details>
+      <summary>Ostatnie wpisy aktualizatora</summary>
+      <pre id="updater-log">{{ updater.log|join('\n') or 'Brak wpisów.' }}</pre>
+    </details>
+  </section>
+</div>
+
+<div data-tab-panel="behavior" hidden>
+  <section class="panel" id="behavior">
+    <p class="eyebrow">PLAYERBOTS · NA ŻYWO</p>
+    <h2>Zachowanie botów</h2>
+    <p class="muted">{{ weight_neutral }}% to domyślne zachowanie autora rdzenia.
+      Zapis wchodzi w życie do pięciu sekund — bez restartu i bez rozłączania graczy.</p>
+
+    <form action="{{ url_for('manage.behavior') }}" method="post" class="behavior">
+      {{ csrf_field() }}
+
+      <h3>Cele i priorytety</h3>
+      <div class="weight-grid">
+        {% for key, label, icon in weight_keys %}
+          <label class="weight">
+            <span>{{ icon }} {{ label }}</span>
+            <input type="range" min="{{ weight_min }}" max="{{ weight_max }}" step="5"
+                   name="{{ key }}" value="{{ weights[key] }}" data-weight>
+            <output>{{ weights[key] }}</output><small>%</small>
+          </label>
+        {% endfor %}
+      </div>
+
+      <h3>Gospodarka straganów</h3>
+      <div class="behavior-extras">
+        <label class="weight">
+          <span>♻️ Boty złomiarze</span>
+          <input type="range" min="0" max="100" step="5" name="SCRAP"
+                 value="{{ weights.SCRAP }}" data-weight>
+          <output>{{ weights.SCRAP }}</output><small>% straganiarzy</small>
+        </label>
+        <label class="weight">
+          <span>💹 Handlarze okazjami</span>
+          <input type="range" min="0" max="100" step="5" name="PROFIT"
+                 value="{{ weights.PROFIT }}" data-weight>
+          <output>{{ weights.PROFIT }}</output><small>% botów kupuje okazje na straganach z myślą o odsprzedaży</small>
+        </label>
+        <div class="chest-fields">
+          <span>⚒️ Próg "prawdziwego" ekwipunku
+            <small>od jakiego refine sztuka liczy się jako towar, a nie złom</small></span>
+          <label>ulepszenie
+            <input name="SCRAPFLOOR" type="number"
+                   min="{{ refine_floor_bounds[0] }}" max="{{ refine_floor_bounds[1] }}"
+                   value="{{ weights.SCRAPFLOOR if weights.SCRAPFLOOR is not none else refine_floor_suggestions.SCRAPFLOOR }}">
+            <small>+</small>
+          </label>
+        </div>
+      </div>
+      <p class="muted">Stragany otwierają zawsze: Handlarz, bot bez Yang na mikstury, bot z pełnym
+        plecakiem i dropper pod presją plecaka — suwak rusza tylko resztę. Zmiana bywa widoczna
+        do pięciu minut, a status bota mówi, dlaczego stoi.</p>
+      <p class="muted">Domyślnie +4: przedmiot poniżej tego ulepszenia liczy się jako towar tylko wtedy,
+        gdy i tak jest wart yangów (rodzina wyceniana ręcznie) albo jest dla innej klasy niż bota — inaczej
+        trafia na stos złomu. Niższa wartość = więcej przedmiotów trafia na straganu jako prawdziwy ekwipunek
+        zamiast do przetopienia.</p>
+
+      <h3>Społeczne i widoczność</h3>
+      <div class="behavior-extras">
+        <label class="switch">
+          <span>💬 Czynność nad głową bota</span>
+          <input type="hidden" name="CHAT" value="0">
+          <input type="checkbox" name="CHAT" value="1" {{ 'checked' if weights.CHAT }}>
+          <small>pokazuj w świecie</small>
+        </label>
+        <label class="switch">
+          <span>🌙 Noc na serwerze</span>
+          <input type="hidden" name="NIGHT" value="0">
+          <input type="checkbox" name="NIGHT" value="1" {{ 'checked' if weights.NIGHT }}>
+          <small>22:00–05:59 czasu serwera</small>
+        </label>
+        <label class="weight">
+          <span>⚔️ Wrogość między królestwami</span>
+          <input type="range" min="0" max="100" step="5" name="KINGDOMPVP"
+                 value="{{ weights.KINGDOMPVP }}" data-weight>
+          <output>{{ weights.KINGDOMPVP }}</output><small>% botów zaczepia bota innego królestwa na widok</small>
+        </label>
+      </div>
+      <p class="muted">Wrogość między królestwami domyślnie wyłączona (0%) — to świadoma decyzja operatora,
+        nie cecha pojedynczego bota: dotyczy tylko światów z włączonymi trzema królestwami
+        (<code>M2_PLAYERBOT_KINGDOMS=1</code>) i zmienia to, jak świat zachowuje się sam wobec siebie.</p>
+
+      <h3>Nauka</h3>
+      <div class="behavior-extras">
+        <label class="switch">
+          <span>📖 Szybkie czytanie ksiąg</span>
+          <input type="hidden" name="BOOKS" value="0">
+          <input type="checkbox" name="BOOKS" value="1" {{ 'checked' if weights.BOOKS }}>
+          <small>czyta od razu, bez dobowej przerwy gry</small>
+        </label>
+        <label class="weight">
+          <span>🛋️ Odpoczynek w mieście</span>
+          <input type="range" min="0" max="100" step="5" name="REST"
+                 value="{{ weights.REST }}" data-weight>
+          <output>{{ weights.REST }}</output><small>% botów po sprawach w mieście</small>
+        </label>
+      </div>
+
+      <h3>Eventy</h3>
+      <div class="behavior-extras">
+        <div class="chest-fields">
+          <span>🎁 Szkatułki Blasku <small>szansa w promilach</small></span>
+          <label>z potwora
+            <input name="CHEST" type="number" min="0" max="1000"
+                   value="{{ weights.CHEST if weights.CHEST is not none else chest_suggestions.CHEST }}"><small>‰</small>
+          </label>
+          <label>z Metina
+            <input name="CHEST_STONE" type="number" min="0" max="1000"
+                   value="{{ weights.CHEST_STONE if weights.CHEST_STONE is not none else chest_suggestions.CHEST_STONE }}"><small>‰</small>
+          </label>
+        </div>
+      </div>
+
+      <div class="button-row">
+        <button type="submit">Zapisz zachowanie</button>
+        <button type="button" class="ghost" id="reset-weights">Przywróć {{ weight_neutral }}%</button>
+      </div>
+    </form>
+  </section>
+</div>
+
+<div data-tab-panel="tools" hidden>
+  <section class="panel highlight-panel" id="grants">
+    <div class="highlight-panel-body">
+      <p class="eyebrow">🎁 NADAWANIE</p>
+      <h2>Masowe nadawanie przedmiotów</h2>
+      <p class="muted">Wybierz VNUM, ilość i warunki: poziom, klasa, koń, jeździectwo i czas gry.
+        Podgląd odbiorców oraz historia wyników działają bez restartu gry.</p>
+    </div>
+    <a class="button" href="{{ url_for('grants.index') }}">Otwórz narzędzie →</a>
+  </section>
+
+  <section class="panel" id="related-panels">
+    <h2>Powiązane panele</h2>
+    <p class="muted">Ten sam świat, inne widoki — otwierają się w nowej karcie.</p>
+    <div class="linkrow">
+      {% if tieru_url %}<a href="{{ tieru_url }}" target="_blank" rel="noopener">Panel klasyczny →</a>{% endif %}
+      {% if seban_url %}<a href="{{ seban_url }}" target="_blank" rel="noopener">Seban Panel →</a>{% endif %}
+      {% if itemshop_url %}<a href="{{ itemshop_url }}" target="_blank" rel="noopener">ItemShop →</a>{% endif %}
+      {% if vps_panel_url %}<a href="{{ vps_panel_url }}" target="_blank" rel="noopener">Panel VPS →</a>{% endif %}
+    </div>
+  </section>
+</div>
+
+<div data-tab-panel="appearance" hidden>
+  <section class="panel" id="appearance">
+    <h2>Wygląd, monitoring i dostęp</h2>
+    <form action="{{ url_for('manage.apply_settings') }}" method="post" class="settings-form">
+      {{ csrf_field() }}
+      <label class="field"><span>Nazwa panelu</span>
+        <input name="panel_name" maxlength="48" value="{{ settings.panel_name }}"></label>
+      <label class="field"><span>Alarm bez ruchu</span>
+        <input name="stuck_minutes" type="number" min="1" max="120"
+               value="{{ settings.stuck_minutes }}"><small>minut</small></label>
+      <label class="field"><span>Motyw</span>
+        <select name="theme">
+          {% for key, label in themes %}
+            <option value="{{ key }}" {{ 'selected' if settings.theme == key }}>{{ label }}</option>
+          {% endfor %}
+        </select></label>
+      <label class="field"><span>Zagęszczenie</span>
+        <select name="density">
+          {% for key, label in densities %}
+            <option value="{{ key }}" {{ 'selected' if settings.density == key }}>{{ label }}</option>
+          {% endfor %}
+        </select></label>
+      <label class="field"><span>Źródło monitoringu</span>
+        <select name="monitor_mode">
+          {% for key, label in monitor_modes %}
+            <option value="{{ key }}" {{ 'selected' if settings.monitor_mode == key }}>{{ label }}</option>
+          {% endfor %}
+        </select></label>
+      <label class="switch"><span>Ochrona hasłem</span>
+        <input type="checkbox" name="auth_enabled" value="1"
+               {{ 'checked' if settings.auth_enabled == '1' }}><small>włącz</small></label>
+      <label class="field"><span>Nowe hasło</span>
+        <input name="panel_password" type="password" minlength="8" autocomplete="new-password"
+               placeholder="co najmniej 8 znaków"><small>opcjonalne</small></label>
+      <button type="submit">Zapisz ustawienia</button>
+    </form>
+    <p class="muted">Hasło jest przechowywane jako skrót. Wyłączenie ochrony usuwa skrót
+      i kończy bieżącą sesję.</p>
+  </section>
+</div>
+
+<div data-tab-panel="population" hidden>
+  <section class="panel table-wrap" id="population">
+    <h2>Boty na mapach</h2>
+    <p><b id="bot-live-count">{{ bot_count }}</b> aktywnych botów.</p>
+    <table>
+      <thead><tr><th>Mapa</th><th class="numeric">Aktywne boty</th></tr></thead>
+      <tbody id="map-load-rows">
+        {% for row in map_load %}
+          <tr><td>{{ row.name }}</td><td class="numeric">{{ row.character_count }}</td></tr>
+        {% else %}
+          {{ empty_row(2, 'Żaden rdzeń nie zgłasza teraz botów.') }}
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script id="restart-state" type="application/json">{{ restart|tojson }}</script>
+<script id="updater-state-data" type="application/json">{{ updater|tojson }}</script>
+<script src="{{ url_for('static', filename='js/manage.js') }}"></script>
+{% endblock %}

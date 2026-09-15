@@ -1,0 +1,7 @@
+if pc . in_dungeon ( ) and d . get_level ( ) == 3 then local n = d . getf ( "count" ) + 1 
+d . setf ( "count" , n ) 
+if n == 50 then 
+game . drop_item ( 50084 , 1 ) 
+d . setf ( "count" , 0 ) 
+end 
+ return end 

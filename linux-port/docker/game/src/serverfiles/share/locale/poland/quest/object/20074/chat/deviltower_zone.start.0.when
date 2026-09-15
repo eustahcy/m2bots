@@ -1,0 +1,1 @@
+return in_dungeon ( 66 ) and d . get_level ( ) == 4

@@ -1,0 +1,12 @@
+Installer revision: 1.0.0-r2
+Source payload version: 1.0.0 (unchanged)
+Existing manifest and backup journal remain compatible.
+
+Fix: verify an existing companion table using the configured game database
+account before attempting root initialization. Send the shell script on stdin
+to avoid Windows command-line quoting. Verify game account access after creation.
+Also find Docker Desktop when docker.exe is not on PATH.
+Database preflight now runs before source application on new installations.
+
+Replace the existing companion-pack-2x folder contents with this package and
+rerun Install.bat. Keep SERVER/.companion-pack-2x and all its backups intact.

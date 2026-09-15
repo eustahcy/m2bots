@@ -1,0 +1,4 @@
+if pc . get_level ( ) >= 70 then if pc . getf ( "deviltower_zone" , "6_done" ) >= 1 then 
+set_state ( "pre_start" ) 
+end 
+ return end 

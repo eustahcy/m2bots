@@ -1,0 +1,25 @@
+diff --git a/linux-port/docker/game/src/server/game/src/input_main.cpp b/linux-port/docker/game/src/server/game/src/input_main.cpp
+index cad15ad..ad47e02 100644
+--- a/linux-port/docker/game/src/server/game/src/input_main.cpp
++++ b/linux-port/docker/game/src/server/game/src/input_main.cpp
+@@ -1,4 +1,4 @@
+-#include "stdafx.h"
++﻿#include "stdafx.h"
+ #include "constants.h"
+ #include "config.h"
+ #include "utils.h"
+@@ -1974,7 +1974,8 @@ void CInputMain::Attack(LPCHARACTER ch, const BYTE header, const char* data)
+ 						return;
+ 				}
+ 
+-				ch->Attack(victim, packMelee->bType, type->type);
++				CPlayerBotManager::instance().OnOwnerAttack(ch, victim);
++                        ch->Attack(victim, packMelee->bType, type->type);
+ 			}
+ 			break;
+ 
+@@ -4259,3 +4260,4 @@ int CInputDead::Analyze(LPDESC d, BYTE bHeader, const char * c_pData)
+ //martysama0134's 4e4e75d8b719b9240e033009cf4d7b0f
+ 
+ // Files shared by GameCore.top
++

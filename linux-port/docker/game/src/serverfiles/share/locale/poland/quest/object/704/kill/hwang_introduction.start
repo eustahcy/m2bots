@@ -1,0 +1,4 @@
+if pc . count_item ( 35004 ) == 0 then if number ( 1 , 200 ) == 1 then 
+game . drop_item_with_ownership ( 35004 , 1 ) 
+end 
+ return end 

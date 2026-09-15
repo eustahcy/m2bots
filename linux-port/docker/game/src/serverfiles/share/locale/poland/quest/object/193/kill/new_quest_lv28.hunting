@@ -1,0 +1,4 @@
+pc . give_item2 ( new_quest_lv28_drop1 ) 
+notice ( gameforge . new_quest_lv28 . _026_notice ) 
+notice_multiline ( gameforge . new_quest_lv28 . _027_notice , notice ) 
+set_state ( "goto_yangshin" ) 

@@ -1,0 +1,24 @@
+target . delete ( "__TARGET__" ) 
+npc_name ( ) 
+local can_start = desert_second_quest . can_start_quest ( ) 
+if can_start == "low_lvl" then 
+say_split ( msg ( translate . reputation . quest_low_lvl , 40 ) ) 
+return 
+elseif can_start == "low_reputation" then 
+local rank = get_reputation_rank_by_total_value ( 3000 ) 
+say_split ( msg ( translate . reputation . quest_low_reputation , translate . reputation . reputation_rank [ rank + 1 ] ) ) 
+return 
+elseif can_start == "delay" then 
+say_split ( translate . reputation . quest_wait ) 
+return 
+end 
+say_split ( translate . reputation_desert . second . desc ) 
+say ( ) 
+local data = desert_second_quest . task_data ( ) 
+local quest_index = number ( 1 , table . getn ( data ) ) 
+local task_data = data [ quest_index ] 
+say_item_vnum ( task_data [ 1 ] ) 
+say_reward ( msg ( translate . reputation_desert . second . task , task_data [ 2 ] , item_name ( task_data [ 1 ] ) ) ) 
+pc . setqf ( "quest_index" , quest_index ) 
+pc . setqf ( "reset_time" , get_time ( ) + time_until_hour ( GLOBAL_COOLDOWN_RESET_HOUR ) ) 
+set_state ( "progress" ) 

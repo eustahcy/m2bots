@@ -1,0 +1,40 @@
+diff --git a/linux-port/docker/game/src/server/game/src/input_login.cpp b/linux-port/docker/game/src/server/game/src/input_login.cpp
+index e8ffcf7..4ceed75 100644
+--- a/linux-port/docker/game/src/server/game/src/input_login.cpp
++++ b/linux-port/docker/game/src/server/game/src/input_login.cpp
+@@ -1,4 +1,4 @@
+-#include "stdafx.h"
++﻿#include "stdafx.h"
+ #include "constants.h"
+ #include "config.h"
+ #include "utils.h"
+@@ -6,7 +6,8 @@
+ #include "desc_client.h"
+ #include "desc_manager.h"
+ #include "char.h"
+-#include "char_manager.h"
++#include "char_manager.h"
++#include "playerbot_manager.h"
+ #include "cmd.h"
+ #include "buffer_manager.h"
+ #include "protocol.h"
+@@ -684,7 +685,11 @@ void CInputLogin::Entergame(LPDESC d, const char * data)
+ 	SECTREE_MANAGER::instance().SendNPCPosition(ch);
+ 	ch->ReviveInvisible(5);
+ 
+-	d->SetPhase(PHASE_GAME);
++	d->SetPhase(PHASE_GAME);
++
++// CUSTOM COMPANION: spawn/recall companion when owner enters game.
++if (!d->IsBot())
++    CPlayerBotManager::instance().OnOwnerEnteredGame(ch);
+ 
+ 	if (ch->HasPlayerData())
+ 		ch->playerData->SendSpecialFlagsToClient(ch);
+@@ -1222,3 +1227,6 @@ int CInputLogin::Analyze(LPDESC d, BYTE bHeader, const char* c_pData)
+ //martysama0134's 4e4e75d8b719b9240e033009cf4d7b0f
+ 
+ // Files shared by GameCore.top
++
++
++

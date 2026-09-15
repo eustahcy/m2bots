@@ -1,0 +1,10 @@
+new_quest_lv24_neededAmountDrop1 = 20 
+new_quest_lv24_dropProb1 = 80 
+new_quest_lv24_mob1 = 144 
+new_quest_lv24_drop1 = 30176 
+if pc . count_item ( new_quest_lv24_drop1 ) >= new_quest_lv24_neededAmountDrop1 then 
+set_state ( "backto_yangshin" ) 
+end 
+send_letter ( gameforge . new_quest_lv24 . _020_say_title ) 
+q . start ( ) 
+q . set_title ( gameforge . new_quest_lv24 . _020_say_title ) 

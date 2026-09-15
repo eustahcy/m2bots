@@ -1,0 +1,5 @@
+say_title ( gameforge . horse_levelup . _340_makequestbutton ) 
+say ( gameforge . horse_levelup . _350_say ) 
+pc . setqf ( "next_time" , 0 ) 
+setstate ( "start" ) 
+clear_letter ( ) 

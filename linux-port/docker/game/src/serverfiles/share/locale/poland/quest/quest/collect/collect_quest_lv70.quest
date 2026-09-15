@@ -1,0 +1,197 @@
+quest collect_quest_lv70  begin
+	state start begin
+	end
+	state run begin
+		when login or levelup with pc.level >= 70 begin
+			set_state(information)
+		end
+	end
+
+	state information begin
+		when letter begin
+			local v = find_npc_by_vnum(20084)
+			if v != 0 then
+				target.vid("__TARGET__", v, gameforge.collect_herb_lv10._10_targetVid)
+			end
+			send_letter(gameforge.collect_quest_lv60._10_sendLetter)
+		end
+
+		when button or info begin
+			say_title(gameforge.collect_quest_lv70._10_sayTitle)
+			say(gameforge.collect_quest_lv60._30_say)
+		end
+
+		when __TARGET__.target.click or	20084.chat.gameforge.collect_quest_lv60._40_npcChat begin
+			target.delete("__TARGET__")
+			say_title(gameforge.collect_quest_lv60._50_sayTitle)
+			say(gameforge.collect_quest_lv70._20_say)
+			wait()
+			say_title(gameforge.collect_quest_lv60._50_sayTitle)
+			say(gameforge.collect_quest_lv70._30_say)
+			wait()
+			say_title(gameforge.collect_quest_lv60._50_sayTitle)
+			say(gameforge.collect_quest_lv70._40_say)
+			set_state(go_to_disciple)
+			pc.setqf("collect_count",0)
+			end
+	end
+
+	state go_to_disciple begin
+		when letter begin
+			send_letter(gameforge.collect_quest_lv60._220_sendLetter)
+
+		end
+		when button or info begin
+			say_title(gameforge.collect_quest_lv70._50_sayTitle)
+			say(gameforge.collect_quest_lv70._60_say)
+			say_item_vnum(30165)
+			say_reward(string.format(gameforge.collect_quest_lv70._70_sayReward, pc.getqf("collect_count")))
+		end
+
+		when 2301.kill or  2302.kill or 2303.kill or 2304.kill or 2305.kill or  2311.kill or  2312.kill or  2313.kill or 2314.kill or 2315.kill  begin
+			local s = number(1, 200)
+			if s == 1 and pc.count_item(30165)==0 then
+				pc.give_item2(30165)
+				send_letter(gameforge.collect_quest_lv70._110_sendLetter)
+			end	
+		end
+
+		when 20084.chat.gameforge.collect_quest_lv70._120_npcChat with pc.count_item(30165) > 0   begin
+			if collect_data.is_wait() then
+				say_title(gameforge.collect_quest_lv60._50_sayTitle)
+				say(gameforge.collect_quest_lv70._170_say)
+				return
+			end
+			if pc.count_item(30165) < 1 then
+				say_title(gameforge.collect_quest_lv60._50_sayTitle)
+				say(gameforge.collect_quest_lv70._165_say)
+				return
+			end
+
+			say_title(gameforge.collect_quest_lv60._50_sayTitle)
+			say(gameforge.collect_quest_lv70._130_say)
+			pc.remove_item(30165, 1)
+			wait()
+
+			local if_fail_show_wait_info = not collect_data.is_no_time_on_fail()
+			if collect_data.take_chance(60) then
+				if pc.getqf("collect_count")< 24 then
+					local index =pc.getqf("collect_count")+1
+					pc.setqf("collect_count",index)
+					say_title(gameforge.collect_quest_lv60._50_sayTitle)
+					say(string.format(gameforge.collect_quest_lv70._140_say, 25-pc.getqf("collect_count")))
+					return
+				end
+				say_title(gameforge.collect_quest_lv60._50_sayTitle)
+				say(gameforge.collect_quest_lv70._150_say)
+				pc.setqf("collect_count",0)
+				collect_data.reset_time()
+				set_state(key_item)
+				return
+			else
+				say_title(gameforge.collect_quest_lv60._50_sayTitle)
+				say(gameforge.collect_quest_lv70._160_say)
+				say()
+				if if_fail_show_wait_info then
+					say(gameforge.collect_quest_lv70.fail_wait_info)
+				end
+				return
+			end
+		end
+	end
+
+
+	state key_item begin
+		when letter begin
+			send_letter(gameforge.collect_quest_lv60._220_sendLetter)
+
+			if pc.count_item(30224)>0 then
+				local v = find_npc_by_vnum(20084)
+				if v != 0 then
+					target.vid("__TARGET__", v, gameforge.collect_quest_lv40._210_targetVid)
+				end
+			end
+
+		end
+		when button or info begin
+			if pc.count_item(30224) >0 then
+				say_title(gameforge.collect_quest_lv70._180_sayTitle)
+				say(gameforge.collect_quest_lv70._190_say)
+				return
+			end
+
+			say_title(gameforge.collect_quest_lv70._200_sayTitle)
+			say(gameforge.collect_quest_lv70._210_say)
+			say_item_vnum(30224)
+			say(gameforge.collect_quest_lv70._220_say)
+		end
+
+
+
+		when 2301.kill or 2302.kill or 2303.kill or 2304.kill or 2305.kill or 2311.kill or 2312.kill or 2313.kill or 2314.kill or 2315.kill  begin
+			local s = number(1, 500)
+			if s == 1 and pc.count_item(30224)==0 then
+				pc.give_item2(30224)
+				send_letter(gameforge.collect_quest_lv70._230_sendLetter)
+			end
+		end
+
+
+
+		when __TARGET__.target.click  or	20084.chat.gameforge.collect_quest_lv70._240_npcChat with pc.count_item(30224) > 0  begin
+			target.delete("__TARGET__")
+			if pc.count_item(30224) > 0 then 
+				say_title(gameforge.collect_quest_lv60._50_sayTitle)
+				say(gameforge.collect_quest_lv70._250_say)
+				pc.remove_item(30224,1)
+				set_state(__reward)
+			else
+				say_title(gameforge.collect_quest_lv60._50_sayTitle)
+				say(gameforge.collect_quest_lv70._255_say)
+				return
+			end
+		end
+
+	end
+
+	state __reward begin
+		when letter begin
+			send_letter(gameforge.collect_quest_lv40._300_sendLetter)
+
+			local v = find_npc_by_vnum(20018)
+			if v != 0 then
+				target.vid("__TARGET__", v, gameforge.collect_quest_lv30._310_targetVid)
+			end
+
+		end
+		when button or info begin
+			say_title(gameforge.collect_quest_lv40._300_sendLetter)
+			say(gameforge.collect_quest_lv70._260_say)
+		end
+
+		when __TARGET__.target.click  or	20018.chat.gameforge.collect_quest_lv30._330_npcChat  begin
+		    target.delete("__TARGET__")
+			say_title(gameforge.collect_quest_lv30._340_sayTitle)
+			say(gameforge.collect_quest_lv70._270_say)
+			wait()
+			say_title(gameforge.collect_quest_lv30._340_sayTitle)
+			say(gameforge.collect_quest_lv70._280_say)
+			say_reward(gameforge.collect_quest_lv70._290_sayReward)
+			set_quest_state("collect_quest_lv80", "run")
+			set_state(__complete)
+			affect.add_collect(POINT_MOV_SPEED, 11)	
+			affect.add_collect(POINT_DEF_BONUS, 10)
+			pc.give_item2(50113)
+			clear_letter()
+
+		end
+
+	end
+
+
+	state __complete begin
+	end
+end
+
+
+

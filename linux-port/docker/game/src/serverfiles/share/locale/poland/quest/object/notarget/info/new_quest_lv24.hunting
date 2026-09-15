@@ -1,0 +1,9 @@
+say_title ( gameforge . new_quest_lv24 . _020_say_title ) 
+say ( gameforge . new_quest_lv24 . _085_say ) 
+if pc . count_item ( new_quest_lv24_drop1 ) >= new_quest_lv24_neededAmountDrop1 then 
+notice_multiline ( gameforge . new_quest_lv24 . _082_notice , notice ) 
+set_state ( "backto_yangshin" ) 
+else 
+say ( "" ) 
+say_reward ( string . format ( gameforge . new_quest_lv24 . _084_say , new_quest_lv24_neededAmountDrop1 - pc . getqf ( "collect_count_1" ) ) ) 
+end 

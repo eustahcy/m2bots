@@ -1,0 +1,8 @@
+npc_name ( ) 
+say_split ( translate . marriage_shop . talk ) 
+local next_update = special_shop_get_last_update ( 9006 ) + 3600 * 12 
+local left_time = math . max ( next_update - get_time ( ) , 0 ) 
+say_split ( msg ( translate . marriage_shop . next , second_to_smart_time ( left_time ) ) , say_reward ) 
+wait ( ) 
+setskin ( NOWINDOW ) 
+pc . open_special_shop ( 9006 ) 

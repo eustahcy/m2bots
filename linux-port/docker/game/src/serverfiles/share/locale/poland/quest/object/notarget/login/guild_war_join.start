@@ -1,0 +1,5 @@
+if is_on_war_map ( ) then if horse . is_riding ( ) then 
+horse . unride ( ) 
+horse . unsummon ( ) 
+end 
+ return end 

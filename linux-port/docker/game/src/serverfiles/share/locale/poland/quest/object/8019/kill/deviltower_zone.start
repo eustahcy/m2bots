@@ -1,0 +1,2 @@
+if in_dungeon ( 66 ) and d . get_level ( ) == 5 then game . drop_item ( 30300 , 1 ) 
+ return end 

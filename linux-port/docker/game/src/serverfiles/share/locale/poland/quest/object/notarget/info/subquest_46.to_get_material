@@ -1,0 +1,11 @@
+if pc . count_item ( "50611" ) >= 50 and pc . count_item ( "30137" ) >= 1 and pc . count_item ( "30138" ) >= 1 then 
+say_title ( gameforge . subquest_46 . _10_targetVid ) 
+say ( gameforge . subquest_46 . _130_say ) 
+local v = find_npc_by_vnum ( 20005 ) 
+if v ~= 0 then 
+target . vid ( "__TARGET__" , v , gameforge . subquest_46 . _10_targetVid ) 
+end 
+return 
+end 
+say_title ( gameforge . subquest_46 . _10_targetVid ) 
+say ( gameforge . subquest_46 . _140_say ) 

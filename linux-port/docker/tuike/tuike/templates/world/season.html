@@ -1,0 +1,42 @@
+﻿{% extends 'base.html' %}
+{% from 'partials/macros.html' import page_head, stat, character_link, empty_row with context %}
+{% block title %}Sezon{% endblock %}
+
+{% block content %}
+{{ page_head('OSTATNIE 7 DNI', 'Sezon i rekordy świata',
+             'Punkty: Metin ' ~ points.metins ~ ' · boss ' ~ points.bosses ~
+             ' · ulepszenie +7 lub wyżej ' ~ points.refine7 ~ '.') }}
+
+<section class="stat-grid">
+  {{ stat('Metiny', thousands(records.metins), 'rozbite w tym tygodniu') }}
+  {{ stat('Bossy', thousands(records.bosses), 'zabite w tym tygodniu') }}
+  {{ stat('Ulepszenia +7', thousands(records.refine7), 'udane w tym tygodniu') }}
+  {{ stat('Najwyższy poziom', 'Lv ' ~ (records.level or 0), 'w całym świecie') }}
+</section>
+
+<section class="panel table-wrap">
+  <h2>Ranking tygodnia</h2>
+  <table>
+    <thead>
+      <tr><th class="numeric">#</th><th>Bot</th><th>Poziom</th>
+          <th class="numeric">Metiny</th><th class="numeric">Bossy</th>
+          <th class="numeric">+7</th><th class="numeric">Punkty</th></tr>
+    </thead>
+    <tbody>
+      {% for bot in weekly %}
+        <tr class="{{ 'leader' if loop.first }}">
+          <td class="numeric">{{ loop.index }}</td>
+          <td>{{ character_link(bot.id, bot.name) }}</td>
+          <td>Lv {{ bot.level }}</td>
+          <td class="numeric">{{ bot.metins or 0 }}</td>
+          <td class="numeric">{{ bot.bosses or 0 }}</td>
+          <td class="numeric">{{ bot.refine7 or 0 }}</td>
+          <td class="numeric"><b>{{ thousands(bot.points) }}</b></td>
+        </tr>
+      {% else %}
+        {{ empty_row(7, 'Brak zdarzeń z ostatnich 7 dni.') }}
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

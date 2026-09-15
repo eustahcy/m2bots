@@ -1,0 +1,7 @@
+if pc . in_dungeon ( ) and not dungeon_return . is_no_return_dungeon ( ) then 
+pc . setqf ( "dungeon_index" , pc . get_map_index ( ) ) 
+pc . setqf ( "dungeon_last_x" , pc . get_x ( ) ) 
+pc . setqf ( "dungeon_last_y" , pc . get_y ( ) ) 
+elseif pc . getqf ( "dungeon_index" ) > 0 and dungeon_return . get_seconds_from_dungeon_exit ( ) < 300 then 
+send_letter_ex ( translate . dungeon_return . letter_name , "ex" , "scroll_open_green" ) 
+end 

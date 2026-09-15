@@ -1,0 +1,584 @@
+quest beta_server begin
+    state start begin
+        function is_beta()
+            return get_server_version() < 1000000 and game.get_event_flag("beta_server") > 0
+        end
+
+        function is_beta_etap2()
+            return get_server_version() < 1000000 and game.get_event_flag("beta_server") > 1
+        end
+
+        function is_beta_etap3()
+            return get_server_version() < 1000000 and game.get_event_flag("beta_server") > 2
+        end
+
+        function is_beta_etap3plus()
+            return get_server_version() < 1000000 and game.get_event_flag("beta_server") > 3
+        end
+
+        function is_beta_etap4()
+            return get_server_version() < 1000000 and game.get_event_flag("beta_server") > 4
+        end
+
+        function get_test_state()
+            return game.get_event_flag("beta_server")
+        end
+
+        when login with beta_server.is_beta() begin
+            notice(translate.beta.intro.notice)
+        end
+
+        when letter with beta_server.is_beta() begin
+            send_letter(translate.beta.intro.letter)
+        end
+
+        when info or button with beta_server.is_beta() begin
+            say_reward(translate.beta.intro.notice)
+            say()
+            say_split(translate.beta.intro.info)
+            say()
+            say_split(translate.beta.intro.info2)
+        end
+
+        when 20999.chat.translate.beta.custom_exp.chat with beta_server.is_beta() begin
+            npc_name()
+            local is_off_exp_rate = pc.getqf("off_exp_rate") > 0
+            local exp_bonus = 400 + pc.getqf("exp_rate")
+            if is_off_exp_rate then
+                exp_bonus = 0
+            end
+            say_reward(string.format(translate.beta.custom_exp.status, exp_bonus))
+            say()
+            say_split(translate.beta.custom_exp.ask)
+
+            local exp_options = {
+                400
+            }
+
+            local beta_progress = game.get_event_flag("beta_server")
+            if beta_progress >= 2 then
+                table.insert(exp_options, 600)
+            end
+
+            if beta_progress >= 3 then
+                table.insert(exp_options, 800)
+            end
+
+            if beta_progress >= 4 then
+                table.insert(exp_options, 1000)
+            end
+
+            exp_select_table = {}
+            for i,v in pairs(exp_options) do
+                table.insert(exp_select_table, string.format("%d%%", v))
+            end
+
+            table.insert(exp_select_table, translate.beta.custom_exp.turn_off)
+            table.insert(exp_select_table, translate.general.cancel)
+
+            local x = select_table(exp_select_table)
+            if x == table.getn(exp_select_table) then
+                return
+            end
+            npc_name()
+            say(translate.beta.custom_exp.success)
+            
+            if x <= table.getn(exp_options) then
+                pc.setqf("exp_rate", exp_options[x] - 400)
+                pc.setqf("off_exp_rate", 0)
+            else
+                pc.setqf("off_exp_rate", 1)
+            end
+        end
+
+        when 20999.chat.translate.beta.itemshop.chat with beta_server.is_beta() begin
+            if pc.get_account_flag("beta_wait_kupon") > get_time() then
+                local left_time = pc.get_account_flag("beta_wait_kupon") - get_time()
+                npc_name()
+                say_split(msg(translate.beta.gold.wait, second_to_smart_time(left_time)))
+                return
+            end
+
+            if not beta_server.is_beta_etap3plus() then
+                say_reward("Nastepny kupon mozesz odebrac jutro. (reset o 5 rano)")
+                pc.set_account_flag("beta_wait_kupon", get_time() + time_until_hour(GLOBAL_COOLDOWN_RESET_HOUR))
+            end
+            npc.say_me(translate.beta.itemshop.say)
+            local val = 1000
+            if beta_server.is_beta_etap3plus() then
+                val = 2000
+            end
+            syschat("Otrzymales SM automatycznie na konto.")
+            pc.charge_cash(val)
+            setskin(NOWINDOW)
+        end
+
+        when 20999.chat.translate.beta.shop.chat with beta_server.is_beta_etap2() begin
+            npc_name()
+            local shops = {}
+
+            if beta_server.is_beta_etap3plus() then
+                table.insert(shops, {name=translate.beta.shop.base_shop, vnum=999})
+                table.insert(shops, {name=translate.beta.shop.herb_shop, vnum=998})
+                table.insert(shops, {name=translate.beta.shop.refine_item_shop1, vnum=997})
+                table.insert(shops, {name=translate.beta.shop.refine_item_shop2, vnum=996})
+                table.insert(shops, {name=translate.beta.shop.refine_item_shop3, vnum=995})
+                if beta_server.is_beta_etap4() then
+                    table.insert(shops, {name=translate.beta.shop.high_item, vnum=991})
+                    table.insert(shops, {name=translate.beta.shop.high_item2, vnum=990})
+                    table.insert(shops, {name=translate.beta.shop.potion_shop, vnum=989})
+                else
+                    table.insert(shops, {name=translate.beta.shop.high_weapon, vnum=994})
+                end
+            elseif beta_server.is_beta_etap3() then
+                table.insert(shops, {name=translate.beta.shop.base_shop, vnum=992})
+            elseif beta_server.is_beta_etap2() then
+                table.insert(shops, {name=translate.beta.shop.base_shop, vnum=993})
+            end
+
+            local options = {}
+            for i,v in pairs(shops) do 
+                table.insert(options, v.name)
+            end
+            table.insert(options, "Anuluj")
+
+            local x = select_table(options)
+            if x == table.getn(options) then
+                return
+            end
+
+            setskin(NOWINDOW)
+            npc.open_shop(shops[x].vnum)
+        end
+
+        when 20999.chat.translate.beta.reset_skill.chat with beta_server.is_beta() begin
+            npc_name()
+            say_split(translate.beta.reset_skill.ask)
+            if select(translate.general.yes, translate.general.no) == 2 then
+                return
+            end
+
+            npc_name()
+            say(translate.beta.reset_skill.success)
+            pc.clear_skill()
+			pc.set_skill_group(0)
+            set_quest_state("skill_group","run")
+        end
+
+
+        -- ETAP 2
+        when 20999.chat.translate.beta.level_up.chat with beta_server.is_beta_etap2() begin
+            npc_name()
+            say_split(translate.beta.level_up.ask)
+
+            local level_options = {
+                35
+            }
+
+            local beta_progress = game.get_event_flag("beta_server")
+            if beta_progress >= 3 then
+                table.insert(level_options, 61)
+            end
+
+            if beta_progress >= 4 then
+                table.insert(level_options, 75)
+            end
+
+            level_select_table = {}
+            for i,v in pairs(level_options) do
+                table.insert(level_select_table, string.format("%d poziom", v))
+            end
+
+            table.insert(level_select_table, translate.general.cancel)
+
+            local x = select_table(level_select_table)
+            if x == table.getn(level_select_table) then
+                return
+            end
+
+            local selected_level = level_options[x]
+
+            npc_name()
+            say_split(msg(translate.beta.level_up.ask2, selected_level))
+            if select(translate.general.yes, translate.general.no) == 2 then
+                return
+            end
+
+            if pc.get_level() >= selected_level then
+                npc_name()
+                say_split(translate.beta.level_up.fail)
+                return
+            end
+
+            npc_name()
+            say_split(translate.beta.level_up.success)
+            pc.set_level(selected_level)
+        end
+
+        when 20999.chat.translate.beta.horse_level.chat with beta_server.is_beta_etap2() begin
+            npc_name()
+            say_split(translate.beta.horse_level.ask)
+
+            local horse_options = {
+                {1, 25}
+            }
+
+            local beta_progress = game.get_event_flag("beta_server")
+            if beta_progress >= 2 then
+                table.insert(horse_options, {11, 35})
+            end
+            if beta_progress >= 4 then
+                table.insert(horse_options, {21, 50})
+            end
+
+            horse_select_table = {}
+            for i,v in pairs(horse_options) do
+                table.insert(horse_select_table, string.format("%d lvl konia", v[1]))
+            end
+
+            table.insert(horse_select_table, translate.general.cancel)
+
+            local x = select_table(horse_select_table)
+            if x == table.getn(horse_select_table) then
+                return
+            end
+
+            local horse_level = horse_options[x][1]
+            local req_player_level = horse_options[x][2]
+
+            if pc.get_level() < req_player_level then
+                npc_name()
+                say(msg(translate.general.low_lvl, req_player_level))
+                return
+            end
+
+            if horse.get_grade() == x then
+                setskin(NOWINDOW)
+                return
+            end
+            horse.set_level(horse_level)
+
+            if pc.count_item(50050 + x) < 1 then
+                pc.give_item2(50050 + x, 1)
+            end
+
+            npc_name()
+            say_split(translate.beta.horse_level.success)
+            if horse.is_riding() then
+                horse.unride()
+            end
+            if horse.is_summon() then
+                horse.unsummon()
+            end
+            horse.summon()
+            horse.ride()
+        end
+
+        when 20999.chat.translate.beta.equipment.chat with beta_server.is_beta_etap3plus() begin
+            npc_name()
+            if pc.getqf("equipment_get") > 0 then
+                say_split(translate.beta.equipment.already)
+                return
+            end
+
+            say_split(translate.beta.equipment.ask)
+            local levels = {35, 61}
+
+            local options = {}
+            for i,v in pairs(levels) do
+                table.insert(options, msg("%d lvl", v))
+            end
+            table.insert(options, translate.general.cancel)
+
+            local x = select_table(options)
+            if x == table.getn(options) then
+                return
+            end
+            local dest_level = levels[x]
+            if pc.get_level() < dest_level then
+                npc_name()
+                say_split(translate.beta.equipment.low_lvl)
+                return
+            end
+
+            local eq_table = {
+                [35] = {
+                    gold = 200000,
+                    [JOB_WARRIOR] = {
+                        {vnum=77, count=1},
+                        {vnum=3067, count=1},
+                        {vnum=11247, count=1, rarePct=100},
+                        {vnum=12227, count=1},
+                    },
+
+                    [JOB_ASSASSIN] = {
+                        {vnum=1037, count=1},
+                        {vnum=2067, count=1},
+                        {vnum=11447, count=1, rarePct=100},
+                        {vnum=12367, count=1},
+                        {vnum=17187, count=1},
+                    },
+
+                    [JOB_SURA] = {
+                        {vnum=77, count=1},
+                        {vnum=11647, count=1, rarePct=100},
+                        {vnum=12507, count=1},
+                    },
+
+                    [JOB_SHAMAN] = {
+                        {vnum=7067, count=1},
+                        {vnum=5037, count=1},
+                        {vnum=11847, count=1, rarePct=100},
+                        {vnum=12647, count=1},
+                        {vnum=16087, count=1},
+                    },
+
+                    [4] = { -- common
+                        {vnum=14047, count=1},
+                        {vnum=16047, count=1},
+                        {vnum=17107, count=1},
+                        {vnum=15106, count=1},
+                        {vnum=13027, count=1, rarePct=100},
+                    },
+                },
+
+                [61] = {
+                    gold = 500000,
+                    [JOB_WARRIOR] = {
+                        {vnum=137, count=1},
+                        {vnum=3127, count=1},
+                        {vnum=11287, count=1, rarePct=100},
+                        {vnum=12247, count=1},
+                    },
+
+                    [JOB_ASSASSIN] = {
+                        {vnum=1097, count=1},
+                        {vnum=2127, count=1},
+                        {vnum=11487, count=1, rarePct=100},
+                        {vnum=12387, count=1},
+                        {vnum=17189, count=1},
+                    },
+
+                    [JOB_SURA] = {
+                        {vnum=137, count=1},
+                        {vnum=11687, count=1, rarePct=100},
+                        {vnum=12527, count=1},
+                        {vnum=16129, count=1},
+                    },
+
+                    [JOB_SHAMAN] = {
+                        {vnum=7127, count=1},
+                        {vnum=5087, count=1},
+                        {vnum=11887, count=1, rarePct=100},
+                        {vnum=12667, count=1},
+                        {vnum=16089, count=1},
+                    },
+
+                    [4] = { -- common
+                        {vnum=14049, count=1},
+                        {vnum=16049, count=1},
+                        {vnum=17109, count=1},
+                        {vnum=17129, count=1},
+                        {vnum=15109, count=1},
+                        {vnum=15129, count=1},
+                        {vnum=13048, count=1, rarePct=100},
+                    },
+                },
+            }
+            
+            npc_name()
+            local item_table = {}
+            for i,v in pairs(eq_table[dest_level][pc.get_job()]) do
+                table.insert(item_table, v)
+            end
+
+            for i,v in pairs(eq_table[dest_level][4]) do -- common
+                table.insert(item_table, v)
+            end
+
+            for i,v in pairs(item_table) do
+                local rarePct = 0
+                if v.rarePct != nil then
+                    rarePct = v.rarePct
+                end
+                pc.give_item2(v.vnum, v.count, rarePct)
+                say_reward(msg(translate.reward.item_reward, item_name(v.vnum)))
+            end
+            
+            local gold = eq_table[dest_level].gold
+            pc.change_money(gold)
+            say_reward(msg(translate.reward.gold_reward, parse_number(gold)))
+            pc.setqf("equipment_get", 1)
+        end
+
+        when 90991.use or 90992.use or 90993.use with beta_server.is_beta_etap2() begin
+            local min_level = item.get_limit()
+            if pc.get_level() < min_level then
+                syschat(msg(translate.general.low_lvl, min_level))
+                return
+            end
+            local applies = {item.get_apply()}
+
+            local data = {
+                [99] = {affect=SKILL_BLESSING, flag=AFF_SKILL_BLESSING, },
+                [40] = {affect=SKILL_DRAGON_HELP, flag=AFF_SKILL_DRAGON_HELP, },
+                [79] = {affect=SKILL_REFLECT, flag=AFF_SKILL_REFLECT, },
+            }
+
+
+            if not affect.is_loaded() then
+                return
+            end
+
+            for i in range(1, table.getn(applies), 2) do
+                local point = applies[i]
+                local value = applies[i+1]
+                affect.add_new(data[point].affect, point, value, 60*10, data[point].flag, true, true)
+            end
+        end
+        -- END ETAP 2
+
+        -- ETAP 3
+        when 20999.chat.translate.beta.collect.chat with beta_server.is_beta_etap3() begin
+            npc_name()
+            say_split(translate.beta.collect.ask)
+            say()
+            local collect_quests = {
+                {name="collect_quest_lv30", level=30, bonus={POINT_MOV_SPEED, 10}},
+                {name="collect_quest_lv40", level=40, bonus={POINT_ATT_SPEED, 5}},
+                {name="collect_quest_lv50", level=50, bonus={POINT_DEF_GRADE_BONUS, 60}},
+                {name="collect_quest_lv60", level=60, bonus={POINT_ATT_GRADE_BONUS, 50}},
+                {name="collect_quest_lv70", level=70, bonus={POINT_DEF_BONUS, 10, POINT_MOV_SPEED, 11}},
+                {name="collect_quest_lv80", level=80, bonus={POINT_ATT_SPEED, 5, POINT_ATT_BONUS, 10}},
+                {name="collect_quest_lv85", level=85, bonus={POINT_RESIST_HUMAN, 10}},
+                {name="collect_quest_lv90", level=90, bonus={POINT_ATTBONUS_HUMAN, 8}},
+            }
+
+            local options = {}
+            for i,v in pairs(collect_quests) do 
+                table.insert(options, msg("Badania Biologa %d lvl", v.level))
+            end
+            table.insert(options, "Anuluj")
+
+            local x = select_table(options)
+            if x == table.getn(options) then
+                return
+            end
+
+            local collect = collect_quests[x]
+            if pc.get_level() < collect.level then
+                npc_name()
+                say_split(msg(translate.beta.collect.low_lvl, collect.level))
+                say()
+                return
+            end
+
+            if tostring(get_quest_state(collect.name)) == "557528158" then
+                npc_name()
+                say_split(translate.beta.collect.already_completed)
+                say()
+                return
+            end
+
+            for j in range(1, table.getn(collect.bonus), 2) do
+                local point = collect.bonus[j]
+                local value = collect.bonus[j+1]
+                affect.add_collect(point, value)
+            end
+            set_quest_state(collect.name, "__complete")
+            npc_name()
+            say_split(translate.beta.collect.success)
+        end
+
+        when 20999.chat.translate.beta.gold.chat with beta_server.is_beta_etap3plus() begin
+            if not beta_server.is_beta_etap4() then
+                if pc.getqf("wait_gold") > get_time() then
+                    local left_time = pc.getqf("wait_gold") - get_time()
+                    npc_name()
+                    say_split(msg(translate.beta.gold.wait, second_to_smart_time(left_time)))
+                    return
+                end
+            end
+            npc_name()
+            say_split(translate.beta.gold.ask)
+
+            local gold = math.pow(pc.get_level(), 2) * (1000 + pc.get_level() * 20)
+            if beta_server.is_beta_etap4() then
+                gold = gold * 3
+            end
+            say_split(msg(translate.beta.gold.info, parse_number(gold)), say_reward)
+            if select(translate.general.yes, translate.general.no) == 2 then
+                return
+            end
+            
+            npc_name()
+            
+            pc.change_money(gold)
+            say_split(translate.beta.gold.success)
+            pc.setqf("wait_gold", get_time() + time_until_hour(GLOBAL_COOLDOWN_RESET_HOUR))
+        end
+
+        -- skille na G1
+        when 20999.chat.translate.beta.skill.chat with beta_server.is_beta_etap3() begin
+            npc_name()
+            say_split(translate.beta.skill.ask)
+            if select(translate.general.yes, translate.general.no) == 2 then
+                return
+            end
+
+            local is_success = false
+            if pc.get_skill_group() > 0 then
+                for i,v in pairs(special.active_skill_list[pc.get_job()+1][pc.get_skill_group()]) do
+                    local skill_level = pc.get_skill_level(v) 
+                    if skill_level >= 20 and skill_level < 30 then
+                        pc.set_skill_level(v, 30)
+                        is_success = true
+                    end
+                end
+            end
+
+            npc_name()
+            if is_success then
+                say_split(translate.beta.skill.success)
+            else
+                say_split(translate.beta.skill.fail)
+            end
+        end
+
+        -- skille na P
+        when 20999.chat.translate.beta.skill_pvp.chat with beta_server.is_beta_etap4() begin
+            npc_name()
+            say_split(translate.beta.skill_pvp.ask)
+            if select(translate.general.yes, translate.general.no) == 2 then
+                return
+            end
+
+            local is_success = false
+            if pc.get_skill_group() > 0 then
+                for i,v in pairs(special.active_skill_list[pc.get_job()+1][pc.get_skill_group()]) do
+                    local skill_level = pc.get_skill_level(v) 
+                    if skill_level >= 20 and skill_level < 40 then
+                        pc.set_skill_level(v, 40)
+                        is_success = true
+                    end
+                end
+            end
+
+            npc_name()
+            if is_success then
+                say_split(translate.beta.skill_pvp.success)
+            else
+                say_split(translate.beta.skill_pvp.fail)
+            end
+        end
+
+        when 20999.chat.translate.beta.reputation.chat with beta_server.is_beta_etap3plus() begin
+            npc_name()
+            say_split(translate.beta.reputation.success)
+            pc.set_special_flag("reputation_orc_valley", 38500)
+            pc.set_special_flag("reputation_desert", 38500)
+        end
+        -- END ETAP 3
+
+    end
+end

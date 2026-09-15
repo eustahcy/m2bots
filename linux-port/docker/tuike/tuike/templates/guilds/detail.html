@@ -1,0 +1,53 @@
+﻿{% extends 'base.html' %}
+{% from 'partials/macros.html' import stat, character_link, empty_row with context %}
+{% block title %}{{ guild.name }}{% endblock %}
+
+{% block content %}
+<a class="back" href="{{ url_for('guilds.roster') }}">← Powrót do gildii</a>
+
+<header class="page-head">
+  <p class="eyebrow">GILDIA</p>
+  <h1>{{ guild.name }}</h1>
+  <p class="lead">poziom {{ guild.level or 0 }}</p>
+</header>
+
+<section class="stat-grid">
+  {{ stat('Lider', guild.leader_name or '—',
+          'Lv ' ~ guild.leader_level if guild.leader_level else None) }}
+  {{ stat('Członkowie', guild.member_count, 'aktualny skład') }}
+  {{ stat('Punkty rangi', thousands(guild.ladder_point), 'ranking gildii') }}
+  {{ stat('Wojny', guild.win ~ ' / ' ~ guild.draw ~ ' / ' ~ guild.loss,
+          'wygrane / remisy / porażki') }}
+</section>
+
+<section class="panel table-wrap">
+  <h2>Skład</h2>
+  <table>
+    <thead>
+      <tr><th>Postać</th><th>Rola</th><th>Poziom</th><th>Klasa</th>
+          <th>Mapa</th><th class="numeric">Darowizna</th></tr>
+    </thead>
+    <tbody>
+      {% for member in members %}
+        <tr>
+          <td>
+            {% if member.name %}{{ character_link(member.pid, member.name) }}
+            {% else %}<span class="muted">usunięta postać #{{ member.pid }}</span>{% endif %}
+          </td>
+          <td>
+            {% if member.pid == guild.leader_id %}Lider
+            {% elif member.is_general %}Generał
+            {% else %}Członek{% endif %}
+          </td>
+          <td>Lv {{ member.level or 0 }}</td>
+          <td>{{ job_name(member.job) if member.job is not none else '—' }}</td>
+          <td>{{ map_name(member.map_index) if member.map_index is not none else '—' }}</td>
+          <td class="numeric">{{ thousands(member.offer) }}</td>
+        </tr>
+      {% else %}
+        {{ empty_row(6, 'Brak zapisanych członków.') }}
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

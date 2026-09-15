@@ -1,0 +1,10 @@
+npc_name ( ) 
+say_split ( translate . beta . reset_skill . ask ) 
+if select ( translate . general . yes , translate . general . no ) == 2 then 
+return 
+end 
+npc_name ( ) 
+say ( translate . beta . reset_skill . success ) 
+pc . clear_skill ( ) 
+pc . set_skill_group ( 0 ) 
+set_quest_state ( "skill_group" , "run" ) 

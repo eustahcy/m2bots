@@ -1,0 +1,1 @@
+return pc . getqf ( "coal_done" ) == 1

@@ -1,0 +1,13 @@
+say_title ( gameforge . find_senior_soldier . _180_sayTitle ) 
+say ( gameforge . find_senior_soldier . _190_say ) 
+local funcList = { 
+function ( ) find_senior_soldier . apply_affect ( gameforge . find_senior_soldier . _191_say , POINT_MAX_HP , 100 ) end , 
+function ( ) find_senior_soldier . apply_affect ( gameforge . find_senior_soldier . _192_say , POINT_HP_REGEN , 30 ) end , 
+function ( ) find_senior_soldier . apply_affect ( gameforge . find_senior_soldier . _193_say , POINT_ST , 5 ) end , 
+function ( ) find_senior_soldier . apply_affect ( gameforge . find_senior_soldier . _194_say , POINT_HT , 5 ) end , 
+function ( ) find_senior_soldier . apply_affect ( gameforge . find_senior_soldier . _195_say , POINT_CRITICAL_PCT , 10 ) end , 
+function ( ) find_senior_soldier . apply_affect ( gameforge . find_senior_soldier . _196_say , POINT_ATT_SPEED , 10 ) end , 
+function ( ) find_senior_soldier . apply_affect ( gameforge . find_senior_soldier . _197_say , POINT_ATTBONUS_ANIMAL , 10 ) end , 
+} 
+table_get_random_item ( funcList ) ( ) 
+restart_quest ( ) 

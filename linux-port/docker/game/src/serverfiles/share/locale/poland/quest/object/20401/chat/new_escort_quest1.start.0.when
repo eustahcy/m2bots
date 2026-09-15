@@ -1,0 +1,1 @@
+return not npc . is_custom_flag2 ( CUSTOM_NPC_FLAG_LOCK_INTERACTION )

@@ -1,0 +1,7 @@
+quest temple_map begin
+    state start begin
+        when login with pc.get_map_index() == 65 begin
+            affect.add_new(AFFECT_TEMPLE_CURSE, POINT_NONE, 0, INFINITE_AFFECT_DURATION, AFF_NONE, true)
+        end
+    end
+end

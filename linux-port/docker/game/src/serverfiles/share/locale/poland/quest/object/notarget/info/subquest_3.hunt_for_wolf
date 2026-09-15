@@ -1,0 +1,8 @@
+say_title ( gameforge . subquest_03 . _10_targetVid ) 
+if pc . count_item ( 30029 ) >= 1 then 
+say_reward ( gameforge . subquest_03 . _110_sayReward ) 
+set_state ( "go_back_to_doctor" ) 
+else 
+say_reward ( gameforge . subquest_03 . _50_sayReward ) 
+say_item_vnum ( 30029 ) 
+end 

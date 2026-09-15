@@ -1,0 +1,9 @@
+quest_book_kill={["start"]=0,["progress"]=570552902,get_full_progress= function ()local data = quest_book . get_current_quest_data ( ) 
+local progress = 0 
+for i in range ( 1 , table . getn ( data . mobs ) , 2 ) begin 
+local index = math . floor ( i / 2 ) 
+local currentProgress = pc . getqf ( "progress" .. index ) 
+progress = progress + currentProgress 
+end 
+return progress 
+end }

@@ -1,0 +1,22 @@
+monkey_curse={["start"]=0,exit_dungeon= function ()warp_to_village ( ) 
+end ,is_in_dungeon= function ()return table_is_in ( { 5 , 25 , 45 , 107 , 108 , 109 } , pc . get_map_index ( ) ) 
+end ,get_delay= function ()if game . get_event_flag ( "monkey_curse_debug" ) > 0 then 
+return 30 
+end 
+if pc . get_map_index ( ) < 100 then 
+return 55 * 60 
+elseif pc . get_map_index ( ) == 108 then 
+return 35 * 60 
+elseif pc . get_map_index ( ) == 109 then 
+return 25 * 60 
+end 
+end ,set_time= function ()local delay = monkey_curse . get_delay ( ) 
+if pc . has_affect ( AFFECT_MONKEY_CURSE_EASY ) and pc . get_map_index ( ) < 100 then 
+delay = delay + affect . get_duration ( AFFECT_MONKEY_CURSE_EASY ) 
+elseif pc . has_affect ( AFFECT_MONKEY_CURSE_NORMAL ) and pc . get_map_index ( ) == 108 then 
+delay = delay + affect . get_duration ( AFFECT_MONKEY_CURSE_NORMAL ) 
+elseif pc . has_affect ( AFFECT_MONKEY_CURSE_HARD ) and pc . get_map_index ( ) == 109 then 
+delay = delay + affect . get_duration ( AFFECT_MONKEY_CURSE_HARD ) 
+end 
+pc . setqf ( "time" , get_time ( ) + delay ) 
+end }

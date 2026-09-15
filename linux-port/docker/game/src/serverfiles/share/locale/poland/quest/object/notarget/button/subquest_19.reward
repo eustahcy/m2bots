@@ -1,0 +1,6 @@
+say_title ( gameforge . subquest_19 . _250_sendLetter ) 
+say ( gameforge . subquest_19 . _260_say ) 
+say ( gameforge . subquest_19 . _270_say ) 
+set_state ( "__COMPLETE__" ) 
+give_reward ( "subquest_19" ) 
+clear_letter ( ) 

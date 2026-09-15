@@ -1,0 +1,119 @@
+quest hwang_introduction begin
+    state start begin
+        when 702.kill or 703.kill or 704.kill or 705.kill or 707.kill with pc.count_item(35004) == 0 begin
+            if number(1,200) == 1 then
+                game.drop_item_with_ownership(35004, 1)
+            end
+        end
+        when 35004.use begin
+            if pc.get_level() < 38 then
+                syschat(msg(translate.quest_scroll.low_level, 38))
+                return
+            end
+            if item.remove() then
+                syschat(msg(translate.quest_scroll.accept, translate.hwang_introduction.title))
+                set_state(information)
+            end
+        end
+    end
+    state information begin
+        when 35004.use begin
+            syschat(translate.quest_scroll.already_active)
+        end
+
+        when letter begin
+            send_letter(translate.hwang_introduction.title)
+        end
+
+        when button or info begin
+            say_title(translate.hwang_introduction.state_information.letter_title)
+            say()
+            say_split(translate.hwang_introduction.state_information.letter_info)
+        end
+
+        when 20403.chat.translate.hwang_introduction.state_information.npc_chat begin
+            say_title_pc_name()
+            say_split(translate.hwang_introduction.state_information.pc_say1)
+            wait()
+            npc_name()
+            say_split(translate.hwang_introduction.state_information.npc_say1)
+            wait()
+            npc_name()
+            say_split(translate.hwang_introduction.state_information.npc_say2)
+            wait()
+            say_title_pc_name()
+            say_split(translate.hwang_introduction.state_information.pc_say2)
+            wait()
+            npc_name()
+            say_split(translate.hwang_introduction.state_information.npc_say3)
+            set_state(progress)
+        end
+    end
+    state progress begin
+        when 34004.use begin
+            syschat(translate.quest_scroll.already_active)
+        end
+
+        when letter begin
+            send_letter(translate.hwang_introduction.state_progress.letter_name)
+        end
+
+        when button or info begin
+            say_info()
+            say_split(translate.hwang_introduction.state_progress.letter_info)
+        end
+
+        when 705.kill begin
+            if is_kill_drop(2) then
+                say_info()
+                say_split(translate.hwang_introduction.state_progress.get_item)
+                pc.give_item2(35003, 1)
+                set_state(reward)
+            end
+        end
+    end
+    state reward begin
+        when 35004.use begin
+            syschat(translate.quest_scroll.already_active)
+        end
+        when letter begin
+            send_letter(translate.hwang_introduction.state_progress.letter_name)
+            send_target(20403)
+        end
+
+        when button or info begin
+            say_info()
+            say_split(translate.hwang_introduction.state_progress.get_item)
+        end
+
+        when __TARGET__.target.click or 20403.chat.translate.hwang_introduction.state_information.npc_chat begin
+            pc.remove_item(35003, 1)
+            target.delete("__TARGET__")
+            npc_name()
+            say_split(translate.hwang_introduction.state_reward.npc_say)
+            wait()
+            say_title_pc_name()
+            say_split(translate.hwang_introduction.state_reward.pc_say)
+            wait()
+            npc_name()
+            say_split(translate.hwang_introduction.state_reward.npc_say2)
+            wait()
+            npc_name()
+            say_split(translate.hwang_introduction.state_reward.npc_say3)
+            set_state(complete)
+            give_reward("hwang_introduction")
+            clear_letter()
+           
+        end
+    end
+    state complete begin
+        when 35004.use begin
+            syschat(translate.quest_scroll.already_active)
+        end
+
+        when 20403.chat.translate.general.open_shop begin
+            npc.open_shop(16)
+            setskin(NOWINDOW)
+        end
+    end
+end

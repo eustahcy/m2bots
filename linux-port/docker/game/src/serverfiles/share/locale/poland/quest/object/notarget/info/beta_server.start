@@ -1,0 +1,6 @@
+if beta_server . is_beta ( ) then say_reward ( translate . beta . intro . notice ) 
+say ( ) 
+say_split ( translate . beta . intro . info ) 
+say ( ) 
+say_split ( translate . beta . intro . info2 ) 
+ return end 

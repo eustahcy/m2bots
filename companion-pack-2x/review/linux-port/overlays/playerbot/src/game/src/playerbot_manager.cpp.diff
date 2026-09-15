@@ -1,0 +1,600 @@
+diff --git a/linux-port/overlays/playerbot/src/game/src/playerbot_manager.cpp b/linux-port/overlays/playerbot/src/game/src/playerbot_manager.cpp
+index 8cbcafc..990757e 100644
+--- a/linux-port/overlays/playerbot/src/game/src/playerbot_manager.cpp
++++ b/linux-port/overlays/playerbot/src/game/src/playerbot_manager.cpp
+@@ -1,4 +1,4 @@
+-#include "stdafx.h"
++﻿#include "stdafx.h"
+ #include "playerbot_manager.h"
+ #include "playerbot_empire_rules.h"
+ #include "playerbot_world_rules.h"
+@@ -904,7 +904,8 @@ CPlayerBotManager::CPlayerBotManager()
+ 	  m_uSpawnWindowTotal(0),
+ 	  m_dwNextTopUpTime(0),
+ 	  m_bRegistryLoaded(false),
+-	  m_bRegistryAvailable(false)
++	  m_bRegistryAvailable(false),
++	  m_bCompanionRegistryLoaded(false)
+ {
+ }
+ 
+@@ -923,7 +924,14 @@ bool CPlayerBotManager::Spawn(DWORD dwPlayerID, BYTE bEmpire)
+ 	// seeded character is Jinno starts as Jinno or does not start at all -
+ 	// this is the guard that stops a bad call turning a character into a bot
+ 	// of somebody else's empire, and it is why the argument is only checked.
+-	const BYTE bRegisteredEmpire = GetRegisteredEmpire(dwPlayerID);
++	LoadCompanionRegistry();
++
++const DWORD companionOwnerPID = GetCompanionOwner(dwPlayerID);
++
++const BYTE bRegisteredEmpire =
++companionOwnerPID != 0
++? m_mapCompanionEmpire[dwPlayerID]
++: GetRegisteredEmpire(dwPlayerID);
+ 	if (bRegisteredEmpire == 0)
+ 		bEmpire = 0;
+ 	else if (bEmpire != 0 && bEmpire != bRegisteredEmpire)
+@@ -1181,12 +1189,221 @@ void CPlayerBotManager::CountRegisteredPerEmpire(int* out, int size)
+ 	}
+ }
+ 
+-bool CPlayerBotManager::IsRegistered(DWORD dwPlayerID)
++
++bool CPlayerBotManager::LoadCompanionRegistry()
+ {
+-	return LoadRegisteredBots() &&
+-			m_setRegisteredBots.find(dwPlayerID) != m_setRegisteredBots.end();
++    if (m_bCompanionRegistryLoaded)
++        return true;
++
++    LoadRegisteredBots();
++
++    m_bCompanionRegistryLoaded = true;
++    m_mapCompanionsByOwner.clear();
++    m_mapOwnersByCompanion.clear();
++    m_mapCompanionEmpire.clear();
++
++    const char* query =
++        "SELECT c.owner_pid,c.companion_pid,pi.empire,a.id,a.login "
++        "FROM common.playerbot_companion AS c "
++        "JOIN player.player AS companion ON companion.id=c.companion_pid "
++        "JOIN account.account AS a ON a.id=companion.account_id "
++        "JOIN player.player_index AS pi ON pi.id=a.id "
++        "WHERE c.enabled=1 AND c.owner_pid<>c.companion_pid";
++
++    std::unique_ptr<SQLMsg> msg(AccountDB::instance().DirectQuery(query));
++
++    if (!msg.get() || msg->uiSQLErrno != 0 ||
++        !msg->Get() || !msg->Get()->pSQLResult)
++    {
++        sys_err("PLAYERBOT_COMPANION: registry query failed; companion spawns disabled");
++        return false;
++    }
++
++    MYSQL_ROW row;
++
++    while (NULL != (row = mysql_fetch_row(msg->Get()->pSQLResult)))
++    {
++        DWORD owner = 0;
++        DWORD companion = 0;
++        BYTE empire = 0;
++
++        if (row[0]) str_to_number(owner, row[0]);
++        if (row[1]) str_to_number(companion, row[1]);
++        if (row[2]) str_to_number(empire, row[2]);
++
++        if (owner && companion && empire)
++        {
++            m_mapCompanionsByOwner[owner] = companion;
++            m_mapOwnersByCompanion[companion] = owner;
++            m_mapCompanionEmpire[companion] = empire;
++
++            TPlayerBotAccount account;
++            account.dwID = 0;
++            account.bEmpire = empire;
++
++            if (row[3])
++                str_to_number(account.dwID, row[3]);
++
++            account.strLogin = row[4] ? row[4] : "";
++            m_mapBotAccounts[companion] = account;
++        }
++    }
++
++    sys_log(0,
++        "PLAYERBOT_COMPANION: loaded %u companion relationship(s)",
++        (unsigned int)m_mapCompanionsByOwner.size());
++
++    return true;
++}
++
++DWORD CPlayerBotManager::GetCompanionOwner(DWORD companionPID) const
++{
++    std::map<DWORD, DWORD>::const_iterator it =
++        m_mapOwnersByCompanion.find(companionPID);
++
++    return it == m_mapOwnersByCompanion.end() ? 0 : it->second;
++}
++
++void CPlayerBotManager::OnOwnerEnteredGame(LPCHARACTER ch)
++{
++    if (!ch || !ch->IsPC() || !LoadCompanionRegistry())
++        return;
++
++    const DWORD ownerPID = ch->GetPlayerID();
++
++    std::map<DWORD, DWORD>::iterator it =
++        m_mapCompanionsByOwner.find(ownerPID);
++
++    if (it == m_mapCompanionsByOwner.end())
++        return;
++
++    const DWORD companionPID = it->second;
++
++    LPCHARACTER companion =
++        CHARACTER_MANAGER::instance().FindByPID(companionPID);
++
++    if (companion)
++    {
++        if (!companion->GetDesc() || !companion->GetDesc()->IsBot())
++            return;
++
++        float dx = 0.0f;
++        float dy = 0.0f;
++
++        GetDeltaByDegree(
++            ch->GetRotation() + 180.0f,
++            350.0f,
++            &dx,
++            &dy);
++
++        const long x = ch->GetX() + (long)dx;
++        const long y = ch->GetY() + (long)dy;
++
++        companion->SetVictim(NULL);
++        companion->Stop();
++
++        std::map<DWORD, TPlayerBotAIState>::iterator stateIt =
++            s_mapPlayerBotAIStates.find(companionPID);
++
++        if (stateIt != s_mapPlayerBotAIStates.end())
++        {
++            stateIt->second.dwTargetVID = 0;
++            ClearPlayerBotRoute(stateIt->second, true);
++        }
++
++        companion->Show(
++            ch->GetMapIndex(),
++            x,
++            y,
++            0);
++
++        sys_log(0,
++            "PLAYERBOT_COMPANION: relocated existing companion owner_pid=%u companion_pid=%u map=%ld x=%ld y=%ld",
++            ownerPID,
++            companionPID,
++            ch->GetMapIndex(),
++            x,
++            y);
++
++        return;
++    }
++
++    if (IsManaged(companionPID))
++        return;
++
++    std::map<DWORD, BYTE>::iterator empireIt =
++        m_mapCompanionEmpire.find(companionPID);
++
++    if (empireIt == m_mapCompanionEmpire.end() ||
++        empireIt->second == 0)
++    {
++        sys_err(
++            "PLAYERBOT_COMPANION: no valid empire for companion pid=%u owner=%u",
++            companionPID,
++            ownerPID);
++        return;
++    }
++
++    const BYTE empire = empireIt->second;
++
++    if (Spawn(companionPID, empire))
++    {
++        sys_log(0,
++            "PLAYERBOT_COMPANION: owner=%u requested companion spawn pid=%u empire=%u",
++            ownerPID,
++            companionPID,
++            empire);
++    }
++    else
++    {
++        sys_err(
++            "PLAYERBOT_COMPANION: owner=%u failed to request companion spawn pid=%u empire=%u",
++            ownerPID,
++            companionPID,
++            empire);
++    }
++}
++void CPlayerBotManager::OnOwnerAttack(
++        LPCHARACTER owner,
++        LPCHARACTER target)
++{
++        if (!owner || !target || !owner->IsPC())
++                return;
++
++        if (!target->IsMonster() && !target->IsStone())
++                return;
++
++        if (!LoadCompanionRegistry())
++                return;
++
++        const DWORD ownerPID = owner->GetPlayerID();
++
++        if (m_mapCompanionsByOwner.find(ownerPID) ==
++            m_mapCompanionsByOwner.end())
++                return;
++
++        m_mapCompanionOwnerTargetVID[ownerPID] =
++                target->GetVID();
++
++        m_mapCompanionOwnerAttackTime[ownerPID] =
++                get_dword_time();
++
++        sys_log(0,
++                "PLAYERBOT_COMPANION: owner attack owner_pid=%u target_vid=%u",
++                ownerPID,
++                target->GetVID());
+ }
++bool CPlayerBotManager::IsRegistered(DWORD dwPlayerID)
++{
++    if (LoadRegisteredBots() &&
++        m_setRegisteredBots.find(dwPlayerID) != m_setRegisteredBots.end())
++        return true;
+ 
++    LoadCompanionRegistry();
++
++    return m_mapOwnersByCompanion.find(dwPlayerID) !=
++        m_mapOwnersByCompanion.end();
++}
+ bool CPlayerBotManager::IsRegisteredBotPID(DWORD dwPlayerID) const
+ {
+ 	return m_bRegistryLoaded && m_bRegistryAvailable &&
+@@ -1562,7 +1779,315 @@ void CPlayerBotManager::Update()
+ 		if (d->IsPhase(PHASE_GAME) && !ch->IsDead())
+ 			ManagePlayerBotStatusOverhead(ch, state, dwNow);
+ 
+-		// Keep expensive decisions staggered over two ticks, but let an already
++		// CUSTOM COMPANION: dedicated owner-follow + pack-assist mode.
++LoadCompanionRegistry();
++
++const DWORD companionOwnerPID = GetCompanionOwner(it->first);
++
++if (companionOwnerPID != 0)
++{
++LPCHARACTER owner =
++CHARACTER_MANAGER::instance().FindByPID(companionOwnerPID);
++
++// CUSTOM COMPANION: keep normal playerbot death/respawn handling.
++// The companion branch exits before the ordinary HandleDeath()
++// pass below, so dead companions must run it here.
++if (ch->IsDead())
++{
++HandleDeath(ch, state, dwNow);
++continue;
++}
++
++// CUSTOM COMPANION: Mija uses Ninja skill group 1 and normal skill progression.
++if (ch->GetPlayerID() == 2505)
++{
++const bool noDaggerSkills =
++ch->GetSkillLevel(31) == 0 &&
++ch->GetSkillLevel(32) == 0 &&
++ch->GetSkillLevel(33) == 0 &&
++ch->GetSkillLevel(34) == 0 &&
++ch->GetSkillLevel(35) == 0;
++
++if (ch->GetSkillGroup() != 1 || noDaggerSkills)
++{
++ch->SetSkillGroup(1);
++ch->ClearSkill();
++
++sys_log(0,
++"PLAYERBOT_COMPANION: initialized Mija dagger skills pid=%u group=%u points=%d",
++ch->GetPlayerID(),
++ch->GetSkillGroup(),
++ch->GetPoint(POINT_SKILL));
++}
++}
++
++ManagePlayerBotSkills(ch, state, dwNow);
++
++// CUSTOM COMPANION: use normal profession-aware weapon preparation.
++// For Mija's Ninja group 1 this removes bows and equips a dagger/sword.
++if (!PrepareWeapon(ch, state, dwNow))
++{
++ch->SetVictim(NULL);
++continue;
++}
++
++if (!owner || owner->IsDead())
++{
++ch->SetVictim(NULL);
++ch->Stop();
++continue;
++}
++
++// CUSTOM COMPANION: Shaman companions prioritise buffing their owner.
++// Non-Shaman companions fall straight through.
++if (ManagePlayerBotCompanionOwnerBuffs(ch, owner, state, dwNow))
++{
++ch->Stop();
++continue;
++}
++
++// CUSTOM COMPANION: use the normal playerbot loot pickup system too.
++// Companion mode returns before the ordinary HandleLoot() pass below.
++if (HandleLoot(ch, state, dwNow))
++continue;
++
++// Keep companion on the owner's map.
++if (ch->GetMapIndex() != owner->GetMapIndex())
++{
++float dx = 0.0f;
++float dy = 0.0f;
++
++GetDeltaByDegree(
++owner->GetRotation() + 180.0f,
++350.0f,
++&dx,
++&dy);
++
++ch->SetVictim(NULL);
++ClearPlayerBotRoute(state, true);
++
++ch->Show(
++owner->GetMapIndex(),
++owner->GetX() + (long)dx,
++owner->GetY() + (long)dy,
++0);
++
++continue;
++}
++
++const long ownerDistance =
++DISTANCE_APPROX(
++ch->GetX() - owner->GetX(),
++ch->GetY() - owner->GetY());
++
++// If somehow very far away, recall immediately.
++if (ownerDistance > 3000)
++{
++float dx = 0.0f;
++float dy = 0.0f;
++
++GetDeltaByDegree(
++owner->GetRotation() + 180.0f,
++350.0f,
++&dx,
++&dy);
++
++ch->SetVictim(NULL);
++ch->Stop();
++ClearPlayerBotRoute(state, true);
++
++ch->Show(
++owner->GetMapIndex(),
++owner->GetX() + (long)dx,
++owner->GetY() + (long)dy,
++0);
++
++continue;
++}
++
++// -------------------------------------------------
++// COMPANION COMBAT:
++// 1. Prioritise the mob the owner actually attacked.
++// 2. Then continue fighting mobs engaged with the
++//    companion / party so the whole pack is cleared.
++// -------------------------------------------------
++
++LPCHARACTER combatTarget = NULL;
++
++std::map<DWORD, DWORD>::iterator targetVidIt =
++m_mapCompanionOwnerTargetVID.find(companionOwnerPID);
++
++std::map<DWORD, DWORD>::iterator targetTimeIt =
++m_mapCompanionOwnerAttackTime.find(companionOwnerPID);
++
++if (targetVidIt != m_mapCompanionOwnerTargetVID.end() &&
++targetTimeIt != m_mapCompanionOwnerAttackTime.end())
++{
++if (dwNow - targetTimeIt->second <= 10000)
++{
++LPCHARACTER ownerTarget =
++CHARACTER_MANAGER::instance().Find(targetVidIt->second);
++
++if (ownerTarget &&
++!ownerTarget->IsDead() &&
++(ownerTarget->IsMonster() || ownerTarget->IsStone()) &&
++ownerTarget->GetMapIndex() == ch->GetMapIndex())
++{
++combatTarget = ownerTarget;
++}
++}
++else
++{
++m_mapCompanionOwnerTargetVID.erase(targetVidIt);
++m_mapCompanionOwnerAttackTime.erase(targetTimeIt);
++}
++}
++
++// Exact owner target gone? First finish mobs already engaged
++// with Mija / the party.
++if (!combatTarget)
++combatTarget = FindPlayerBotEngagedTarget(ch);
++
++// If the rest of the pack has not aggroed yet, chain into a
++// nearby mob from the same local encounter.
++if (!combatTarget)
++{
++LPCHARACTER nearbyTarget =
++FindDistributedTarget(ch, state, dwNow);
++
++if (nearbyTarget &&
++!nearbyTarget->IsDead() &&
++(nearbyTarget->IsMonster() || nearbyTarget->IsStone()) &&
++nearbyTarget->GetMapIndex() == ch->GetMapIndex())
++{
++const long nearbyDistance =
++DISTANCE_APPROX(
++ch->GetX() - nearbyTarget->GetX(),
++ch->GetY() - nearbyTarget->GetY());
++
++const long ownerTargetDistance =
++DISTANCE_APPROX(
++owner->GetX() - nearbyTarget->GetX(),
++owner->GetY() - nearbyTarget->GetY());
++
++if (nearbyDistance <= PLAYERBOT_LOCAL_CHAIN_RANGE &&
++ownerTargetDistance <= PLAYERBOT_LOCAL_CHAIN_RANGE)
++{
++combatTarget = nearbyTarget;
++m_mapCompanionOwnerAttackTime[companionOwnerPID] = dwNow;
++}
++}
++}
++
++if (combatTarget &&
++!combatTarget->IsDead() &&
++(combatTarget->IsMonster() || combatTarget->IsStone()) &&
++combatTarget->GetMapIndex() == ch->GetMapIndex())
++{
++state.dwTargetVID = combatTarget->GetVID();
++ch->SetVictim(combatTarget);
++
++const long combatDistance =
++DISTANCE_APPROX(
++ch->GetX() - combatTarget->GetX(),
++ch->GetY() - combatTarget->GetY());
++
++LPITEM weapon = ch->GetWear(WEAR_WEAPON);
++
++const bool isBow =
++weapon &&
++weapon->GetType() == ITEM_WEAPON &&
++weapon->GetSubType() == WEAPON_BOW;
++
++// CUSTOM COMPANION: archers must keep arrows equipped.
++if (isBow && !EnsurePlayerBotArrowsEquipped(ch))
++continue;
++
++const int combatRange = isBow ? 800 : 280;
++if (combatDistance > combatRange)
++{
++MovePlayerBot(
++ch,
++combatTarget->GetX(),
++combatTarget->GetY(),
++dwNow,
++4,
++false,
++false,
++false,
++false);
++
++continue;
++}
++
++ClearPlayerBotRoute(state, true);
++
++if (ch->IsStateMove())
++ch->Stop();
++
++// CUSTOM COMPANION: use the normal playerbot combat-skill system first.
++if (ExecutePlayerBotAttackSkill(ch, combatTarget, state, dwNow))
++{
++    continue;
++}
++
++const bool companionAttackResult =
++ExecutePlayerBotBasicAttack(
++ch,
++combatTarget,
++state,
++dwNow);
++continue;
++}
++
++// Fight finished.
++state.dwTargetVID = 0;
++ch->SetVictim(NULL);
++
++// Follow roughly 350 units behind the owner.
++float followDx = 0.0f;
++float followDy = 0.0f;
++
++GetDeltaByDegree(
++owner->GetRotation() + 180.0f,
++350.0f,
++&followDx,
++&followDy);
++
++const long followX = owner->GetX() + (long)followDx;
++const long followY = owner->GetY() + (long)followDy;
++
++const long dist2 =
++DISTANCE_APPROX(
++ch->GetX() - followX,
++ch->GetY() - followY);
++
++if (dist2 > 180)
++{
++MovePlayerBot(
++ch,
++followX,
++followY,
++dwNow,
++4,
++false,
++false,
++false,
++false);
++}
++else
++{
++if (ch->IsStateMove())
++ch->Stop();
++
++ClearPlayerBotRoute(state, true);
++}
++
++// Never fall through into autonomous bot AI.
++continue;
++}
++
++// Keep expensive decisions staggered over two ticks, but let an already
+ 		// engaged bot continue its basic combo on the intervening tick.  This makes
+ 		// combat look like holding Space without doubling pathfinding/target scans.
+ 		if ((it->first + s_dwTick) % 2 != 0)
+@@ -2415,3 +2940,21 @@ bool PlayerBotSetWeight(const char* szKey, long value)
+ {
+ 	return WritePlayerBotPanelWeight(szKey, value);
+ }
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++

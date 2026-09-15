@@ -1,0 +1,12 @@
+say_title ( gameforge . new_quest_lv42 . _054_say_title ) 
+if 20 <= pc . count_item ( 50601 ) then 
+say ( gameforge . new_quest_lv42 . _064_say ) 
+target . delete ( "__TARGET4__" ) 
+pc . setqf ( "diamond_duration" , get_time ( ) ) 
+pc . remove_item ( 50601 , 20 ) 
+q . done ( ) 
+set_state ( "wait_for_smith" ) 
+else 
+say ( string . format ( gameforge . new_quest_lv42 . _068_say , 20 - pc . count_item ( 50601 ) ) ) 
+say ( gameforge . new_quest_lv42 . _065_say ) 
+end 

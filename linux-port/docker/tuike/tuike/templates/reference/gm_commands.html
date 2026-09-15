@@ -1,0 +1,12 @@
+﻿{% extends 'base.html' %}
+{% from 'partials/macros.html' import page_head with context %}
+{% block title %}Komendy GM{% endblock %}
+
+{% block content %}
+{{ page_head('NARZĘDZIA ADMINISTRATORA', 'Komendy GM',
+             'Lista komend dla tej paczki. Parametry w nawiasach ostrokątnych zastąp własną wartością.') }}
+
+<section class="panel">
+  <pre class="reference">{{ commands }}</pre>
+</section>
+{% endblock %}

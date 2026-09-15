@@ -1,0 +1,25 @@
+if pc . count_item ( 30141 ) < 1 then local s = number ( 1 , 100 ) 
+if s <= 50 and pc . count_item ( 30144 ) < 10 then 
+pc . give_item2 ( 30144 , 1 ) 
+if pc . count_item ( 30143 ) >= 1 and pc . count_item ( 30144 ) >= 10 then 
+say_title ( gameforge . subquest_32 . _415_sayReward ) 
+say ( gameforge . subquest_32 . _95_say ) 
+local v = find_npc_by_vnum ( 9003 ) 
+if 0 ~= v then 
+target . vid ( "__TARGET2__" , v , gameforge . subquest_32 . _120_targetVid ) 
+end 
+end 
+end 
+local a = number ( 1 , 100 ) 
+if a <= 20 and pc . count_item ( 30143 ) == 0 then 
+pc . give_item2 ( 30143 , 1 ) 
+if pc . count_item ( 30143 ) >= 1 and pc . count_item ( 30144 ) >= 10 then 
+say_title ( gameforge . subquest_32 . _415_sayReward ) 
+say ( gameforge . subquest_32 . _95_say ) 
+local v = find_npc_by_vnum ( 9003 ) 
+if 0 ~= v then 
+target . vid ( "__TARGET2__" , v , gameforge . subquest_32 . _120_targetVid ) 
+end 
+end 
+end 
+ return end 

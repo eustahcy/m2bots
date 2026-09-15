@@ -1,0 +1,142 @@
+quest horse_summon begin
+	state start begin
+		
+function get_horse_summon_prob_pct()
+	local skill_level=pc.get_skill_level(131)
+	if skill_level==1 then
+		return 15
+	elseif skill_level==2 then
+		return 20
+	elseif skill_level==3 then
+		return 30
+	elseif skill_level==4 then
+		return 40
+	elseif skill_level==5 then
+		return 50
+	elseif skill_level==6 then
+		return 60
+	elseif skill_level==7 then
+		return 70
+	elseif skill_level==8 then
+		return 80
+	elseif skill_level==9 then
+		return 90
+	elseif skill_level>=10 then
+		return 100
+	end
+	return 10
+end	
+
+function summon_horse(item)
+	if is_on_war_map() then
+		syschat(get_lctext("You cannot summon horse here."))
+		return
+	end
+
+	if horse.get_grade()==0 then
+		say_title(gameforge.buy_fishrod._210_sayTitle)
+		say(gameforge.horse_summon._120_say)
+	elseif horse.get_grade()==(item-50050) then
+		if horse.is_summon() or horse.is_riding() then
+			syschat(gameforge.horse_summon.already_summoned)
+			return
+		end
+
+		local sp_req = horse.get_grade() * 100
+		if pc.getsp()>=sp_req then
+			if number(1, 100)<=horse_summon.get_horse_summon_prob_pct() then
+				chat(gameforge.horse_summon.summon_success)
+				horse.summon()
+			else
+				syschat(gameforge.horse_summon.summon_fail_1)
+				syschat(gameforge.horse_summon.summon_fail_2)
+			end
+			pc.change_sp(-sp_req)
+		else
+			chat(string.format(gameforge.horse_summon.to_low_sp, sp_req))
+		end
+    else
+		say_title(gameforge.buy_fishrod._210_sayTitle)
+		local horse_grade = string.format("horse_grade_%d", horse.get_grade())
+		say(gameforge.horse_summon[horse_grade])
+	end
+end
+
+		
+		when 20349.chat.gameforge.horse_summon._10_npcChat with horse.get_grade()==1 and pc.countitem("50051")<1 begin
+			say_title(gameforge.horse_exchange_ticket._20_sayTitle)
+			say(gameforge.horse_summon._20_say)
+			local b= select(gameforge.find_squareguard._50_select, gameforge.find_brother_article._100_select)
+			if 1==b then
+				if pc.money>=400000 then
+					pc.changemoney(-400000)
+					say_title(gameforge.horse_exchange_ticket._20_sayTitle)
+					say(gameforge.horse_summon._30_say)
+					pc.give_item2("50051", 1)
+				else
+					say_title(gameforge.horse_exchange_ticket._20_sayTitle)
+					say(gameforge.horse_summon._40_say)
+				end
+			elseif 2==b then
+			else
+				say(string.format(gameforge.find_squareguard._70_say, b))
+			end
+		end
+		when 20349.chat.gameforge.horse_summon._50_npcChat with horse.get_grade()==2 and pc.countitem("50052")<1 begin
+			say_title(gameforge.horse_exchange_ticket._20_sayTitle)
+			say(gameforge.horse_summon._60_say)
+			local b= select(gameforge.find_squareguard._50_select, gameforge.find_brother_article._100_select)
+			if 1==b then
+				if pc.money>=50000 then
+					pc.changemoney(-50000)
+					say_title(gameforge.horse_exchange_ticket._20_sayTitle)
+					say(gameforge.horse_summon._70_say)
+					pc.give_item2("50052", 1)
+				else
+					say(gameforge.horse_summon._80_say)
+				end
+			elseif 2==b then
+			else
+				say(string.format(gameforge.find_squareguard._70_say, b))
+			end
+		end
+		when 20349.chat.gameforge.horse_summon._90_npcChat with horse.get_grade()==3 and pc.countitem("50053")<1 begin
+			say_title(gameforge.horse_exchange_ticket._20_sayTitle)
+			say(gameforge.horse_summon._100_say)
+			local b= select(gameforge.find_squareguard._50_select, gameforge.find_brother_article._100_select)
+			if 1==b then
+				if pc.money>=100000 then
+					pc.changemoney(-100000)
+					say_title(gameforge.buy_fishrod._210_sayTitle)
+					say(gameforge.horse_summon._110_say)
+					pc.give_item2("50053", 1)
+				else
+					say_title(gameforge.horse_exchange_ticket._20_sayTitle)
+					say(gameforge.horse_summon._80_say)
+				end
+			elseif 2==b then
+			else
+				say(string.format(gameforge.find_squareguard._70_say, b))
+			end
+		end
+		
+		when 50051.use begin
+			horse_summon.summon_horse(50051)
+	    end    
+		
+		when 50052.use begin
+			horse_summon.summon_horse(50052)
+	    end 
+
+		when 50053.use begin
+			horse_summon.summon_horse(50053)
+	    end 
+
+	end
+	state __COMPLETE__ begin
+		when enter begin
+			q.done()
+		end
+	end
+end
+

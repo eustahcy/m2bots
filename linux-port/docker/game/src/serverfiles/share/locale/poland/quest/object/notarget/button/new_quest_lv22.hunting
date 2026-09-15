@@ -1,0 +1,14 @@
+if 1 > pc . count_item ( 35000 ) or 1 > pc . count_item ( 35001 ) then 
+say_title ( gameforge . new_quest_lv22 . _016_send_letter ) 
+say ( gameforge . new_quest_lv22 . _066_say ) 
+if 1 > pc . count_item ( 35000 ) then 
+say_reward ( string . format ( gameforge . new_quest_lv22 . _063_say , 1 - pc . count_item ( 35000 ) , mob_name ( 115 ) ) ) 
+end 
+if 1 > pc . count_item ( 35001 ) then 
+say_reward ( string . format ( gameforge . new_quest_lv22 . _064_say , 1 - pc . count_item ( 35001 ) , mob_name ( 114 ) ) ) 
+end 
+else 
+say_title ( gameforge . new_quest_lv22 . _025_say_title ) 
+say ( gameforge . new_quest_lv22 . _065_say ) 
+set_state ( "back_to_baekgo" ) 
+end 

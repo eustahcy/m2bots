@@ -1,0 +1,115 @@
+npc_name ( ) 
+if pc . getqf ( "equipment_get" ) > 0 then 
+say_split ( translate . beta . equipment . already ) 
+return 
+end 
+say_split ( translate . beta . equipment . ask ) 
+local levels = { 35 , 61 } 
+local options = { } 
+for i , v in pairs ( levels ) begin 
+table . insert ( options , msg ( "%d lvl" , v ) ) 
+end 
+table . insert ( options , translate . general . cancel ) 
+local x = select_table ( options ) 
+if x == table . getn ( options ) then 
+return 
+end 
+local dest_level = levels [ x ] 
+if pc . get_level ( ) < dest_level then 
+npc_name ( ) 
+say_split ( translate . beta . equipment . low_lvl ) 
+return 
+end 
+local eq_table = { 
+[ 35 ] = { 
+gold = 200000 , 
+[ JOB_WARRIOR ] = { 
+{ vnum = 77 , count = 1 } , 
+{ vnum = 3067 , count = 1 } , 
+{ vnum = 11247 , count = 1 , rarePct = 100 } , 
+{ vnum = 12227 , count = 1 } , 
+} , 
+[ JOB_ASSASSIN ] = { 
+{ vnum = 1037 , count = 1 } , 
+{ vnum = 2067 , count = 1 } , 
+{ vnum = 11447 , count = 1 , rarePct = 100 } , 
+{ vnum = 12367 , count = 1 } , 
+{ vnum = 17187 , count = 1 } , 
+} , 
+[ JOB_SURA ] = { 
+{ vnum = 77 , count = 1 } , 
+{ vnum = 11647 , count = 1 , rarePct = 100 } , 
+{ vnum = 12507 , count = 1 } , 
+} , 
+[ JOB_SHAMAN ] = { 
+{ vnum = 7067 , count = 1 } , 
+{ vnum = 5037 , count = 1 } , 
+{ vnum = 11847 , count = 1 , rarePct = 100 } , 
+{ vnum = 12647 , count = 1 } , 
+{ vnum = 16087 , count = 1 } , 
+} , 
+[ 4 ] = { 
+{ vnum = 14047 , count = 1 } , 
+{ vnum = 16047 , count = 1 } , 
+{ vnum = 17107 , count = 1 } , 
+{ vnum = 15106 , count = 1 } , 
+{ vnum = 13027 , count = 1 , rarePct = 100 } , 
+} , 
+} , 
+[ 61 ] = { 
+gold = 500000 , 
+[ JOB_WARRIOR ] = { 
+{ vnum = 137 , count = 1 } , 
+{ vnum = 3127 , count = 1 } , 
+{ vnum = 11287 , count = 1 , rarePct = 100 } , 
+{ vnum = 12247 , count = 1 } , 
+} , 
+[ JOB_ASSASSIN ] = { 
+{ vnum = 1097 , count = 1 } , 
+{ vnum = 2127 , count = 1 } , 
+{ vnum = 11487 , count = 1 , rarePct = 100 } , 
+{ vnum = 12387 , count = 1 } , 
+{ vnum = 17189 , count = 1 } , 
+} , 
+[ JOB_SURA ] = { 
+{ vnum = 137 , count = 1 } , 
+{ vnum = 11687 , count = 1 , rarePct = 100 } , 
+{ vnum = 12527 , count = 1 } , 
+{ vnum = 16129 , count = 1 } , 
+} , 
+[ JOB_SHAMAN ] = { 
+{ vnum = 7127 , count = 1 } , 
+{ vnum = 5087 , count = 1 } , 
+{ vnum = 11887 , count = 1 , rarePct = 100 } , 
+{ vnum = 12667 , count = 1 } , 
+{ vnum = 16089 , count = 1 } , 
+} , 
+[ 4 ] = { 
+{ vnum = 14049 , count = 1 } , 
+{ vnum = 16049 , count = 1 } , 
+{ vnum = 17109 , count = 1 } , 
+{ vnum = 17129 , count = 1 } , 
+{ vnum = 15109 , count = 1 } , 
+{ vnum = 15129 , count = 1 } , 
+{ vnum = 13048 , count = 1 , rarePct = 100 } , 
+} , 
+} , 
+} 
+npc_name ( ) 
+local item_table = { } 
+for i , v in pairs ( eq_table [ dest_level ] [ pc . get_job ( ) ] ) begin 
+table . insert ( item_table , v ) 
+end 
+for i , v in pairs ( eq_table [ dest_level ] [ 4 ] ) begin 
+table . insert ( item_table , v ) 
+end 
+for i , v in pairs ( item_table ) begin 
+local rarePct = 0 
+if v . rarePct ~= nil then 
+rarePct = v . rarePct end 
+pc . give_item2 ( v . vnum , v . count , rarePct ) 
+say_reward ( msg ( translate . reward . item_reward , item_name ( v . vnum ) ) ) 
+end 
+local gold = eq_table [ dest_level ] . gold pc . change_money ( gold ) 
+say_reward ( msg ( translate . reward . gold_reward , parse_number ( gold ) ) ) 
+pc . setqf ( "equipment_get" , 1 ) 

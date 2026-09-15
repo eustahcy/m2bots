@@ -1,0 +1,35 @@
+﻿{% extends 'base.html' %}
+{% from 'partials/macros.html' import page_head, stat with context %}
+{% block title %}Wydajność{% endblock %}
+
+{% block content %}
+{{ page_head('TELEMETRIA', 'CPU, pamięć i dysk',
+             'Kolektor zapisuje próbkę co kilka minut; wykres pokazuje ostatnią dobę.') }}
+
+<section class="stat-grid">
+  {{ stat('CPU', (current.cpu_percent or 0) ~ '%', 'w ostatniej próbce') }}
+  {{ stat('RAM', (current.ram_percent or 0) ~ '%',
+          (current.ram_used_mb or 0) ~ ' / ' ~ (current.ram_total_mb or 0) ~ ' MB') }}
+  {{ stat('Dysk', (current.disk_percent or 0) ~ '%',
+          '%.1f'|format((current.disk_used_mb or 0) / 1024) ~ ' / ' ~
+          '%.1f'|format((current.disk_total_mb or 0) / 1024) ~ ' GB') }}
+</section>
+
+<section class="panel">
+  <h2>Ostatnie 24 godziny</h2>
+  {% if samples %}
+    <div class="chart chart-tall"><canvas id="system-chart"></canvas></div>
+    <script id="system-data" type="application/json">{{ samples|tojson }}</script>
+  {% else %}
+    <p class="muted">Kolektor nie zapisał jeszcze żadnej próbki. Sprawdź, czy kontener
+      <code>tuike-collector</code> działa.</p>
+  {% endif %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+{% if samples %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+{% endif %}
+{% endblock %}

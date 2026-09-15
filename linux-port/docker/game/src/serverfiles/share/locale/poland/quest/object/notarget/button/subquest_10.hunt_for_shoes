@@ -1,0 +1,8 @@
+if pc . count_item ( 30271 ) < 1 then 
+say_title ( gameforge . subquest_10 . _130_makequestbutton ) 
+say ( gameforge . subquest_10 . _160_sayReward ) 
+say_item_vnum ( 30271 ) 
+else 
+say_title ( gameforge . subquest_10 . _170_sendLetter ) 
+say ( gameforge . subquest_10 . _180_targetVid ) 
+end 

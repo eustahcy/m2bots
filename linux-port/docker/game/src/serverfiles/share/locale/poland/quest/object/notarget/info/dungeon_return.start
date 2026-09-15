@@ -1,0 +1,16 @@
+say_title ( translate . dungeon_return . letter_name ) 
+say ( ) 
+say_reward ( string . format ( translate . dungeon_return . last_dungeon , dungeon_return . get_last_dungeon_name ( ) ) ) 
+say_split ( translate . dungeon_return . info ) 
+if select ( translate . general . yes , translate . general . no ) == 2 then return end 
+if not dungeon_return . is_dungeon_exist ( ) then 
+say_info ( ) 
+say ( "Szukam lochu" ) 
+setdelay ( 2000 ) 
+say ( ".........." ) 
+resetdelay ( ) 
+say_split ( translate . dungeon_return . too_late ) 
+clear_letter ( ) 
+return 
+end 
+pc . warp ( pc . getqf ( "dungeon_last_x" ) * 100 , pc . getqf ( "dungeon_last_y" ) * 100 , pc . getqf ( "dungeon_index" ) ) 

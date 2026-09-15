@@ -1,0 +1,72 @@
+local minimum_y = 671 
+local value_y = pc . get_local_y ( ) - minimum_y 
+if pc . get_local_y ( ) >= 671 and pc . get_local_y ( ) <= 906 then 
+if pc . get_local_x ( ) >= 603 and pc . get_local_x ( ) < 778 then 
+local minimum_x = 603 
+local value_x = value_y * 35 / 47 
+if pc . get_local_x ( ) >= value_x + minimum_x then 
+if pc . getqf ( "ghostsleft" ) > 0 then 
+local successProb = pc . getqf ( "ghostsleft" ) * new_quest_lv52_successMulti 
+if number ( 1 , 100 ) < successProb then 
+local index = pc . getqf ( "ghostsleft" ) - 1 
+pc . setqf ( "ghostsleft" , index ) 
+if index == 3 then 
+letterindex = 1 
+send_letter ( gameforge . new_quest_lv52 . _170_send_letter ) 
+q . set_title ( gameforge . new_quest_lv52 . _030_set_title ) 
+elseif index == 2 then 
+letterindex = 2 
+send_letter ( gameforge . new_quest_lv52 . _171_send_letter ) 
+q . set_title ( gameforge . new_quest_lv52 . _030_set_title ) 
+elseif index == 1 then 
+letterindex = 3 
+send_letter ( gameforge . new_quest_lv52 . _172_send_letter ) 
+q . set_title ( gameforge . new_quest_lv52 . _030_set_title ) 
+elseif index == 0 then 
+pc . setqf ( "lv52reward" , 1 ) 
+q . done ( ) 
+set_state ( "backhome" ) 
+else 
+notice ( "There is something wrong with the questflag!" ) 
+end 
+else 
+end 
+else 
+end 
+else 
+end 
+elseif pc . get_local_x ( ) >= 778 and pc . get_local_x ( ) <= 906 then 
+local maximum_x = 906 
+local value_x = value_y * 128 / 235 
+if pc . get_local_x ( ) <= maximum_x - value_x then 
+if pc . getqf ( "ghostsleft" ) > 0 then 
+local successProb = pc . getqf ( "ghostsleft" ) * new_quest_lv52_successMulti 
+if number ( 1 , 100 ) < successProb then 
+local index = pc . getqf ( "ghostsleft" ) - 1 
+pc . setqf ( "ghostsleft" , index ) 
+if index == 3 then 
+letterindex = 1 
+send_letter ( gameforge . new_quest_lv52 . _170_send_letter ) 
+q . set_title ( gameforge . new_quest_lv52 . _030_set_title ) 
+elseif index == 2 then 
+letterindex = 2 
+send_letter ( gameforge . new_quest_lv52 . _171_send_letter ) 
+q . set_title ( gameforge . new_quest_lv52 . _030_set_title ) 
+elseif index == 1 then 
+letterindex = 3 
+send_letter ( gameforge . new_quest_lv52 . _172_send_letter ) 
+q . set_title ( gameforge . new_quest_lv52 . _030_set_title ) 
+elseif index == 0 then 
+pc . setqf ( "lv52reward" , 2 ) 
+q . done ( ) 
+set_state ( "backhome" ) 
+else 
+end 
+else 
+end 
+else 
+end 
+else 
+end 
+end 
+end 

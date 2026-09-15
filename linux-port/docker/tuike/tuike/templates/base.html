@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="pl" data-theme="{{ settings.theme }}" data-density="{{ settings.density }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{% block title %}{{ panel_brand }}{% endblock %} · {{ panel_codename }}</title>
+  <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/tuike.css') }}">
+  {% block head %}{% endblock %}
+</head>
+<body>
+<a class="skip-link" href="#content">Przejdź do treści</a>
+
+<input type="checkbox" id="nav-toggle" class="nav-toggle" hidden>
+<header class="mobile-bar">
+  <label for="nav-toggle" class="nav-button" aria-label="Menu">☰</label>
+  <span class="mobile-brand">{{ panel_brand }}</span>
+</header>
+
+<aside class="sidebar">
+  <a class="brand" href="{{ url_for('dashboard.index') }}">
+    <span class="brand-mark">{{ panel_codename[0] }}</span>
+    <span class="brand-text">
+      <b>{{ panel_brand }}</b>
+      <small>{{ panel_tagline }}</small>
+    </span>
+  </a>
+
+  <a class="server-status" id="server-status" href="{{ url_for('manage.index') }}"
+     title="Stan serwera gry">
+    <span class="status-dot" aria-hidden="true"></span>
+    <span class="server-status-text">
+      <b id="server-status-label">Sprawdzanie…</b>
+      <small id="server-status-note">stan serwera gry</small>
+    </span>
+  </a>
+
+  <nav aria-label="Nawigacja główna">
+    {% for group, links in navigation %}
+      <p class="nav-group">{{ group }}</p>
+      {% for endpoint, icon, label in links %}
+        <a href="{{ url_for(endpoint) }}"
+           {% if request.endpoint == endpoint %}aria-current="page"{% endif %}>
+          <i aria-hidden="true">{{ icon }}</i>{{ label }}
+        </a>
+      {% endfor %}
+    {% endfor %}
+
+    <p class="nav-group">Inne panele</p>
+    <a href="{{ tieru_url }}" target="_blank" rel="noopener">
+      <i aria-hidden="true">↗</i>Panel klasyczny
+    </a>
+    {% if seban_url %}
+      <a href="{{ seban_url }}" target="_blank" rel="noopener">
+        <i aria-hidden="true">↗</i>Seban Panel
+      </a>
+    {% endif %}
+  </nav>
+
+  <footer class="sidebar-foot">
+    {% if settings.auth_enabled == '1' and is_admin %}
+      <form action="{{ url_for('auth.logout') }}" method="post">
+        <button class="ghost" type="submit">Wyloguj</button>
+      </form>
+    {% endif %}
+    <small>{{ panel_codename }} v{{ panel_version }}</small>
+  </footer>
+</aside>
+
+<main id="content">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="flashes">
+        {% for category, message in messages %}
+          <p class="flash {{ category }}">{{ message }}</p>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  {% block content %}{% endblock %}
+</main>
+
+<script src="{{ url_for('static', filename='js/status.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

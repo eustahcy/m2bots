@@ -1,0 +1,594 @@
+/*M!999999\- enable the sandbox mode */ 
+-- MariaDB dump 10.19-11.8.2-MariaDB, for FreeBSD14.2 (amd64)
+--
+-- Host: localhost    Database: common
+-- ------------------------------------------------------
+-- Server version	11.8.2-MariaDB
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!40101 SET NAMES utf8mb4 */;
+/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
+/*!40103 SET TIME_ZONE='+00:00' */;
+/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
+/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
+/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
+/*M!100616 SET @OLD_NOTE_VERBOSITY=@@NOTE_VERBOSITY, NOTE_VERBOSITY=0 */;
+
+--
+-- Table structure for table `exp_table`
+--
+
+DROP TABLE IF EXISTS `exp_table`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `exp_table` (
+  `level` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `exp` int(10) unsigned NOT NULL DEFAULT 0,
+  PRIMARY KEY (`level`) USING BTREE
+) ENGINE=InnoDB AUTO_INCREMENT=121 DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci ROW_FORMAT=DYNAMIC;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `exp_table`
+--
+
+LOCK TABLES `exp_table` WRITE;
+/*!40000 ALTER TABLE `exp_table` DISABLE KEYS */;
+set autocommit=0;
+INSERT INTO `exp_table` VALUES
+(1,300),
+(2,800),
+(3,1500),
+(4,2500),
+(5,4300),
+(6,7200),
+(7,11000),
+(8,17000),
+(9,24000),
+(10,33000),
+(11,43000),
+(12,58000),
+(13,76000),
+(14,100000),
+(15,130000),
+(16,169000),
+(17,219000),
+(18,283000),
+(19,365000),
+(20,472000),
+(21,610000),
+(22,705000),
+(23,813000),
+(24,937000),
+(25,1077000),
+(26,1237000),
+(27,1418000),
+(28,1624000),
+(29,1857000),
+(30,2122000),
+(31,2421000),
+(32,2761000),
+(33,3145000),
+(34,3580000),
+(35,4073000),
+(36,4632000),
+(37,5194000),
+(38,5717000),
+(39,6264000),
+(40,6837000),
+(41,7600000),
+(42,8274000),
+(43,8990000),
+(44,9753000),
+(45,10560000),
+(46,11410000),
+(47,12320000),
+(48,13270000),
+(49,14280000),
+(50,15340000),
+(51,16870000),
+(52,18960000),
+(53,19980000),
+(54,21420000),
+(55,22930000),
+(56,24530000),
+(57,26200000),
+(58,27960000),
+(59,29800000),
+(60,32780000),
+(61,36060000),
+(62,39670000),
+(63,43640000),
+(64,48000000),
+(65,52800000),
+(66,58080000),
+(67,63890000),
+(68,70280000),
+(69,77310000),
+(70,85040000),
+(71,93540000),
+(72,102900000),
+(73,113200000),
+(74,124500000),
+(75,137000000),
+(76,150700000),
+(77,165700000),
+(78,236990000),
+(79,260650000),
+(80,286780000),
+(81,315380000),
+(82,346970000),
+(83,381680000),
+(84,419770000),
+(85,461760000),
+(86,508040000),
+(87,558740000),
+(88,614640000),
+(89,676130000),
+(90,743730000),
+(91,1041222000),
+(92,1145344200),
+(93,1259878620),
+(94,1385866482),
+(95,1524453130),
+(96,1676898443),
+(97,1844588288),
+(98,2029047116),
+(99,2050000000),
+(100,2150000000),
+(101,2210000000),
+(102,2250000000),
+(103,2280000000),
+(104,2310000000),
+(105,2330000000),
+(106,2350000000),
+(107,2370000000),
+(108,2390000000),
+(109,2400000000),
+(110,2410000000),
+(111,2420000000),
+(112,2430000000),
+(113,2440000000),
+(114,2450000000),
+(115,2460000000),
+(116,2470000000),
+(117,2480000000),
+(118,2490000000),
+(119,2490000000),
+(120,2500000000);
+/*!40000 ALTER TABLE `exp_table` ENABLE KEYS */;
+UNLOCK TABLES;
+commit;
+
+--
+-- Table structure for table `gmhost`
+--
+
+DROP TABLE IF EXISTS `gmhost`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `gmhost` (
+  `mIP` varchar(16) NOT NULL DEFAULT '',
+  PRIMARY KEY (`mIP`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci ROW_FORMAT=DYNAMIC;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `gmhost`
+--
+
+LOCK TABLES `gmhost` WRITE;
+/*!40000 ALTER TABLE `gmhost` DISABLE KEYS */;
+set autocommit=0;
+INSERT INTO `gmhost` VALUES
+('127.0.0.1');
+/*!40000 ALTER TABLE `gmhost` ENABLE KEYS */;
+UNLOCK TABLES;
+commit;
+
+--
+-- Table structure for table `gmlist`
+--
+
+DROP TABLE IF EXISTS `gmlist`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `gmlist` (
+  `mID` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `mAccount` varchar(16) NOT NULL DEFAULT '',
+  `mName` varchar(16) NOT NULL DEFAULT '',
+  `mContactIP` varchar(16) NOT NULL DEFAULT '',
+  `mServerIP` varchar(16) NOT NULL DEFAULT 'ALL',
+  `mAuthority` enum('IMPLEMENTOR','HIGH_WIZARD','GOD','LOW_WIZARD','PLAYER') NOT NULL DEFAULT 'PLAYER',
+  PRIMARY KEY (`mID`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci ROW_FORMAT=DYNAMIC;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `gmlist`
+--
+
+LOCK TABLES `gmlist` WRITE;
+/*!40000 ALTER TABLE `gmlist` DISABLE KEYS */;
+set autocommit=0;
+/*!40000 ALTER TABLE `gmlist` ENABLE KEYS */;
+UNLOCK TABLES;
+commit;
+
+--
+-- Table structure for table `itemshop_items`
+--
+
+DROP TABLE IF EXISTS `itemshop_items`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `itemshop_items` (
+  `index` int(10) NOT NULL,
+  `vnum` int(10) NOT NULL,
+  `count` smallint(4) NOT NULL,
+  `price` int(10) NOT NULL,
+  `currency` enum('DRAGON_COIN','DRAGON_MARK') NOT NULL DEFAULT 'DRAGON_COIN',
+  `minLevel` int(10) NOT NULL DEFAULT 0,
+  `socket0` int(10) NOT NULL DEFAULT 0,
+  `socket1` int(10) NOT NULL DEFAULT 0,
+  `socket2` int(10) NOT NULL DEFAULT 0,
+  PRIMARY KEY (`index`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci ROW_FORMAT=DYNAMIC;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `itemshop_items`
+--
+
+LOCK TABLES `itemshop_items` WRITE;
+/*!40000 ALTER TABLE `itemshop_items` DISABLE KEYS */;
+set autocommit=0;
+INSERT INTO `itemshop_items` VALUES
+(1,72701,1,49,'DRAGON_COIN',0,0,0,0),
+(2,71005,1,45,'DRAGON_COIN',0,0,0,0),
+(3,70138,50,49,'DRAGON_COIN',50,0,0,0),
+(4,71099,1,95,'DRAGON_COIN',0,0,0,0),
+(5,72702,1,59,'DRAGON_COIN',0,0,0,0),
+(101,72101,1,39,'DRAGON_COIN',0,0,0,0),
+(102,72102,1,99,'DRAGON_COIN',0,0,0,0),
+(103,72111,1,39,'DRAGON_COIN',0,0,0,0),
+(104,72112,1,99,'DRAGON_COIN',0,0,0,0),
+(105,72121,1,29,'DRAGON_COIN',0,0,0,0),
+(106,72122,1,69,'DRAGON_COIN',0,0,0,0),
+(107,72131,1,19,'DRAGON_COIN',0,0,0,0),
+(108,72132,1,39,'DRAGON_COIN',0,0,0,0),
+(109,72141,1,25,'DRAGON_COIN',0,0,0,0),
+(110,72142,1,49,'DRAGON_COIN',0,0,0,0),
+(111,72151,1,79,'DRAGON_COIN',0,0,0,0),
+(112,72161,1,19,'DRAGON_COIN',0,0,0,0),
+(113,72199,1,299,'DRAGON_COIN',0,0,0,0),
+(301,73001,1,39,'DRAGON_COIN',0,0,0,0),
+(302,73002,1,39,'DRAGON_COIN',0,0,0,0),
+(303,73003,1,39,'DRAGON_COIN',0,0,0,0),
+(304,73004,1,39,'DRAGON_COIN',0,0,0,0),
+(305,73005,1,39,'DRAGON_COIN',0,0,0,0),
+(306,73006,1,39,'DRAGON_COIN',0,0,0,0),
+(307,73007,1,39,'DRAGON_COIN',0,0,0,0),
+(308,73008,1,39,'DRAGON_COIN',0,0,0,0),
+(309,73009,1,39,'DRAGON_COIN',0,0,0,0),
+(310,73010,1,39,'DRAGON_COIN',0,0,0,0),
+(311,73011,1,39,'DRAGON_COIN',0,0,0,0),
+(312,73012,1,39,'DRAGON_COIN',0,0,0,0),
+(313,73051,1,39,'DRAGON_COIN',0,0,0,0),
+(314,73052,1,39,'DRAGON_COIN',0,0,0,0),
+(315,73053,1,39,'DRAGON_COIN',0,0,0,0),
+(316,73054,1,39,'DRAGON_COIN',0,0,0,0),
+(317,73055,1,39,'DRAGON_COIN',0,0,0,0),
+(318,73056,1,39,'DRAGON_COIN',0,0,0,0),
+(319,73057,1,39,'DRAGON_COIN',0,0,0,0),
+(320,73058,1,39,'DRAGON_COIN',0,0,0,0),
+(321,73059,1,39,'DRAGON_COIN',0,0,0,0),
+(322,73060,1,39,'DRAGON_COIN',0,0,0,0),
+(323,73061,1,39,'DRAGON_COIN',0,0,0,0),
+(324,73062,1,39,'DRAGON_COIN',0,0,0,0),
+(325,73251,1,39,'DRAGON_COIN',0,0,0,0),
+(326,73252,1,39,'DRAGON_COIN',0,0,0,0),
+(327,73253,1,39,'DRAGON_COIN',0,0,0,0),
+(328,73254,1,39,'DRAGON_COIN',0,0,0,0),
+(329,73255,1,39,'DRAGON_COIN',0,0,0,0),
+(330,73256,1,39,'DRAGON_COIN',0,0,0,0),
+(331,73257,1,39,'DRAGON_COIN',0,0,0,0),
+(332,73258,1,39,'DRAGON_COIN',0,0,0,0),
+(333,73259,1,39,'DRAGON_COIN',0,0,0,0),
+(334,73260,1,39,'DRAGON_COIN',0,0,0,0),
+(335,73261,1,39,'DRAGON_COIN',0,0,0,0),
+(336,73262,1,39,'DRAGON_COIN',0,0,0,0),
+(337,73301,1,39,'DRAGON_COIN',0,0,0,0),
+(338,73302,1,39,'DRAGON_COIN',0,0,0,0),
+(339,73303,1,39,'DRAGON_COIN',0,0,0,0),
+(340,73304,1,39,'DRAGON_COIN',0,0,0,0),
+(341,73305,1,39,'DRAGON_COIN',0,0,0,0),
+(342,73306,1,39,'DRAGON_COIN',0,0,0,0),
+(343,73307,1,39,'DRAGON_COIN',0,0,0,0),
+(344,73308,1,39,'DRAGON_COIN',0,0,0,0),
+(345,73309,1,39,'DRAGON_COIN',0,0,0,0),
+(346,73310,1,39,'DRAGON_COIN',0,0,0,0),
+(347,73311,1,39,'DRAGON_COIN',0,0,0,0),
+(348,73312,1,39,'DRAGON_COIN',0,0,0,0),
+(349,73501,1,39,'DRAGON_COIN',0,0,0,0),
+(350,73502,1,39,'DRAGON_COIN',0,0,0,0),
+(351,73503,1,39,'DRAGON_COIN',0,0,0,0),
+(352,73504,1,39,'DRAGON_COIN',0,0,0,0),
+(353,73505,1,39,'DRAGON_COIN',0,0,0,0),
+(354,73506,1,39,'DRAGON_COIN',0,0,0,0),
+(355,73507,1,39,'DRAGON_COIN',0,0,0,0),
+(356,73508,1,39,'DRAGON_COIN',0,0,0,0),
+(357,73509,1,39,'DRAGON_COIN',0,0,0,0),
+(358,73510,1,39,'DRAGON_COIN',0,0,0,0),
+(359,73511,1,39,'DRAGON_COIN',0,0,0,0),
+(360,73512,1,39,'DRAGON_COIN',0,0,0,0),
+(361,73601,1,39,'DRAGON_COIN',0,0,0,0),
+(362,73602,1,39,'DRAGON_COIN',0,0,0,0),
+(363,73603,1,39,'DRAGON_COIN',0,0,0,0),
+(364,73604,1,39,'DRAGON_COIN',0,0,0,0),
+(365,73605,1,39,'DRAGON_COIN',0,0,0,0),
+(366,73606,1,39,'DRAGON_COIN',0,0,0,0),
+(367,73607,1,39,'DRAGON_COIN',0,0,0,0),
+(368,73608,1,39,'DRAGON_COIN',0,0,0,0),
+(369,73609,1,39,'DRAGON_COIN',0,0,0,0),
+(370,73610,1,39,'DRAGON_COIN',0,0,0,0),
+(371,73611,1,39,'DRAGON_COIN',0,0,0,0),
+(372,73612,1,39,'DRAGON_COIN',0,0,0,0),
+(373,73751,1,39,'DRAGON_COIN',0,0,0,0),
+(374,73752,1,39,'DRAGON_COIN',0,0,0,0),
+(375,73753,1,39,'DRAGON_COIN',0,0,0,0),
+(376,73754,1,39,'DRAGON_COIN',0,0,0,0),
+(377,73755,1,39,'DRAGON_COIN',0,0,0,0),
+(378,73756,1,39,'DRAGON_COIN',0,0,0,0),
+(379,73757,1,39,'DRAGON_COIN',0,0,0,0),
+(380,73758,1,39,'DRAGON_COIN',0,0,0,0),
+(381,73759,1,39,'DRAGON_COIN',0,0,0,0),
+(382,73760,1,39,'DRAGON_COIN',0,0,0,0),
+(383,73761,1,39,'DRAGON_COIN',0,0,0,0),
+(384,73762,1,39,'DRAGON_COIN',0,0,0,0),
+(385,73801,1,39,'DRAGON_COIN',0,0,0,0),
+(386,73802,1,39,'DRAGON_COIN',0,0,0,0),
+(387,73803,1,39,'DRAGON_COIN',0,0,0,0),
+(388,73804,1,39,'DRAGON_COIN',0,0,0,0),
+(389,73805,1,39,'DRAGON_COIN',0,0,0,0),
+(390,73806,1,39,'DRAGON_COIN',0,0,0,0),
+(391,73807,1,39,'DRAGON_COIN',0,0,0,0),
+(392,73808,1,39,'DRAGON_COIN',0,0,0,0),
+(393,73809,1,39,'DRAGON_COIN',0,0,0,0),
+(394,73810,1,39,'DRAGON_COIN',0,0,0,0),
+(395,73811,1,39,'DRAGON_COIN',0,0,0,0),
+(396,73812,1,39,'DRAGON_COIN',0,0,0,0),
+(451,71026,1,59,'DRAGON_COIN',0,0,0,0),
+(452,71025,1,79,'DRAGON_COIN',0,0,0,0),
+(601,71048,1,199,'DRAGON_COIN',0,0,0,0),
+(602,71002,1,79,'DRAGON_COIN',0,0,0,0),
+(603,71003,1,49,'DRAGON_COIN',0,0,0,0),
+(604,71083,1,29,'DRAGON_COIN',0,0,0,0),
+(605,22010,10,39,'DRAGON_COIN',0,0,0,0),
+(606,71001,1,39,'DRAGON_COIN',0,0,0,0),
+(607,71084,1,69,'DRAGON_COIN',0,0,0,0),
+(608,71084,4,207,'DRAGON_COIN',0,0,0,0),
+(609,71095,1,7,'DRAGON_COIN',0,0,0,0),
+(610,71095,25,49,'DRAGON_COIN',0,0,0,0),
+(611,71054,1,149,'DRAGON_COIN',0,0,0,0),
+(612,71109,1,49,'DRAGON_COIN',0,0,0,0),
+(613,71103,1,39,'DRAGON_COIN',0,0,0,0),
+(614,71104,1,39,'DRAGON_COIN',0,0,0,0),
+(615,71105,1,39,'DRAGON_COIN',0,0,0,0),
+(616,71106,1,39,'DRAGON_COIN',0,0,0,0),
+(701,25041,1,719,'DRAGON_MARK',0,0,0,0),
+(702,71094,1,599,'DRAGON_MARK',0,0,0,0),
+(703,71044,10,319,'DRAGON_MARK',0,0,0,0),
+(704,71045,10,319,'DRAGON_MARK',0,0,0,0),
+(705,71027,5,249,'DRAGON_MARK',0,0,0,0),
+(706,71028,5,249,'DRAGON_MARK',0,0,0,0),
+(708,71030,5,249,'DRAGON_MARK',0,0,0,0),
+(709,70035,1,399,'DRAGON_MARK',0,0,0,0),
+(710,71026,1,599,'DRAGON_MARK',0,0,0,0),
+(711,22000,1,69,'DRAGON_MARK',0,0,0,0),
+(713,30177,1,1,'DRAGON_MARK',0,0,0,0),
+(901,80017,1,58,'DRAGON_COIN',0,0,0,0),
+(902,80014,1,112,'DRAGON_COIN',0,0,0,0),
+(903,80018,1,275,'DRAGON_COIN',0,0,0,0),
+(904,80015,1,540,'DRAGON_COIN',0,0,0,0),
+(905,80016,1,1060,'DRAGON_COIN',0,0,0,0),
+(906,27989,1,99,'DRAGON_COIN',0,0,0,0),
+(907,50513,1,49,'DRAGON_COIN',0,0,0,0);
+/*!40000 ALTER TABLE `itemshop_items` ENABLE KEYS */;
+UNLOCK TABLES;
+commit;
+
+--
+-- Table structure for table `itemshop_promotions`
+--
+
+DROP TABLE IF EXISTS `itemshop_promotions`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `itemshop_promotions` (
+  `item_index` int(10) NOT NULL,
+  `price` int(11) NOT NULL,
+  `start_time` datetime NOT NULL DEFAULT current_timestamp(),
+  `end_time` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`item_index`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci ROW_FORMAT=DYNAMIC;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `itemshop_promotions`
+--
+
+LOCK TABLES `itemshop_promotions` WRITE;
+/*!40000 ALTER TABLE `itemshop_promotions` DISABLE KEYS */;
+set autocommit=0;
+INSERT INTO `itemshop_promotions` VALUES
+(608,149,'2024-12-01 18:22:26','2024-12-01 23:59:59');
+/*!40000 ALTER TABLE `itemshop_promotions` ENABLE KEYS */;
+UNLOCK TABLES;
+commit;
+
+--
+-- Table structure for table `itemshop_time_auctions`
+--
+
+DROP TABLE IF EXISTS `itemshop_time_auctions`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `itemshop_time_auctions` (
+  `item_index` int(10) NOT NULL,
+  `max_amount` int(10) NOT NULL DEFAULT 0,
+  `account_limit` int(10) unsigned NOT NULL DEFAULT 0,
+  `start_time` datetime NOT NULL DEFAULT current_timestamp(),
+  `end_time` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`item_index`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci ROW_FORMAT=DYNAMIC;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `itemshop_time_auctions`
+--
+
+LOCK TABLES `itemshop_time_auctions` WRITE;
+/*!40000 ALTER TABLE `itemshop_time_auctions` DISABLE KEYS */;
+set autocommit=0;
+INSERT INTO `itemshop_time_auctions` VALUES
+(906,1,0,'2024-12-28 05:14:27','2024-12-28 05:14:27'),
+(907,50,10,'2024-12-03 20:55:00','2024-12-03 21:30:00'),
+(908,50,5,'2024-12-03 21:12:18','2024-12-03 21:30:00');
+/*!40000 ALTER TABLE `itemshop_time_auctions` ENABLE KEYS */;
+UNLOCK TABLES;
+commit;
+
+--
+-- Table structure for table `locale`
+--
+
+DROP TABLE IF EXISTS `locale`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `locale` (
+  `mKey` varchar(255) NOT NULL DEFAULT '',
+  `mValue` varchar(255) NOT NULL DEFAULT '',
+  PRIMARY KEY (`mKey`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci ROW_FORMAT=DYNAMIC;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `locale`
+--
+
+LOCK TABLES `locale` WRITE;
+/*!40000 ALTER TABLE `locale` DISABLE KEYS */;
+set autocommit=0;
+INSERT INTO `locale` VALUES
+('DB_NAME_COLUMN','locale_name'),
+('LOCALE','poland'),
+('SKILL_DAMAGE_BY_LEVEL_UNDER_45','0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0'),
+('SKILL_DAMAGE_BY_LEVEL_UNDER_90','0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0'),
+('SKILL_POWER_BY_LEVEL','0 5 6 8 10 12 14 16 18 20 22 24 26 28 30 32 34 36 38 40 50 52 54 56 58 60 63 66 69 72 82 85 88 91 94 98 102 106 110 115 125 125 125 125 125'),
+('SKILL_POWER_BY_LEVEL_TYPE0','0 5 6 8 10 12 14 16 18 20 22 24 26 28 30 32 34 36 38 40 50 52 54 56 58 60 63 66 69 72 82 85 88 91 94 98 102 106 110 115 125 125 125 125 125'),
+('SKILL_POWER_BY_LEVEL_TYPE1','0 5 6 8 10 12 14 16 18 20 22 24 26 28 30 32 34 36 38 40 50 52 54 56 58 60 63 66 69 72 82 85 88 91 94 98 102 106 110 115 125 125 125 125 125'),
+('SKILL_POWER_BY_LEVEL_TYPE2','0 5 6 8 10 12 14 16 18 20 22 24 26 28 30 32 34 36 38 40 50 52 54 56 58 60 63 66 69 72 82 85 88 91 94 98 102 106 110 115 125 125 125 125 125'),
+('SKILL_POWER_BY_LEVEL_TYPE3','0 5 6 8 10 12 14 16 18 20 22 24 26 28 30 32 34 36 38 40 50 52 54 56 58 60 63 66 69 72 82 85 88 91 94 98 102 106 110 115 125 125 125 125 125'),
+('SKILL_POWER_BY_LEVEL_TYPE4','0 5 6 8 10 12 14 16 18 20 22 24 26 28 30 32 34 36 38 40 50 52 54 56 58 60 63 66 69 72 82 85 88 91 94 98 102 106 110 115 125 125 125 125 125'),
+('SKILL_POWER_BY_LEVEL_TYPE5','0 5 6 8 10 12 14 16 18 20 22 24 26 28 30 32 34 36 38 40 50 52 54 56 58 60 63 66 69 72 82 85 88 91 94 98 102 106 110 115 125 125 125 125 125'),
+('SKILL_POWER_BY_LEVEL_TYPE6','0 5 6 8 10 12 14 16 18 20 22 24 26 28 30 32 34 36 38 40 50 52 54 56 58 60 63 66 69 72 82 85 88 91 94 98 102 106 110 115 125 125 125 125 125'),
+('SKILL_POWER_BY_LEVEL_TYPE7','0 5 6 8 10 12 14 16 18 20 22 24 26 28 30 32 34 36 38 40 50 52 54 56 58 60 63 66 69 72 82 85 88 91 94 98 102 106 110 115 125 125 125 125 125');
+/*!40000 ALTER TABLE `locale` ENABLE KEYS */;
+UNLOCK TABLES;
+commit;
+
+--
+-- Table structure for table `priv_settings`
+--
+
+DROP TABLE IF EXISTS `priv_settings`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `priv_settings` (
+  `priv_type` enum('PLAYER','GUILD','EMPIRE') NOT NULL DEFAULT 'EMPIRE' COMMENT 'GUILD and PLAYER are untested.',
+  `id` int(10) unsigned NOT NULL DEFAULT 0 COMMENT 'this is for empire_id, player_id or guild_id',
+  `type` int(10) unsigned NOT NULL DEFAULT 4 COMMENT '1:item_drop, 2:gold_drop, 3:gold10_drop, 4:exp (1~4)',
+  `value` int(11) NOT NULL DEFAULT 0 COMMENT '0~1000%',
+  `duration` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`priv_type`,`id`,`type`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci ROW_FORMAT=DYNAMIC;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `priv_settings`
+--
+
+LOCK TABLES `priv_settings` WRITE;
+/*!40000 ALTER TABLE `priv_settings` DISABLE KEYS */;
+set autocommit=0;
+/*!40000 ALTER TABLE `priv_settings` ENABLE KEYS */;
+UNLOCK TABLES;
+commit;
+
+--
+-- Table structure for table `spam_db`
+--
+
+DROP TABLE IF EXISTS `spam_db`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `spam_db` (
+  `word` varchar(255) NOT NULL,
+  `score` int(3) NOT NULL DEFAULT 1,
+  `type` enum('SPAM','MAPS') NOT NULL DEFAULT 'SPAM',
+  PRIMARY KEY (`word`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci ROW_FORMAT=DYNAMIC;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `spam_db`
+--
+
+LOCK TABLES `spam_db` WRITE;
+/*!40000 ALTER TABLE `spam_db` DISABLE KEYS */;
+set autocommit=0;
+/*!40000 ALTER TABLE `spam_db` ENABLE KEYS */;
+UNLOCK TABLES;
+commit;
+
+--
+-- Table structure for table `vouchers`
+--
+
+DROP TABLE IF EXISTS `vouchers`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `vouchers` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `code` varchar(20) NOT NULL,
+  `max_use_count` int(11) unsigned NOT NULL DEFAULT 1,
+  `use_count` int(11) unsigned NOT NULL DEFAULT 0,
+  `cash` int(11) unsigned NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci ROW_FORMAT=DYNAMIC;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `vouchers`
+--
+
+LOCK TABLES `vouchers` WRITE;
+/*!40000 ALTER TABLE `vouchers` DISABLE KEYS */;
+set autocommit=0;
+/*!40000 ALTER TABLE `vouchers` ENABLE KEYS */;
+UNLOCK TABLES;
+commit;
+/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
+
+/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
+/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
+/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+/*M!100616 SET NOTE_VERBOSITY=@OLD_NOTE_VERBOSITY */;
+
+-- Dump completed on 2026-02-07 15:11:05

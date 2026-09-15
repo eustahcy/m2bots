@@ -1,0 +1,29 @@
+say_title ( gameforge . subquest_06 . _20_npcChat ) 
+say ( gameforge . subquest_06 . _220_sayReward ) 
+if pc . getqf ( "asked_20011" ) == 1 then 
+if pc . getqf ( "ironore_done" ) == 0 then 
+say ( gameforge . subquest_06 . _285_say ) 
+else 
+say_reward ( gameforge . subquest_06 . _224_sayReward ) 
+end 
+else 
+say ( gameforge . subquest_06 . _221_say ) 
+end 
+if pc . getqf ( "asked_20008" ) == 1 then 
+if pc . getqf ( "leather_done" ) == 0 then 
+say ( gameforge . subquest_06 . _345_say ) 
+else 
+say_reward ( gameforge . subquest_06 . _225_sayReward ) 
+end 
+else 
+say ( gameforge . subquest_06 . _222_say ) 
+end 
+if pc . getqf ( "asked_20005" ) == 1 then 
+if pc . getqf ( "coal_done" ) == 0 then 
+say ( gameforge . subquest_06 . _395_say ) 
+else 
+say_reward ( gameforge . subquest_06 . _226_sayReward ) 
+end 
+else 
+say ( gameforge . subquest_06 . _223_say ) 
+end 

@@ -1,0 +1,8 @@
+quest horse_crafting begin
+    state start begin
+        when 20349.chat.translate.crafting.npc_chat with pc.get_level() >= 25 begin
+            crafting.open(CRAFTING_HORSEMAN)
+            setskin(NOWINDOW)
+        end
+    end
+end

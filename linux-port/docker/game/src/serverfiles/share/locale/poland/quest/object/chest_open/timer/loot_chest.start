@@ -1,0 +1,28 @@
+if busy_action . is_busy ( "chest_open" ) then 
+if not release_npc ( ) then 
+syschat ( translate . loot_chest . fail ) 
+busy_action . stop ( BUSY_ACTION_GENERAL , "chest_open" , false ) 
+return 
+end 
+if npc . is_dead ( ) then 
+syschat ( translate . loot_chest . fail ) 
+busy_action . stop ( BUSY_ACTION_GENERAL , "chest_open" , false ) 
+return 
+end 
+local drop_item = npc . get_drop_item ( ) 
+npc . kill ( ) 
+busy_action . stop ( BUSY_ACTION_GENERAL , "chest_open" , true ) 
+pc . add_player_stat ( PLAYER_STATS_CHEST_FLAG ) 
+local is_drop_premium = pc . get_premium_remain_sec ( PREMIUM_ITEM ) 
+local count = 1 
+if is_drop_premium then 
+count = count + 1 
+end 
+debug ( "DROP COUNT %d" , count ) 
+pc . setqf ( "wait" , get_time ( ) + 3600 ) 
+local drop_items = get_special_items ( drop_item , count , true ) 
+for i , v in pairs ( drop_items ) begin 
+local rare_pct = math . max ( v . rare_pct , 20 ) 
+pc . give_item_from_special_item_group2 ( v . vnum , v . count , rare_pct ) 
+end 
+end 

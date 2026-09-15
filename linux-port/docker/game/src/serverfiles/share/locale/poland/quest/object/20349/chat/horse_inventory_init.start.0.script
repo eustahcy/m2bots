@@ -1,0 +1,26 @@
+npc_name ( ) 
+say_split ( translate . horse_inventory . init . talk1 ) 
+wait ( ) 
+npc_name ( ) 
+say_split ( translate . horse_inventory . init . talk2 ) 
+wait ( ) 
+npc_name ( ) 
+say_split ( translate . horse_inventory . init . talk3 ) 
+say_reward ( translate . horse_inventory . init . item1 ) 
+say_reward ( translate . horse_inventory . init . item2 ) 
+say ( ) 
+say_split ( translate . horse_inventory . init . talk4 ) 
+say ( ) 
+if select ( translate . horse_inventory . init . ok , translate . general . cancel ) == 2 then 
+return 
+end 
+local req_items = { 50050 , 1 , 30378 , 5 } 
+npc_name ( ) 
+if not has_items_from_table ( req_items ) then 
+say_split ( translate . horse_inventory . init . no_items ) 
+return 
+end 
+remove_items_from_table ( req_items ) 
+say_split ( translate . horse_inventory . init . finish ) 
+set_state ( "complete" ) 
+pc . set_special_flag ( "horse_inventory_slot" , 1 ) 

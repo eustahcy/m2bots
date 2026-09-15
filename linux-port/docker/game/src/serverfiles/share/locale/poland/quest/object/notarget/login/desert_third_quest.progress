@@ -1,0 +1,2 @@
+if desert_third_quest . can_start_quest ( ) == "ok" then set_state ( "start" ) 
+ return end 

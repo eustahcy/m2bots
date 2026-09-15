@@ -1,0 +1,10 @@
+if not npc . is_pc ( ) and pc . get_map_index ( ) == 64 then if npc_is_stone ( ) then 
+pc . add_reputation ( FRACTION_ORC_VALLEY , 50 ) 
+elseif npc_is_boss ( ) then 
+pc . add_reputation ( FRACTION_ORC_VALLEY , 150 ) 
+elseif npc . get_race ( ) == 681 then 
+pc . add_reputation ( FRACTION_ORC_VALLEY , 70 ) 
+elseif npc . get_race ( ) >= 531 and npc . get_race ( ) <= 534 then 
+pc . add_reputation ( FRACTION_ORC_VALLEY , 15 ) 
+end 
+ return end 

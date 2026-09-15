@@ -1,0 +1,1 @@
+return not pc . in_dungeon ( ) and pc . getqf ( "complete" ) < 1

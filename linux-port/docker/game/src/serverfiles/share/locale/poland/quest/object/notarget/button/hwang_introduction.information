@@ -1,0 +1,3 @@
+say_title ( translate . hwang_introduction . state_information . letter_title ) 
+say ( ) 
+say_split ( translate . hwang_introduction . state_information . letter_info ) 

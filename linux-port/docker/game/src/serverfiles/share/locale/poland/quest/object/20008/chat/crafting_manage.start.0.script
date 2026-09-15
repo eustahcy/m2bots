@@ -1,0 +1,5 @@
+npc_name ( ) 
+say_split ( translate . crafting . npc . chef . talk1 ) 
+wait ( ) 
+crafting . open ( CRAFTING_CHEF ) 
+setskin ( NOWINDOW ) 

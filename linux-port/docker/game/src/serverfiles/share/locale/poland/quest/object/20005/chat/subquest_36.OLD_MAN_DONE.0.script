@@ -1,0 +1,6 @@
+target . delete ( "__TARGET__" ) 
+say_title ( gameforge . subquest_36 . _10_targetVid ) 
+say ( gameforge . subquest_36 . _290_say ) 
+set_state ( "__COMPLETE__" ) 
+give_reward ( "subquest_36_Yonah" ) 
+clear_letter ( ) 

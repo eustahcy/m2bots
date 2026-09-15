@@ -1,0 +1,57 @@
+# Co NIE trafia do repozytorium.
+#
+# Ten plik jest granicą bezpieczeństwa, nie porządkową preferencją. Repozytorium
+# jest publiczne, a panel VPS robi z niego `git reset --hard` — czyli wszystko,
+# co tu wymienione, zostaje na serwerze nietknięte i nigdy nie wychodzi na
+# zewnątrz. Zanim coś stąd usuniesz, przeczytaj komentarz nad tym.
+
+# --- sekrety -----------------------------------------------------------------
+# .env ma M2_DB_ROOT_PASSWORD, M2_DB_PASSWORD, M2_PANEL_PASSWORD,
+# M2_SEBAN_SESSION_SECRET i M2_ADMINPAGE_PASSWORD. Wzorce .example zostają
+# w repo celowo — to one są instrukcją, czym wypełnić .env na nowej maszynie.
+.env
+.env.local
+*.env.local
+panel.env
+seban-panel.env
+tuike.env
+m2panel.conf
+
+# .m2launcher.json potrafi trzymać prywatny webhook Discorda (patrz docs/LAUNCHER.md),
+# reszta to stan tej jednej instalacji: identyfikator projektu Dockera, numery
+# wersji i adres VPS. Skopiowane na inną maszynę odcinają stos od jego wolumenów.
+.m2launcher.json
+.m2install.json
+.m2launcher-state.json
+.m2launcher-offers.json
+.m2vps-deploy.json
+
+# --- rzeczy generowane na maszynie -------------------------------------------
+# backups/ zawiera m.in. zrzut log.sql o rozmiarze 343 MB — GitHub odrzuca
+# pojedyncze pliki powyżej 100 MB, więc bez tej linii pierwszy push nie przejdzie.
+backups/
+launcher-logs/
+support-bundles/
+release/
+_smoke_state/
+
+# Kopie robocze obok plików źródłowych (np. admin_panel.py.bak-redesign, 908 kB).
+*.bak
+*.bak-*
+*.orig
+*.rej
+
+# --- Python ------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# --- narzędzia i systemy -----------------------------------------------------
+.claude/
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
+.DS_Store

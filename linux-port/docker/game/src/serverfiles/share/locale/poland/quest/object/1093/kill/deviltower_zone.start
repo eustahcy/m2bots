@@ -1,0 +1,7 @@
+if in_dungeon ( 66 ) and d . get_level ( ) == 7 then d . kill_all ( ) 
+d . setqf2 ( "deviltower_zone" , "9_done" , 1 ) 
+d . add_player_stat ( PLAYER_STATS_DUNGEON_FLAG ) 
+notice_multiline ( gameforge . deviltower_zone . _280_dNotice , d . notice ) 
+notice_multiline ( gameforge . deviltower_zone . _290_dNotice , d . notice ) 
+server_timer ( "devil_end_jump" , 60 , d . get_map_index ( ) ) 
+ return end 

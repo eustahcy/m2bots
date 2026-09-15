@@ -1,0 +1,8 @@
+quest valentine_event2025 begin
+    state start begin
+        when 9013.chat.translate.general.open_shop with game.get_event_flag("valentine_event") > 0 begin
+            pc.open_special_shop(9013)
+            setskin(NOWINDOW)
+        end
+    end
+end

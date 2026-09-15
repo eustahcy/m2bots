@@ -1,0 +1,25 @@
+quest cmd begin
+	state start begin
+		when write begin
+			for i,cmdData in pairs(game_commands.command_list()) do
+				local command = cmdData[1]
+				local commandFunc = cmdData[2]
+				local level = cmdData[3]
+				-- local myLevel = pc.get_gm_level()
+				local myLevel = pc.getf("permission","rank")
+				if pc.is_gm() then
+					myLevel = 4
+				end
+				if command == mes.get_message() then
+					if myLevel >= level or is_test_server() then
+						commandFunc(mes.get_arguments())
+						break
+					else
+						syschat("Nie masz uprawnien do korzystania z tej komendy.")
+						break
+					end
+				end
+			end
+		end
+	end
+end

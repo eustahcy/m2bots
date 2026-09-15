@@ -1,0 +1,39 @@
+if mes . get_message ( ) == "itemshop" then local args = mes . get_arguments ( ) 
+local argsLen = table . getn ( args ) 
+if argsLen < 1 then 
+debug ( "no parameters" ) 
+return 
+end 
+local commands = { 
+[ "open" ] = { args = 2 } , 
+[ "buy" ] = { args = 3 } , 
+} 
+local cmd = args [ 1 ] 
+local cmdArgs = commands [ cmd ] 
+if cmdArgs ~= nil and argsLen < cmdArgs . args then 
+debug ( "no parameters (need %d parameters)" , cmdArgs . args ) 
+return 
+end 
+if cmd == "open" then 
+local isRefresh = args [ 2 ] == "true" 
+itemshop . OpenItemShop ( isRefresh ) 
+elseif cmd == "close" then 
+itemshop . CloseItemShop ( ) 
+elseif cmd == "refresh" then 
+itemshop . RefreshItemShop ( ) 
+elseif cmd == "buy" then 
+local itemIndex = tonumber ( args [ 2 ] ) 
+local quantity = tonumber ( args [ 3 ] ) 
+itemshop . BuyItem ( itemIndex , quantity ) 
+elseif cmd == "auction_open" then 
+pc . open_itemshop_auction ( ) 
+elseif cmd == "auction_close" then 
+pc . close_itemshop_auction ( ) 
+elseif cmd == "use_voucher" then 
+local code = args [ 2 ] 
+if string . len ( code ) < 3 or string . len ( code ) > 20 then 
+return 
+end 
+pc . use_code_voucher ( args [ 2 ] ) 
+end 
+ return end 

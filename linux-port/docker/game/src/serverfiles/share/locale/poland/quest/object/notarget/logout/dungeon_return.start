@@ -1,0 +1,4 @@
+if pc . in_dungeon ( ) and not dungeon_return . is_no_return_dungeon ( ) then pc . setqf ( "dungeon_leave_time" , get_time ( ) ) 
+pc . setqf ( "dungeon_last_x" , pc . get_x ( ) ) 
+pc . setqf ( "dungeon_last_y" , pc . get_y ( ) ) 
+ return end 

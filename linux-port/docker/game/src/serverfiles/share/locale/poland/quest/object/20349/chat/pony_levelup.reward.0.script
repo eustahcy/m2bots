@@ -1,0 +1,3 @@
+say_title ( gameforge . horse_exchange_ticket . _20_sayTitle ) 
+say ( ) 
+say_reward ( gameforge . pony_levelup . open_letter_info ) 

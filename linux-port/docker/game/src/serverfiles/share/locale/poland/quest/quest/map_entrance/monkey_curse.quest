@@ -1,0 +1,117 @@
+
+quest monkey_curse begin
+    state start begin
+        function exit_dungeon()
+            warp_to_village()
+            -- local exit_location_by_monkey_dungeon = {
+            --     [5] = {x=4062, y=8756},
+            --     [25] = {x=1610, y=2131},
+            --     [45] = {x=8727, y=2102},
+            --     [108] = {x=3061, y=6202},
+            --     [109] = {x=2879, y=5408},
+            -- }
+            -- local map_index = pc.get_map_index()
+            -- local data = exit_location_by_monkey_dungeon[map_index]
+            -- if data == nil then
+            --     warp_to_village()
+            --     return
+            -- end
+            -- pc.warp(data.x*100, data.y*100)
+        end
+
+        function is_in_dungeon()
+            return table_is_in({5, 25, 45, 107, 108, 109}, pc.get_map_index())
+        end
+
+        function get_delay()
+            if game.get_event_flag("monkey_curse_debug") > 0 then
+                return 30
+            end
+            if pc.get_map_index() < 100 then
+                return 55*60
+            elseif pc.get_map_index() == 108 then
+                return 35*60
+            elseif pc.get_map_index() == 109 then
+                return 25*60
+            end
+        end
+
+        function set_time()
+            local delay = monkey_curse.get_delay()
+
+            if pc.has_affect(AFFECT_MONKEY_CURSE_EASY) and pc.get_map_index() < 100 then
+                delay = delay + affect.get_duration(AFFECT_MONKEY_CURSE_EASY)
+            elseif pc.has_affect(AFFECT_MONKEY_CURSE_NORMAL) and pc.get_map_index() == 108 then
+                delay = delay + affect.get_duration(AFFECT_MONKEY_CURSE_NORMAL)
+            elseif pc.has_affect(AFFECT_MONKEY_CURSE_HARD) and pc.get_map_index() == 109 then
+                delay = delay + affect.get_duration(AFFECT_MONKEY_CURSE_HARD)
+            end
+            
+            pc.setqf("time", get_time() + delay)
+        end
+
+        when login begin
+            if monkey_curse.is_in_dungeon() then
+                if pc.getqf("time") < get_time() then
+                    monkey_curse.set_time()
+                elseif pc.getqf("logout_time") > 0 then
+                    local offline_time = get_time() - pc.getqf("logout_time")
+                    pc.setqf("time", pc.getqf("time") + offline_time)
+                end
+                
+                local seconds = pc.getqf("time") - get_time()
+                debug("ustawiamy timer na %ds", seconds)
+                timer("monkey_curse", seconds)
+            else
+                pc.setqf("time", 0)
+                pc.setqf("logout_time", 0)
+            end
+        end
+
+        when logout with monkey_curse.is_in_dungeon() begin
+            pc.setqf("logout_time", get_time())
+        end
+
+        when monkey_curse.timer begin
+            local is_exit = true
+            if pc.has_affect(AFFECT_MONKEY_CURSE_EASY) and pc.get_map_index() < 100 then
+                is_exit = false
+            elseif pc.has_affect(AFFECT_MONKEY_CURSE_NORMAL) and pc.get_map_index() == 108 then
+                is_exit = false
+            elseif pc.has_affect(AFFECT_MONKEY_CURSE_HARD) and pc.get_map_index() == 109 then
+                is_exit = false
+            end
+
+            debug("jestem!")
+            
+            if is_exit then
+                pc.polymorph(5003, 5*60) -- 5 min
+                monkey_curse.exit_dungeon()
+            else
+                timer("monkey_curse", monkey_curse.get_delay())
+            end
+        end
+
+        when 50057.use or 50058.use or 50059.use begin
+            if pc.is_polymorphed() and pc.get_point(POINT_POLYMORPH) == 5003 then
+                item.remove(1)
+                syschat(translate.monkey_curse.break_curse)
+                pc.remove_polymorph()
+                return
+            end
+            syschat(translate.monkey_curse.protection)
+
+            local vnum = item.get_vnum()
+            local affect_type = item.get_value(0)
+            local duration = item.get_value(1)
+
+            if not affect.is_loaded() then
+                return
+            end
+
+            if item.remove(1) then
+                affect.add_new(affect_type, POINT_NONE, 0, 3600*2, AFF_NONE, true, false, vnum)
+            end
+        end
+    end
+end

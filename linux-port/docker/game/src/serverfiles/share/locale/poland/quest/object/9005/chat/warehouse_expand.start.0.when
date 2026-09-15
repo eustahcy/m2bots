@@ -1,0 +1,1 @@
+return game . get_safebox_level ( ) > 0 and pc . get_account_flag ( "safebox_level" ) == 0 and pc . get_map_index ( ) == get_player_map1_index ( )

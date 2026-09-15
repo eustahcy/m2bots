@@ -1,0 +1,11 @@
+target . delete ( "__TARGET__" ) 
+say_title ( gameforge . goldbar . _20_sayTitle ) 
+say ( gameforge . subquest_39 . _520_say ) 
+wait ( ) 
+say_title ( gameforge . goldbar . _20_sayTitle ) 
+say ( gameforge . subquest_39 . _530_say ) 
+pc . remove_item ( "30152" , 1 ) 
+set_state ( "COMPLETE" ) 
+give_reward ( "subquest_39" ) 
+clear_letter ( ) 
+return 

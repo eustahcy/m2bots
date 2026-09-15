@@ -1,0 +1,8 @@
+target . delete ( "__TARGET2__" ) 
+say_title ( gameforge . hair_shop . _20_sayTitle ) 
+if pc . getqf ( "cloth_done" ) < 2 then 
+say ( gameforge . subquest_13 . _230_say ) 
+pc . setqf ( "cloth_done" , 1 ) 
+else 
+say ( gameforge . subquest_13 . _240_say ) 
+end 

@@ -1,0 +1,143 @@
+{% extends 'base.html' %}
+{% from 'partials/macros.html' import page_head, search_form, empty_row, stat, character_link with context %}
+{% block title %}Gospodarka{% endblock %}
+
+{% block content %}
+{{ page_head('GOSPODARKA', 'Rynek i przepływ przedmiotów',
+             'Stragany i transakcje pochodzą z logu Ikarus Shop na żywo. Liczby przedmiotów w obiegu - z pełnego odczytu kolektora.') }}
+
+<section class="stat-grid" id="economy-live" data-live="1">
+  {{ stat('Aktywne stragany', overview.shops, 'otwartych teraz', id='stat-shops') }}
+  {{ stat('Wystawionych przedmiotów', thousands(overview.listed), 'na wszystkich straganach', id='stat-listed') }}
+  {{ stat('Transakcje · 24h', thousands(overview.trades_24h), 'sprzedaże na straganach', id='stat-trades') }}
+  {{ stat('Obrót Yang · 24h', thousands(overview.turnover_24h), 'zapłacone ceny', id='stat-turnover') }}
+</section>
+<p class="muted live-note"><span class="pulse"></span> Dane rynku odświeżają się same, bez przeładowania strony.</p>
+
+{% if trend %}
+  <section class="panel">
+    <h2>Yang w obiegu · 7 dni</h2>
+    <div class="chart"><canvas id="yang-chart"></canvas></div>
+    <script id="yang-data" type="application/json">{{ trend|tojson }}</script>
+  </section>
+{% endif %}
+
+<section class="widget-grid">
+  <article class="panel">
+    <div class="panel-head">
+      <h2>Ostatnie transakcje</h2>
+      <a class="ghost-link" href="{{ url_for('economy.shops') }}">Wszystkie stragany →</a>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Przedmiot</th><th>Kupujący</th><th>Sprzedawca</th>
+              <th class="numeric">Cena</th><th class="numeric">Kiedy</th></tr>
+        </thead>
+        <tbody id="recent-trades-body">
+          {% for trade in trades %}
+            <tr>
+              <td class="item-cell">
+                <a href="{{ url_for('economy.item', vnum=trade.vnum) }}">
+                  {% if item_icon(trade.vnum) %}
+                    <img class="item-icon" src="{{ item_icon(trade.vnum) }}" alt="" loading="lazy">
+                  {% endif %}{{ trade.item_name }}{% if trade.count > 1 %} ×{{ trade.count }}{% endif %}</a>
+              </td>
+              <td>{% if trade.buyer_name %}{{ character_link(trade.buyer_id, trade.buyer_name, trade.buyer_job) }}{% else %}<span class="muted">—</span>{% endif %}</td>
+              <td>{% if trade.seller_name %}{{ character_link(trade.seller_id, trade.seller_name, trade.seller_job) }}{% else %}<span class="muted">—</span>{% endif %}</td>
+              <td class="numeric">{{ thousands(trade.yang) }}</td>
+              <td class="numeric muted">{{ trade.time }}</td>
+            </tr>
+          {% else %}
+            {{ empty_row(5, 'Żaden stragan jeszcze niczego nie sprzedał.') }}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </article>
+
+  <article class="panel">
+    <h2>Najlepiej sprzedające się przedmioty · 7 dni</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Przedmiot</th><th class="numeric">Sprzedaże</th>
+              <th class="numeric">Śr. cena</th><th class="numeric">Obrót</th></tr>
+        </thead>
+        <tbody id="top-items-body">
+          {% for item in top_items %}
+            <tr>
+              <td class="item-cell">
+                <a href="{{ url_for('economy.item', vnum=item.vnum) }}">
+                  {% if item_icon(item.vnum) %}
+                    <img class="item-icon" src="{{ item_icon(item.vnum) }}" alt="" loading="lazy">
+                  {% endif %}{{ item.item_name }}</a>
+              </td>
+              <td class="numeric">{{ item.sales }}</td>
+              <td class="numeric">{{ thousands(item.avg_price) }}</td>
+              <td class="numeric">{{ thousands(item.turnover) }}</td>
+            </tr>
+          {% else %}
+            {{ empty_row(4, 'Brak sprzedaży w tym okresie.') }}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </article>
+</section>
+
+<section class="panel">
+  <div class="panel-head">
+    <h2>Aktywne stragany</h2>
+    <a class="ghost-link" href="{{ url_for('economy.shops') }}">Zobacz wszystkie →</a>
+  </div>
+  <div class="card-grid" id="active-shops-grid">
+    {% for shop in shops %}
+      <a class="item-card" href="{{ url_for('economy.shop', owner_id=shop.owner) }}">
+        <div>
+          <b>{{ shop.shop_name }}</b>
+          <small>{{ shop.owner_name }} · {{ shop.item_count }} przedmiotów{% if shop.is_premium %} · premium{% endif %}</small>
+        </div>
+      </a>
+    {% else %}
+      <p class="muted">Nikt aktualnie nie prowadzi straganu.</p>
+    {% endfor %}
+  </div>
+</section>
+
+{{ search_form(query, 'Nazwa lub VNUM przedmiotu') }}
+
+<section class="panel table-wrap">
+  <h2>{% if query %}Wyniki wyszukiwania{% else %}Najliczniejsze przedmioty{% endif %}</h2>
+  <table>
+    <thead><tr><th>Przedmiot</th><th class="numeric">VNUM</th><th class="numeric">Łącznie sztuk</th></tr></thead>
+    <tbody>
+      {% for item in items %}
+        <tr>
+          <td class="item-cell">
+            <a href="{{ url_for('economy.item', vnum=item.vnum) }}">
+              {% if item_icon(item.vnum) %}
+                <img class="item-icon" src="{{ item_icon(item.vnum) }}" alt="" loading="lazy">
+              {% endif %}{{ item.item_name }}</a>
+          </td>
+          <td class="numeric muted">{{ item.vnum }}</td>
+          <td class="numeric">{{ thousands(item.amount) }}</td>
+        </tr>
+      {% else %}
+        {{ empty_row(3, 'Brak wyników albo pierwszy odczyt jeszcze trwa.') }}
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<p class="muted">Ostatni odczyt kolektora:
+  {{ captured_at or 'kolektor jeszcze nie wykonał pierwszego przebiegu' }}.</p>
+{% endblock %}
+
+{% block scripts %}
+{% if trend %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+{% endif %}
+<script src="{{ url_for('static', filename='js/economy.js') }}"></script>
+{% endblock %}

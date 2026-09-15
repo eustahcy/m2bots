@@ -1,0 +1,82 @@
+quest labirynth begin
+    state start begin
+        when 20402.chat.translate.labirynth.npc_chat with not pc.in_dungeon() and pc.getqf("complete") < 1 begin
+            if pc.getf("deviltower_zone", "6_done") < 1 then
+                npc_name()
+                say_split(translate.labirynth.not_unlocked)
+                return
+            end
+
+            npc_name()
+            say_split(translate.labirynth.chat1)
+            if select(translate.labirynth.select1, translate.labirynth.select2) == 2 then
+                npc_name()
+                say_split(translate.labirynth.cancel_chat1)
+                return
+            end
+
+            npc_name()
+            say_split(translate.labirynth.chat2)
+            if select(translate.labirynth.select3, translate.labirynth.select4) == 2 then
+                npc_name()
+                say_split(translate.labirynth.cancel_chat2)
+                return
+            end
+
+            if party.is_party() then
+                npc_name()
+                say_split(translate.labirynth.is_in_party)
+                return
+            end
+
+            if not pc.can_warp then
+                say_info()
+                say_split(translate.general.wait_after_exchange)
+                return
+            end
+
+            d.join(79)
+        end
+
+        when login with in_dungeon(79) begin
+            pc.set_warp_location(69, 6337, 11951)
+            d.notice(translate.labirynth.dungeon_info)
+            d.spawn_mob(20402, 131, 126)
+            timer("end_labirynth", 60*10)
+        end
+
+        when end_labirynth.timer begin
+            d.exit_all()
+        end
+
+        when 20402.chat.translate.labirynth.dungeon_end_chat with in_dungeon(79) begin
+            npc_name()
+            say_split(translate.labirynth.chat3)
+            pc.setqf("complete", 1)
+            cleartimer("end_labirynth")
+            wait()
+            d.exit_all()
+        end
+
+        when login with pc.get_map_index() == 69 and pc.getqf("complete") > 0 begin
+            set_state(reward)
+        end
+    end
+    state reward begin
+        when 20402.chat.translate.labirynth.npc_chat2 begin
+            pc.setqf("complete", 0)
+            npc_name()
+            say_split(translate.labirynth.chat4)
+            wait()
+            setskin(NOWINDOW)
+            pc.open_special_shop(20402)
+            set_state(complete)
+        end
+    end
+    state complete begin
+        when 20402.chat.translate.general.open_shop begin
+            pc.open_special_shop(20402)
+            setskin(NOWINDOW)
+        end
+    end
+end

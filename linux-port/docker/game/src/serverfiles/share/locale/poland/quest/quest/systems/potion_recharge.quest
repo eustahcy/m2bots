@@ -1,0 +1,48 @@
+quest potion_recharge_manage begin
+    state start begin
+        when write with mes.get_message() == "potion_recharge" begin
+            local args = mes.get_arguments()
+            local argsLen = table.getn(args)
+
+            if argsLen < 1 then
+                debug("no parameters")
+                return
+            end
+
+            local commands = {
+                ["close"] = { args=1 },
+                ["buy"] = { args=3 },
+            }
+            local cmd = args[1]
+            local cmdArgs = commands[cmd]
+            if cmdArgs != nil and argsLen < cmdArgs.args then
+                debug("no parameters (need %d parameters)", cmdArgs.args)
+                return
+            end
+
+            if cmd == "close" then
+                potion_recharge.close()
+            elseif cmd == "charge" then
+                local potion_inven_pos = tonumber(args[2])
+                local str_slots = args[3]
+                local slots = {}
+                local slots_split = split(str_slots, ',')
+                for i,slot in pairs(slots_split) do
+                    if tonumber(slot) then
+                        table.insert(slots, tonumber(slot))
+                    end
+                end
+
+                potion_recharge.charge(potion_inven_pos, slots)
+            end
+        end
+
+        when 20001.chat.translate.potion_recharge.chat begin
+            npc_name()
+            say_split(translate.potion_recharge.talk)
+            wait()
+            setskin(NOWINDOW)
+            potion_recharge.open()
+        end
+    end
+end

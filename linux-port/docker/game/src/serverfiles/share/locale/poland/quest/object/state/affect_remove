@@ -1,0 +1,9 @@
+affect_remove={["start"]=0,is_affect_removable= function (affect_type)if affect_type == AFFECT_POLYMORPH then 
+return true 
+elseif affect_type >= AFFECT_POTION_START and affect_type <= AFFECT_POTION_END then 
+return true 
+elseif affect_type == AFFECT_EXP_BLOCK then 
+return true 
+end 
+return false 
+end }

@@ -1,0 +1,185 @@
+{# The admin tools on a character's page. Each tab is its own form, because
+   each one asks the game for a different thing and has its own validation. #}
+{% from 'partials/macros.html' import csrf_field with context %}
+
+<section class="panel tools">
+  <header class="panel-head">
+    <div>
+      <p class="eyebrow">NARZĘDZIA ADMINISTRATORA</p>
+      <h2>Czynności na postaci</h2>
+    </div>
+    {% if character.live %}
+      <span class="pill pill-ok">postać w grze</span>
+    {% else %}
+      <span class="pill">postać offline</span>
+    {% endif %}
+  </header>
+
+  <button type="button" id="warp-me-button" class="warp-me-button"
+          data-pid="{{ character.id }}"
+          data-action="{{ url_for('characters.warp_me', pid=character.id) }}"
+          data-csrf="{{ csrf_token() }}">
+    <i aria-hidden="true">🧭</i> Teleportuj moją postać do {{ character.name }}
+  </button>
+  <p class="warp-me-status" id="warp-me-status" hidden></p>
+
+  <p class="muted">
+    Panel nie zmienia postaci sam — prosi o to grę, która stosuje własne reguły.
+    {% if not character.live %}
+      Przedmiot, Yang i poziom można zapisać także dla postaci offline; teleport
+      i prędkość wymagają zalogowanej postaci.
+    {% endif %}
+    {% if not helper_seen %}
+      <br><strong>Uwaga:</strong> quest <code>web_admin</code> nigdy się tu jeszcze
+      nie odezwał, więc teleport i prędkość mogą być niedostępne.
+    {% endif %}
+  </p>
+
+  <div class="tabs" role="tablist">
+    <button type="button" class="active" data-tool="item" role="tab">🎁 Przedmiot</button>
+    <button type="button" data-tool="gold" role="tab">💰 Yang</button>
+    <button type="button" data-tool="level" role="tab">⭐ Poziom</button>
+    <button type="button" data-tool="warp" role="tab">🧭 Teleport</button>
+    <button type="button" data-tool="speed" role="tab">💨 Prędkość</button>
+  </div>
+
+  {# --- an item ---------------------------------------------------------- #}
+  <form method="post" action="{{ url_for('characters.action', pid=character.id) }}"
+        class="tool-pane" data-tool="item">
+    {{ csrf_field() }}
+    <input type="hidden" name="cmd" value="ITEM">
+    <div data-item-search>
+      <div class="field-row">
+        <label class="field item-search-field">
+          <span>Przedmiot</span>
+          <input data-item-lookup placeholder="Wpisz nazwę albo VNUM…"
+                 autocomplete="off" role="combobox" aria-expanded="false">
+          <ul data-item-results class="lookup-results" role="listbox" hidden></ul>
+        </label>
+        <label class="field">
+          <span>VNUM</span>
+          <input name="vnum" data-item-vnum type="number" min="1" required
+                 placeholder="np. 50051">
+        </label>
+        <label class="field">
+          <span>Ilość</span>
+          <input name="quantity" type="number" min="1" max="{{ max_item_count }}" value="1" required>
+          <small>maks. {{ max_item_count }}</small>
+        </label>
+      </div>
+      <p class="chosen-item" data-item-chosen hidden></p>
+    </div>
+    <button type="submit">Wydaj przedmiot</button>
+  </form>
+
+  {# --- Yang ------------------------------------------------------------- #}
+  <form method="post" action="{{ url_for('characters.action', pid=character.id) }}"
+        class="tool-pane" data-tool="gold" hidden>
+    {{ csrf_field() }}
+    <input type="hidden" name="cmd" value="GOLD">
+    <div class="field-row">
+      <label class="field">
+        <span>Kwota</span>
+        <select name="preset" id="gold-preset">
+          {% for label, amount in gold_presets %}
+            <option value="{{ amount }}">{{ label }}</option>
+          {% endfor %}
+          <option value="custom">✍️ Własna kwota…</option>
+        </select>
+      </label>
+      <label class="field" id="gold-custom" hidden>
+        <span>Ile Yang</span>
+        <input name="amount" type="number" step="1" placeholder="ujemna kwota zabiera">
+        <small>liczba ujemna odbiera</small>
+      </label>
+    </div>
+    <button type="submit">Zmień stan Yang</button>
+  </form>
+
+  {# --- level ------------------------------------------------------------ #}
+  <form method="post" action="{{ url_for('characters.action', pid=character.id) }}"
+        class="tool-pane" data-tool="level" hidden>
+    {{ csrf_field() }}
+    <input type="hidden" name="cmd" value="LEVEL">
+    <div class="field-row">
+      <label class="field">
+        <span>Nowy poziom</span>
+        <input name="level" type="number" min="1" max="{{ max_level }}"
+               value="{{ character.level }}" required>
+        <small>1–{{ max_level }}</small>
+      </label>
+    </div>
+    <p class="muted">Serwer nie odmawia poziomu spoza zakresu — po prostu go nie
+      ustawia i melduje sukces. Dlatego panel sprawdza to za niego.</p>
+    <button type="submit">Ustaw poziom</button>
+  </form>
+
+  {# --- warp ------------------------------------------------------------- #}
+  <form method="post" action="{{ url_for('characters.action', pid=character.id) }}"
+        class="tool-pane" data-tool="warp" hidden>
+    {{ csrf_field() }}
+    <input type="hidden" name="cmd" value="WARP">
+    <div class="chip-grid">
+      {% for emoji, name, coords in warp_locations %}
+        <label class="chip">
+          <input type="radio" name="target" value="{{ coords }}"
+                 {{ 'checked' if loop.first }}>
+          <span><i aria-hidden="true">{{ emoji }}</i>{{ name }}</span>
+        </label>
+      {% endfor %}
+    </div>
+    <button type="submit" {{ 'disabled' if not character.live }}>Teleportuj</button>
+    {% if not character.live %}
+      <p class="muted">Teleport działa tylko dla postaci, która jest w grze.</p>
+    {% endif %}
+  </form>
+
+  {# --- speed ------------------------------------------------------------ #}
+  <form method="post" action="{{ url_for('characters.action', pid=character.id) }}"
+        class="tool-pane" data-tool="speed" hidden>
+    {{ csrf_field() }}
+    <input type="hidden" name="cmd" value="SPEED">
+    <div class="chip-grid">
+      {% for emoji, name, percent in speed_presets %}
+        <label class="chip">
+          <input type="radio" name="percent" value="{{ percent }}"
+                 {{ 'checked' if percent == 30 }}>
+          <span><i aria-hidden="true">{{ emoji }}</i>{{ name }}</span>
+        </label>
+      {% endfor %}
+    </div>
+    <p class="muted">Efekt trwa godzinę i wymaga postaci w grze.</p>
+    <button type="submit" {{ 'disabled' if not character.live }}>Ustaw prędkość</button>
+  </form>
+</section>
+
+{# --- the game master rank ------------------------------------------------ #}
+<section class="panel">
+  <header class="panel-head">
+    <div>
+      <p class="eyebrow">UPRAWNIENIA</p>
+      <h2>Ranga game mastera</h2>
+    </div>
+    <span class="pill {{ 'pill-accent' if gm_rank }}">{{ gm_rank_label(gm_rank) }}</span>
+  </header>
+
+  <p class="muted">Ranga jest wpisem w <code>common.gmlist</code> i działa niezależnie
+    od tego, czy postać jest zalogowana. Serwer musi ją jednak odczytać — panel prosi
+    o to od razu, a gdy nie ma kto, mówi o tym wprost.</p>
+
+  <form method="post" action="{{ url_for('characters.set_gm', pid=character.id) }}"
+        class="inline-form">
+    {{ csrf_field() }}
+    <label class="field field-inline">
+      <span class="sr-only">Ranga</span>
+      <select name="rank">
+        <option value="">Zwykły gracz — bez uprawnień</option>
+        {% for rank, name, note in gm_ranks %}
+          <option value="{{ rank }}" {{ 'selected' if gm_rank == rank }}>
+            {{ name }} — {{ note }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <button type="submit">Zapisz rangę</button>
+  </form>
+</section>

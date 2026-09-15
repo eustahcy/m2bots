@@ -1,0 +1,21 @@
+target . delete ( "__TARGET4__" ) 
+say_title ( gameforge . new_quest_lv52 . _054_say_title ) 
+local MorF = pc . get_sex ( ) 
+local isvalid = pc . getqf ( "ghostsleft" ) 
+if isvalid == 0 then 
+local reward = pc . getqf ( "lv52reward" ) 
+say ( gameforge . new_quest_lv52 . _183_say_reward ) 
+say ( gameforge . new_quest_lv52 . _184_say_reward ) 
+if MorF == 0 then 
+say ( gameforge . new_quest_lv52 . _185_say_reward ) 
+else 
+say ( gameforge . new_quest_lv52 . _186_say_reward ) 
+end 
+give_reward ( "new_quest_lv52_reward1" ) 
+pc . setqf ( "lv52reward" , 0 ) 
+else 
+notice ( "Questflag got manipulated! You shouldn't be here!!!" ) 
+end 
+q . done ( ) 
+clear_letter ( ) 
+set_state ( "__COMPLETE__" ) 

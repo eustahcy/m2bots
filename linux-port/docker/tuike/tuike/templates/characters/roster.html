@@ -1,0 +1,47 @@
+﻿{% extends 'base.html' %}
+{% from 'partials/macros.html' import page_head, search_form, character_link, empty_row with context %}
+{% block title %}Postacie i boty{% endblock %}
+
+{% block content %}
+{{ page_head('BAZA POSTACI', 'Postacie i boty',
+             'Mapa „na żywo” pochodzi z rdzenia; „ostatni zapis” to pozycja z bazy.') }}
+{{ search_form(query, 'Nick lub ID postaci') }}
+
+<section class="panel table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th><th>Postać</th><th>Poziom</th><th>Klasa</th>
+        <th>Mapa</th><th class="numeric">Yang</th><th class="numeric">Czas gry</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for character in characters %}
+        <tr>
+          <td class="muted">{{ character.id }}</td>
+          <td>{{ character_link(character.id, character.name) }}</td>
+          <td>Lv {{ character.level }}</td>
+          <td>
+            <span class="class-cell">
+              <img class="portrait portrait-tiny" src="{{ class_portrait(character.job) }}"
+                   alt="" aria-hidden="true" loading="lazy">{{ job_name(character.job) }}
+            </span>
+          </td>
+          <td>
+            {{ map_name(character.map_index) }}
+            {% if character.map_live %}
+              <small class="tag tag-live">na żywo</small>
+            {% else %}
+              <small class="tag">ostatni zapis</small>
+            {% endif %}
+          </td>
+          <td class="numeric">{{ thousands(character.gold) }}</td>
+          <td class="numeric">{{ hours(character.playtime) }} h</td>
+        </tr>
+      {% else %}
+        {{ empty_row(7, 'Nie znaleziono postaci.') }}
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

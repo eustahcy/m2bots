@@ -1,0 +1,35 @@
+npc_name ( ) 
+say_split ( translate . beta . level_up . ask ) 
+local level_options = { 
+35 
+} 
+local beta_progress = game . get_event_flag ( "beta_server" ) 
+if beta_progress >= 3 then 
+table . insert ( level_options , 61 ) 
+end 
+if beta_progress >= 4 then 
+table . insert ( level_options , 75 ) 
+end 
+level_select_table = { } 
+for i , v in pairs ( level_options ) begin 
+table . insert ( level_select_table , string . format ( "%d poziom" , v ) ) 
+end 
+table . insert ( level_select_table , translate . general . cancel ) 
+local x = select_table ( level_select_table ) 
+if x == table . getn ( level_select_table ) then 
+return 
+end 
+local selected_level = level_options [ x ] 
+npc_name ( ) 
+say_split ( msg ( translate . beta . level_up . ask2 , selected_level ) ) 
+if select ( translate . general . yes , translate . general . no ) == 2 then 
+return 
+end 
+if pc . get_level ( ) >= selected_level then 
+npc_name ( ) 
+say_split ( translate . beta . level_up . fail ) 
+return 
+end 
+npc_name ( ) 
+say_split ( translate . beta . level_up . success ) 
+pc . set_level ( selected_level ) 

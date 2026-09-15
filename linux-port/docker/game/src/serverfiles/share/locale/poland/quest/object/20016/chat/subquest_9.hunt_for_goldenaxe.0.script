@@ -1,0 +1,12 @@
+target . delete ( "__TARGET__" ) 
+if pc . count_item ( "30102" ) >= 1 then 
+say_title ( gameforge . blacksmith . _20_sayTitle ) 
+say ( gameforge . subquest_09 . _130_say ) 
+pc . remove_item ( "30102" , 1 ) 
+say_title ( gameforge . collect_herb_lv4 . _130_sayTitle ) 
+set_state ( "__COMPLETE__" ) 
+give_reward ( "subquest_09" ) 
+clear_letter ( ) 
+return 
+end 
+setskin ( NOWINDOW ) 

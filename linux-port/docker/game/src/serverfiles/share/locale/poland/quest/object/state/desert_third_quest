@@ -1,0 +1,14 @@
+desert_third_quest={["start"]=0,["progress"]=570552902,["reward"]=1322349139,task_data= function ()return { 
+{ 8008 , 1 } , 
+{ 8009 , 1 } , 
+{ 8010 , 1 } , 
+} 
+end ,can_start_quest= function ()if pc . get_level ( ) < 50 then 
+return "low_lvl" 
+elseif pc . get_reputation ( FRACTION_DESERT ) < 15000 then 
+return "low_reputation" 
+elseif pc . getqf ( "reset_time" ) > get_time ( ) then 
+return "delay" 
+end 
+return "ok" 
+end }

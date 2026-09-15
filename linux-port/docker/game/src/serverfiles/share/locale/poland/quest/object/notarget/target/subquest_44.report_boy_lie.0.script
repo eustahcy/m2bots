@@ -1,0 +1,8 @@
+target . delete ( "__TARGET__" ) 
+say_title ( gameforge . npc_talk . _680_sayTitle ) 
+say ( gameforge . subquest_44 . _500_say ) 
+say_reward ( gameforge . subquest_44 . _510_sayReward ) 
+set_state ( "__COMPLETE__" ) 
+give_reward ( "subquest_44_lie2" ) 
+pc . setqf ( "kill_count" , 0 ) 
+clear_letter ( ) 

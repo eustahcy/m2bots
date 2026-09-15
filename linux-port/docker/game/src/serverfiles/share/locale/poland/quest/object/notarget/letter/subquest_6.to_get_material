@@ -1,0 +1,10 @@
+send_letter ( gameforge . subquest_06 . _210_sendLetter ) 
+if pc . getqf ( "asked_20008" ) == 0 and pc . getqf ( "leather_done" ) == 0 then 
+send_target ( 20008 , "__TARGET1__" ) 
+end 
+if pc . getqf ( "asked_20011" ) == 0 and pc . getqf ( "ironore_done" ) == 0 then 
+send_target ( 20011 , "__TARGET2__" ) 
+end 
+if pc . getqf ( "asked_20005" ) == 0 and pc . getqf ( "coal_done" ) == 0 then 
+send_target ( 20005 , "__TARGET3__" ) 
+end 

@@ -1,0 +1,2 @@
+if pc . get_map_index ( ) == 69 then timer ( "wl_pass_whisper" , number ( 10 , 30 ) ) 
+ return end 

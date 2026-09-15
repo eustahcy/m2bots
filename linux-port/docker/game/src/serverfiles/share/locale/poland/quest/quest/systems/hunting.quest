@@ -1,0 +1,165 @@
+quest hunting begin
+	state start begin
+		function getData()
+			local data = HUNTING_QUEST_DATA[pc.getqf("huntingProgress")+1]
+			return data
+		end
+		
+		function getMobSelectTable()
+			local mobData = hunting.getData().mobData
+			local slct = {}
+			for i,v in pairs(mobData) do
+				local mobVnum = v[1]
+				local mobCount = v[2]
+				table.insert(slct, mobCount.."x "..select_mob_format(mobVnum))
+			end
+			table.insert(slct, translate.general.cancel)
+			return slct
+		end
+		
+		function refreshCounter()
+			q.set_counter(select_mob_format(pc.getqf("huntingMobVnum")), pc.getqf("huntingMobCount"))
+		end
+		
+		function sendLetter()
+			send_letter(msg(translate.hunting.letterName, hunting.getData().reqLvl))
+		end
+
+		function show_quest_board()
+			setskin(SCROLL)
+			setbgimage('level_bg.tga')
+			say("")
+			say("")
+			say("")
+		
+			local data = hunting.getData()
+			local mob_vnum = pc.getqf("huntingMobVnum")
+			local mob_count = pc.getqf("huntingMobCount")
+		
+			if special.levelup_img[mob_vnum] == nil then
+				debug("nie ma foty %d", mob_vnum)
+			end
+			addimage(20,12,special.levelup_img[mob_vnum])
+			setcolor(0,0,0)
+		
+			say(string.format(translate.hunting.special_letter_kill, mob_count, mob_name(mob_vnum)))
+			say(string.format(translate.hunting.special_letter_left, mob_count))
+			say()
+
+			-- say(translate.hunting.special_letter_reward_title)
+			say(string.format(translate.hunting.special_letter_reward_exp, data.xp, data.reqLvl))
+			if data.gold > 0 then
+				say(string.format(translate.hunting.special_letter_reward_gold, parse_number(data.gold)))
+			end
+			
+			local itemName = "Losowy"
+			if data.reqLvl < 5 then
+				local itemVnum = data.item[1]
+				if itemVnum == "primary_armor" then
+					itemVnum = HUNTING_REWARD_PRIMARY_ARMOR[pc.get_job()]
+				elseif itemVnum == "primary_helmet" then
+					itemVnum = HUNTING_REWARD_PRIMARY_HELMET[pc.get_job()]
+				end
+				itemName = item_name(itemVnum)
+			end
+			
+			say(string.format(translate.hunting.special_letter_reward_item, itemName))
+			hunting_test.show_mob_pos(data.reqLvl)
+		end
+		
+		function giveReward()
+			local lvl = hunting.getData().reqLvl
+			local gold = hunting.getData().gold
+			local xp = hunting.getData().xp
+			local itemData = hunting.getData().item
+			
+			pc.give_exp_perc(pc.get_name(), lvl, xp)
+			pc.change_money(gold)
+			if xp > 0 then say_reward(xp.."% "..translate.general.xp) end
+			if gold > 0 then say_reward(parse_number(gold).." "..translate.general.gold) end
+			
+			for i in range(1, table.getn(itemData), 2) do
+				local itemVnum = itemData[i]
+				local itemCount = itemData[i+1]
+				if itemVnum == "primary_armor" then
+					itemVnum = HUNTING_REWARD_PRIMARY_ARMOR[pc.get_job()]
+				elseif itemVnum == "primary_helmet" then
+					itemVnum = HUNTING_REWARD_PRIMARY_HELMET[pc.get_job()]
+				end
+				pc.give_item2(itemVnum, itemCount, 0)
+				say_reward(itemCount.."x "..item_name(itemVnum))
+			end
+		end
+		
+		
+		when login or levelup or enter with pc.get_level() >= hunting.getData().reqLvl begin
+			debug("STARTING HUNTING QUEST")
+			set_state("information")
+		end
+	end
+	state information begin
+		when letter begin
+			hunting.sendLetter()
+		end
+		
+		when button or info begin
+			say_info()
+			say(translate.hunting.letterInfo)
+			local mobSelectTable = hunting.getMobSelectTable()
+			local slct = select_table(mobSelectTable)
+			if slct == table.getn(mobSelectTable) then return end
+			local mobData = hunting.getData().mobData[slct]
+			-- say_info()
+			-- say_split(msg(translate.hunting.letterInfo2, mobData[2], mob_name(mobData[1])))
+			pc.setqf("huntingMobVnum", mobData[1])
+			pc.setqf("huntingMobCount", mobData[2])
+			hunting.show_quest_board()
+			select(gameforge.locale.confirm)
+            clearmapsignal()
+            setskin(NOWINDOW)
+			set_state("kill")
+		end
+	end
+	state kill begin
+		when login begin
+			if pc.getf("hunting","huntingMobVnum") == 0 then
+				local mobData = hunting.getData().mobData[1]
+				pc.setqf("huntingMobVnum", mobData[1])
+				pc.setqf("huntingMobCount", mobData[2])
+			end
+		end
+		when letter begin
+			hunting.sendLetter()
+			hunting.refreshCounter()
+		end
+		
+		when button or info begin
+			-- local mobVnum = pc.getqf("huntingMobVnum")
+			-- local mobCount = pc.getqf("huntingMobCount")
+			hunting.show_quest_board()
+			select(gameforge.locale.confirm)
+            clearmapsignal()
+            setskin(NOWINDOW)
+			-- say_info()
+			-- say_split(msg(translate.hunting.letterInfo3, mob_name(mobVnum)))
+			-- say_reward(msg(translate.hunting.letterInfo4, mobCount))
+		end
+		
+		when kill with npc.get_race() == pc.getf("hunting","huntingMobVnum") begin
+			pc.setqf("huntingMobCount", pc.getqf("huntingMobCount")-1)
+			hunting.refreshCounter()
+			if pc.getqf("huntingMobCount") <= 0 then
+				say_info()
+				say_split(translate.hunting.complete)
+				say()
+				say_reward(translate.hunting.rewardInfo)
+				hunting.giveReward()
+				pc.delqf("huntingMobVnum")
+				pc.delqf("huntingMobCount")
+				pc.setqf("huntingProgress", pc.getqf("huntingProgress")+1)
+				clear_letter()
+				set_state("start")
+			end
+		end
+	end
+end

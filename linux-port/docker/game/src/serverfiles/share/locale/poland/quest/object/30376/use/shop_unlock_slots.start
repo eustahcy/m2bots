@@ -1,0 +1,9 @@
+local unlock_level = pc . get_special_flag ( "shop_unlock_slot" ) 
+if unlock_level >= 4 then 
+syschat ( translate . shop_unlock_slot . max_progress ) 
+return 
+end 
+if item . remove ( 1 ) then 
+pc . set_special_flag ( "shop_unlock_slot" , unlock_level + 1 ) 
+syschat ( translate . shop_unlock_slot . success ) 
+end 

@@ -1,0 +1,14 @@
+Group	WorldBoss_Trent2
+{
+	vnum	2307
+	spawn_vnum	2307
+	spawn_type	mob
+	channel	2
+	map_index	68
+	time	72000
+	time_type	hour
+	count	1
+	save_kill	1
+	1	629	535	7
+}
+

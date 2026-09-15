@@ -1,0 +1,4 @@
+send_letter ( translate . fishing . onboarding . state_progress . letter_name ) 
+if pc . get_map_index ( ) == 63 and pc . count_item ( 30362 ) == 0 then 
+target . pos ( "__TARGET__" , 949 , 667 , 63 , "" ) 
+end 

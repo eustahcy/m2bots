@@ -1,0 +1,7 @@
+target . delete ( "__TARGET__" ) 
+npc_name ( ) 
+say_split ( translate . fishing . onboarding . state_go_baekgo . talk1 ) 
+wait ( ) 
+npc_name ( ) 
+say_split ( translate . fishing . onboarding . state_go_baekgo . talk2 ) 
+set_state ( "go_uriel" ) 

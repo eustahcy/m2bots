@@ -1,0 +1,50 @@
+if mes . get_message ( ) == "horse_inventory_unlock" then local progress = pc . get_special_flag ( "horse_inventory_slot" ) 
+if progress > 0 and progress < 9 then 
+local data = { 
+[ 1 ] = { 
+lvl = 4 , 
+items = { 50050 , 1 , 30378 , 20 } , 
+} , 
+[ 2 ] = { 
+lvl = 6 , 
+items = { 50050 , 2 , 30378 , 20 } , 
+} , 
+[ 3 ] = { 
+lvl = 9 , 
+items = { 50050 , 2 , 30378 , 20 } , 
+} , 
+[ 4 ] = { 
+lvl = 11 , 
+items = { 50050 , 3 , 30378 , 40 } , 
+} , 
+[ 5 ] = { 
+lvl = 14 , 
+items = { 50050 , 3 , 30378 , 40 } , 
+} , 
+[ 6 ] = { 
+lvl = 16 , 
+items = { 50050 , 4 , 30378 , 60 } , 
+} , 
+[ 7 ] = { 
+lvl = 19 , 
+items = { 50050 , 4 , 30378 , 60 } , 
+} , 
+[ 8 ] = { 
+lvl = 21 , 
+items = { 50050 , 5 , 30378 , 60 } , 
+} , 
+} 
+local req_data = data [ progress ] 
+if horse . get_level ( ) < req_data . lvl then 
+syschat ( translate . horse_inventory . no_level ) 
+return 
+end 
+if not has_items_from_table ( req_data . items ) then 
+syschat ( translate . horse_inventory . no_items ) 
+return 
+end 
+remove_items_from_table ( req_data . items ) 
+syschat ( translate . horse_inventory . success ) 
+pc . set_special_flag ( "horse_inventory_slot" , progress + 1 ) 
+end 
+ return end 

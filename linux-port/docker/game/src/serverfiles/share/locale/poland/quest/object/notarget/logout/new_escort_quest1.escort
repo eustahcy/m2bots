@@ -1,0 +1,4 @@
+new_escort_quest1 . abort_quest ( ) 
+cleartimer ( "escort_abort" ) 
+target . delete ( "__ESCORT__" ) 
+set_state ( "start" ) 

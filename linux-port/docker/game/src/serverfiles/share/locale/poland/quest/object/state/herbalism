@@ -1,0 +1,17 @@
+herbalism={["start"]=0,can_craft= function ()return pc . getf ( "herbalism_onboarding" , "completed" ) > 0 
+end ,is_unlocked= function ()return pc . getf ( "herbalism_onboarding" , "completed" ) > 2 
+end ,upgrade_knife= function (is_success)if not is_success and number ( 1 , 2 ) == 1 then 
+return 
+end 
+local current_points = item . get_socket ( 0 ) 
+local max_points = item . get_value ( 2 ) 
+if current_points >= max_points then 
+return 
+end 
+local new_points = current_points + 1 
+item . set_socket ( 0 , new_points ) 
+syschat ( string . format ( translate . herbalism . knife_upgrade_point , new_points , max_points ) ) 
+if new_points >= max_points then 
+syschat ( translate . herbalism . knife_upgrade_max ) 
+end 
+end }

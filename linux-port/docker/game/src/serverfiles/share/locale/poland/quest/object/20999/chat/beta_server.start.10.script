@@ -1,0 +1,21 @@
+npc_name ( ) 
+say_split ( translate . beta . skill_pvp . ask ) 
+if select ( translate . general . yes , translate . general . no ) == 2 then 
+return 
+end 
+local is_success = false 
+if pc . get_skill_group ( ) > 0 then 
+for i , v in pairs ( special . active_skill_list [ pc . get_job ( ) + 1 ] [ pc . get_skill_group ( ) ] ) begin 
+local skill_level = pc . get_skill_level ( v ) 
+if skill_level >= 20 and skill_level < 40 then 
+pc . set_skill_level ( v , 40 ) 
+is_success = true 
+end 
+end 
+end 
+npc_name ( ) 
+if is_success then 
+say_split ( translate . beta . skill_pvp . success ) 
+else 
+say_split ( translate . beta . skill_pvp . fail ) 
+end 

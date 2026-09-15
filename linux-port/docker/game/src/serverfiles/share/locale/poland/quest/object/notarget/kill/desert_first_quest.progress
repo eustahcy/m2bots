@@ -1,0 +1,9 @@
+if not npc . is_pc ( ) then local task_data = desert_first_quest . task_data ( ) [ pc . getqf ( "quest_index" ) ] 
+if npc . get_race ( ) == task_data [ 1 ] then 
+pc . setqf ( "progress" , pc . getqf ( "progress" ) - 1 ) 
+q . set_counter ( translate . general . left , pc . getqf ( "progress" ) ) 
+if pc . getqf ( "progress" ) < 1 then 
+set_state ( "reward" ) 
+end 
+end 
+ return end 

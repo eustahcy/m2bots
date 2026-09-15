@@ -1,0 +1,5 @@
+npc_name ( ) 
+say_split ( translate . item_exchange . skillbook_talk1 ) 
+wait ( ) 
+setskin ( NOWINDOW ) 
+item_exchange . open ( item_exchange . SKILLBOOK_EXCHANGE ) 

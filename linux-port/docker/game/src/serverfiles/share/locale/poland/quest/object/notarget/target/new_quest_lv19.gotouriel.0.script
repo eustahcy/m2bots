@@ -1,0 +1,15 @@
+target . delete ( "__TARGET__" ) 
+say_title ( translate . new_quest_lv19 . uriel ) 
+say_split ( translate . new_quest_lv19 . gotouriel . npcChat1 ) 
+wait ( ) 
+say_title ( translate . new_quest_lv19 . uriel ) 
+say_split ( translate . new_quest_lv19 . gotouriel . npcChat2 ) 
+wait ( ) 
+say_title ( translate . new_quest_lv19 . uriel ) 
+say_split ( translate . new_quest_lv19 . gotouriel . npcChat3 ) 
+if new_quest_lv19 . check_if_all_gather ( ) then 
+setstate ( "gotouriel2" ) 
+clear_letter ( ) 
+end 
+setstate ( "killanimals" ) 
+clear_letter ( ) 

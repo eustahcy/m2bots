@@ -1,0 +1,23 @@
+if mes . get_message ( ) == "special_shop" then local args = mes . get_arguments ( ) 
+local argsLen = table . getn ( args ) 
+if argsLen < 1 then 
+debug ( "no parameters" ) 
+return 
+end 
+local commands = { 
+[ "close" ] = { args = 1 } , 
+[ "buy" ] = { args = 2 } , 
+} 
+local cmd = args [ 1 ] 
+local cmdArgs = commands [ cmd ] 
+if cmdArgs ~= nil and argsLen < cmdArgs . args then 
+debug ( "no parameters (need %d parameters)" , cmdArgs . args ) 
+return 
+end 
+if cmd == "close" then 
+pc . close_special_shop ( ) 
+elseif cmd == "buy" then 
+local index = tonumber ( args [ 2 ] ) 
+pc . buy_special_shop ( index ) 
+end 
+ return end 

@@ -1,0 +1,23 @@
+if not npc . is_pc ( ) and pc . count_item ( 30361 ) < 1 then local race = npc . get_race ( ) 
+local chance = 0 
+if race == 154 then 
+chance = 50 
+elseif race == 193 then 
+chance = 100 
+elseif race >= 110 and race <= 113 or race >= 139 and race <= 142 then 
+chance = 1 
+else 
+return 
+end 
+if number ( 1 , 100 ) <= chance then 
+say_info ( ) 
+say_split ( translate . fishing . onboarding . state_progress . get_item1 ) 
+pc . give_item2 ( 30361 , 1 ) 
+if pc . count_item ( 30361 ) > 0 and pc . count_item ( 30362 ) > 0 then 
+wait ( ) 
+say_info ( ) 
+say_split ( translate . fishing . onboarding . state_progress . get_all ) 
+set_state ( "return_uriel" ) 
+end 
+end 
+ return end 

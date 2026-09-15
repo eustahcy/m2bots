@@ -1,0 +1,64 @@
+﻿{% extends 'base.html' %}
+{% from 'partials/macros.html' import page_head, character_link, empire_badge, exp_meter, empty_row with context %}
+{% block title %}Rankingi{% endblock %}
+
+{% block content %}
+{{ page_head('RYWALIZACJA', 'Rankingi botów',
+             'Dane pochodzą bezpośrednio z postaci, wyposażenia i questów Playerbots.') }}
+
+<nav class="tabs tabs-wrap" aria-label="Rodzaj rankingu">
+  {% for key, label in kinds.items() %}
+    <a class="{{ 'active' if key == kind }}"
+       href="{{ url_for('rankings.index', type=key) }}">{{ label }}</a>
+  {% endfor %}
+</nav>
+
+{% if kind == 'weapon30' %}
+  <nav class="tabs tabs-sub" aria-label="Sortowanie">
+    <span class="tabs-label">Sortuj:</span>
+    {% for key, label in sorts.items() %}
+      <a class="{{ 'active' if key == sort_by }}"
+         href="{{ url_for('rankings.index', type='weapon30', sort=key) }}">{{ label }}</a>
+    {% endfor %}
+  </nav>
+{% endif %}
+
+<section class="panel table-wrap">
+  <h2>{{ kinds[kind] }}</h2>
+  <table class="ranking-table">
+    <thead>
+      <tr><th class="numeric">#</th><th>Bot</th><th>Klasa</th><th>Poziom</th>
+          <th>EXP</th>{% if kind != 'level' %}<th>Wynik</th>{% endif %}</tr>
+    </thead>
+    <tbody>
+      {% for bot in ranking %}
+        <tr class="{{ 'leader' if loop.first }}">
+          <td class="numeric">{{ loop.index }}</td>
+          <td class="name-cell">
+            {{ empire_badge(bot.empire, compact=true) }}
+            {{ character_link(bot.id, bot.name) }}
+          </td>
+          <td>
+            <span class="class-cell">
+              <img class="portrait portrait-tiny" src="{{ class_portrait(bot.job) }}"
+                   alt="" aria-hidden="true" title="{{ job_name(bot.job) }}" loading="lazy">
+              {{ job_name(bot.job) }}
+            </span>
+          </td>
+          <td>Lv {{ bot.level }}</td>
+          <td>{{ exp_meter(bot.experience) }}</td>
+          {% if kind != 'level' %}
+            <td class="detail-cell">
+              {% if bot.vnum and item_icon(bot.vnum) %}
+                <img class="item-icon" src="{{ item_icon(bot.vnum) }}" alt="" loading="lazy">
+              {% endif %}{{ bot.detail }}
+            </td>
+          {% endif %}
+        </tr>
+      {% else %}
+        {{ empty_row(6, 'Brak danych dla tego rankingu.') }}
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

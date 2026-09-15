@@ -1,0 +1,2 @@
+if beta_server . is_beta ( ) then notice ( translate . beta . intro . notice ) 
+ return end 

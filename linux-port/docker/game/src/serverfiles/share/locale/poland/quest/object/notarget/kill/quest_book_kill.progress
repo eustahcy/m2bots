@@ -1,0 +1,21 @@
+local data = quest_book . get_current_quest_data ( ) 
+for i in range ( 1 , table . getn ( data . mobs ) , 2 ) begin 
+local vnum = data . mobs [ i ] 
+local index = math . floor ( i / 2 ) 
+local currentProgress = pc . getqf ( "progress" .. index ) 
+if npc . get_race ( ) == vnum then 
+if currentProgress > 0 then 
+pc . setqf ( "progress" .. index , currentProgress - 1 ) 
+end 
+local total_progress = quest_book_kill . get_full_progress ( ) 
+if total_progress < 1 then 
+q . set_counter ( translate . general . left , 0 ) 
+set_state ( "start" ) 
+quest_book . reward ( ) 
+clear_letter ( ) 
+else 
+q . set_counter ( translate . general . left , total_progress ) 
+end 
+break 
+end 
+end 

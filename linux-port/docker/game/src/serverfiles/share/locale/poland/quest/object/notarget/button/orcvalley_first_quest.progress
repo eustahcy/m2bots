@@ -1,0 +1,6 @@
+say_info ( ) 
+say_split ( translate . reputation_orc_valley . first . desc ) 
+say ( ) 
+local task_data = orcvalley_first_quest . task_data ( ) [ pc . getqf ( "quest_index" ) ] 
+say_reward ( msg ( translate . reputation_orc_valley . first . task , task_data [ 2 ] , mob_name ( task_data [ 1 ] ) ) ) 
+say_reward ( translate . general . left .. ": " .. pc . getqf ( "progress" ) ) 

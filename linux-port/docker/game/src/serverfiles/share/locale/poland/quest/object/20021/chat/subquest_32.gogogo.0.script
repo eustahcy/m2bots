@@ -1,0 +1,47 @@
+target . delete ( "__TARGET1__" ) 
+if pc . getf ( "subquest_32" , "sil_done" ) == 0 then 
+say_title ( gameforge . hair_shop . _20_sayTitle ) 
+say ( gameforge . subquest_32 . _160_say ) 
+wait ( ) 
+say_title ( gameforge . hair_shop . _20_sayTitle ) 
+say ( gameforge . subquest_32 . _170_say ) 
+local s = select ( gameforge . subquest_01 . _50_select , gameforge . subquest_01 . _60_select ) 
+if 2 == s then 
+say_title ( gameforge . hair_shop . _20_sayTitle ) 
+say ( gameforge . subquest_32 . _180_say ) 
+local a = select ( gameforge . subquest_12 . _select_yes , gameforge . subquest_12 . _select_no ) 
+if 2 == a then 
+say_title ( gameforge . hair_shop . _20_sayTitle ) 
+say ( gameforge . subquest_32 . _190_say ) 
+return 
+end 
+say_title ( gameforge . hair_shop . _20_sayTitle ) 
+say ( gameforge . subquest_32 . _200_say ) 
+set_state ( "__GIVEUP__" ) 
+return 
+end 
+say_title ( gameforge . hair_shop . _20_sayTitle ) 
+say ( gameforge . subquest_32 . _210_say ) 
+pc . give_item2 ( 30159 ) 
+pc . setqf ( "sil_done" , 1 ) 
+if pc . getf ( "subquest_32" , "sil_done" ) == 1 then 
+say_title ( gameforge . subquest_32 . _220_sayTitle ) 
+say ( gameforge . subquest_32 . _230_say ) 
+return 
+end 
+return 
+end 
+if pc . getf ( "subquest_32" , "sil_done" ) == 2 then 
+say_title ( gameforge . subquest_32 . _220_sayTitle ) 
+say ( gameforge . subquest_32 . _240_say ) 
+pc . give_item2 ( 30140 ) 
+if pc . count_item ( 30141 ) > 0 and pc . count_item ( 30139 ) >= 100 then 
+set_state ( "all_item_done" ) 
+end 
+return 
+end 
+if pc . count_item ( 30140 ) < 1 then 
+say_title ( gameforge . subquest_32 . _220_sayTitle ) 
+say ( gameforge . subquest_32 . _250_say ) 
+pc . setqf ( "sil_done" , 1 ) 
+end 

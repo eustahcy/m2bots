@@ -1,0 +1,17 @@
+say_title ( gameforge . new_quest_lv43 . _021_say_title ) 
+if pc . count_item ( new_quest_lv43_drop1 ) >= 1 then 
+target . delete ( "__TARGET3__" ) 
+say ( gameforge . new_quest_lv43 . _049_say ) 
+say ( gameforge . new_quest_lv43 . _050_say ) 
+say ( gameforge . new_quest_lv43 . _051_say ) 
+wait ( ) 
+say_title ( gameforge . new_quest_lv43 . _052_say_title ) 
+set_state ( "__COMPLETE__" ) 
+give_reward ( "new_quest_lv43" ) 
+pc . remove_item ( new_quest_lv43_drop1 , pc . count_item ( new_quest_lv43_drop1 ) ) 
+q . done ( ) 
+else 
+say ( gameforge . new_quest_lv43 . _060_say ) 
+set_state ( "start" ) 
+return 
+end 

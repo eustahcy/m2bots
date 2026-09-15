@@ -1,0 +1,2 @@
+send_letter_ex ( translate . reputation_desert . third . name , "ex" , "scroll_open_blue" ) 
+send_target ( 20406 ) 

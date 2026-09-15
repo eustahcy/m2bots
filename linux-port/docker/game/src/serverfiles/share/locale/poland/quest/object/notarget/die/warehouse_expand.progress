@@ -1,0 +1,3 @@
+warehouse_expand . abort_quest ( ) 
+clear_letter ( ) 
+target . delete ( "__TARGET__" ) 
