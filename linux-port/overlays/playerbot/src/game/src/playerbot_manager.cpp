@@ -3,6 +3,7 @@
 #include "playerbot_empire_rules.h"
 #include "playerbot_world_rules.h"
 #include "playerbot_human_timing.h"
+#include "playerbot_gear_urgency.h"
 
 #include "char.h"
 #include "skill.h"

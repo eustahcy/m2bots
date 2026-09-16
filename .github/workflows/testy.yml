@@ -25,13 +25,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Kompiluj i uruchom testy regul
+        # Dwie rzeczy, ktore trzeba bylo sprawdzic, zanim to tu trafilo:
+        #   -I na katalog zrodel silnika, bo wiekszosc testow siega po naglowek
+        #      sciezka wzgledna wobec samego pliku testu i dziala bez tego, ale
+        #      playerbot_offline_policy_test.cpp wlacza go po samej nazwie;
+        #   -std=c++17, bo playerbot_offline_policy.h uzywa zmiennych inline
+        #      i agregatowej inicjalizacji - pod c++11 nie kompiluje sie wcale.
         run: |
           set -eu
+          SRC=linux-port/docker/game/src/server/game/src
           fail=0
           for t in tests/*_test.cpp; do
             name=$(basename "$t" .cpp)
             printf '%-42s ' "$name"
-            if g++ -std=c++11 -Wall -Wextra -O1 -o "/tmp/$name" "$t" 2>/tmp/err; then
+            if g++ -std=c++17 -Wall -Wextra -O1 -I "$SRC" -o "/tmp/$name" "$t" 2>/tmp/err; then
               if "/tmp/$name"; then echo 'PRZESZEDL'; else echo 'NIE PRZESZEDL'; fail=1; fi
             else
               echo 'BLAD KOMPILACJI'; cat /tmp/err; fail=1

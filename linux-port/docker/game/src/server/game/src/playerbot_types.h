@@ -3796,6 +3796,8 @@ namespace
 			lDeathX(0),
 			lDeathY(0),
 			bDeathCount(0),
+			bDeathsInWindow(0),
+			dwStruggleWindowStart(0),
 			dwNextAttackTime(0),
 			dwNextPotionTime(0),
 			dwNextManaPotionTime(0),
@@ -4036,6 +4038,12 @@ namespace
 		long lDeathX;
 		long lDeathY;
 		BYTE bDeathCount;
+	// Smierci w ruchomym oknie - sygnal "temu botowi przestalo isc", osobny od
+	// bDeathCount, ktory jest licznikiem dozywotnim i zawija sie po 255.
+	// Czyta to playerbot_gear_urgency.h i na tej podstawie decyduje, czy bot
+	// ma isc naprawic ekwipunek, czy dopiero zejsc na slabsze potwory.
+	int bDeathsInWindow;
+	DWORD dwStruggleWindowStart;
 		DWORD dwNextAttackTime;
 		DWORD dwNextPotionTime;
 		DWORD dwNextManaPotionTime;

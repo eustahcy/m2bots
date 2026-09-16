@@ -266,9 +266,55 @@ namespace
 	// Defined below with the frontier draw it asks about.
 	bool PlayerBotCoreHasAnyFrontier();
 
+	// Czy temu botowi przestalo isc - i co z tym zrobic.
+	//
+	// Sama regula siedzi w playerbot_gear_urgency.h; tutaj sa tylko odpowiedzi
+	// na jej trzy pytania, kazda z modulu, ktory juz umie ja dac. Kolejnosc jest
+	// celowa: dopoki bot nie ma klopotow, nie placimy za zadne z tych pytan -
+	// to jest sciezka wolana z kazdego przebiegu celowania.
+	playerbot_gear_urgency::EAnswer GetPlayerBotStruggleAnswer(LPCHARACTER ch)
+	{
+		if (!ch)
+			return playerbot_gear_urgency::ANSWER_HUNT_ON;
+		TPlayerBotAIStateMap::const_iterator it = s_mapPlayerBotAIStates.find(ch->GetPlayerID());
+		if (it == s_mapPlayerBotAIStates.end())
+			return playerbot_gear_urgency::ANSWER_HUNT_ON;
+
+		playerbot_gear_urgency::TStruggleWindow window;
+		window.deaths = it->second.bDeathsInWindow;
+		window.startedAt = (unsigned int)it->second.dwStruggleWindowStart;
+
+		playerbot_gear_urgency::TContext context;
+		context.struggling = playerbot_gear_urgency::IsStruggling(
+				window, (unsigned int)get_dword_time(),
+				playerbot_gear_urgency::STRUGGLE_WINDOW_MS,
+				playerbot_gear_urgency::STRUGGLE_DEATHS);
+		if (!context.struggling)
+			return playerbot_gear_urgency::ANSWER_HUNT_ON;
+
+		context.canRefine = HasPlayerBotRefineOpportunity(ch);
+		context.canRerollBonus = ch->GetLevel() >= PLAYERBOT_BONUS_MIN_LEVEL &&
+				ch->GetGold() >= (long long)PLAYERBOT_BONUS_GOLD_FLOOR +
+						PLAYERBOT_BONUS_STONE_PRICE;
+		context.canBuyBetter = NeedsPlayerBotProgressionWeapon(ch) ||
+				NeedsPlayerBotProgressionArmor(ch);
+		return playerbot_gear_urgency::Decide(context);
+	}
+
 	bool IsPlayerBotGrindAllowedHere(LPCHARACTER ch)
 	{
 		if (!ch)
+			return false;
+		// Trzecia smierc w dziesiec minut, a w zasiegu jest cos, co da sie z
+		// ekwipunkiem zrobic: przestan polowac tutaj. Nic wiecej nie trzeba -
+		// reszta AI traktuje "nie wolno polowac" jako powod, zeby zajac sie
+		// sprawami warsztatowymi, a to jest dokladnie ta sama sciezka, ktora
+		// otwiera kazda inna potrzeba kowala czy kupca.
+		//
+		// Schodzenia na slabsze potwory ta galaz nie dotyka - to jest odpowiedz
+		// na wypadek, gdy nie ma juz zadnego ruchu do wykonania, i zostaje tam,
+		// gdzie byla (playerbot_targeting.h, bRecentDeath).
+		if (GetPlayerBotStruggleAnswer(ch) == playerbot_gear_urgency::ANSWER_FIX_GEAR)
 			return false;
 		// The first village, by the rule the second one has had all along: past
 		// the graduation level this is somewhere to trade and pass through, not

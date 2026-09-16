@@ -215,6 +215,17 @@ namespace
 			state.lDeathX = ch->GetX();
 			state.lDeathY = ch->GetY();
 			++state.bDeathCount;
+			// ...i to samo w ruchomym oknie, ktore odrozni pojedyncza wpadke od
+			// bota, ktory po prostu nie daje rady tam, gdzie stoi.
+			{
+				playerbot_gear_urgency::TStruggleWindow window;
+				window.deaths = state.bDeathsInWindow;
+				window.startedAt = (unsigned int)state.dwStruggleWindowStart;
+				window = playerbot_gear_urgency::NoteDeath(window, (unsigned int)dwNow,
+						playerbot_gear_urgency::STRUGGLE_WINDOW_MS);
+				state.bDeathsInWindow = window.deaths;
+				state.dwStruggleWindowStart = (DWORD)window.startedAt;
+			}
 
 			state.dwTargetVID = 0;
 			ch->SetVictim(NULL);
