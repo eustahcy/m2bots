@@ -652,6 +652,64 @@ def change_password(new_password):
     threading.Thread(target=restart_soon, daemon=True).start()
 
 
+# --- brute force ------------------------------------------------------------
+# Za tym haslem stoi proces jako root, ktory umie docker compose build/up/down
+# i nadpisac pliki serwera, na porcie otwartym na swiat. Do tej pory nie bylo
+# nic, co spowalnialoby zgadywanie: ani limitu prob, ani opoznienia, ani blokady.
+# Haslo z instalatora ma ~72 bity i jest nie do zgadniecia, ale panel pozwala je
+# zmienic na cokolwiek od osmiu znakow - i wtedy nie bylo juz zadnej siatki.
+#
+# Licznik jest w pamieci procesu, nie w bazie: gunicorn trzyma kilka workerow,
+# wiec napastnik trafiajacy w rozne workery dostaje kilka okien zamiast jednego.
+# To swiadomy kompromis - spowolnienie kilkukrotne zamiast idealnego, bez
+# dokladania temu panelowi stanu na dysku. Firewall na porcie 9797 pozostaje
+# wlasciwa odpowiedzia; to jest siatka pod nia.
+LOGIN_WINDOW_SECONDS = 300
+LOGIN_MAX_ATTEMPTS = 8
+LOGIN_LOCKOUT_SECONDS = 300
+_login_lock = threading.Lock()
+_login_attempts = {}   # ip -> [licznik, kiedy_okno_sie_zaczelo, do_kiedy_blokada]
+
+
+def _client_ip():
+    # Bez zaufania do X-Forwarded-For: ten panel stoi bezposrednio na gunicornie,
+    # wiec naglowek moglby podac dowolny napastnik i rozbic sobie licznik.
+    return request.remote_addr or "?"
+
+
+def login_locked_for():
+    """Ile sekund zostalo blokady dla tego adresu (0 = wolno probowac)."""
+    now = time.time()
+    with _login_lock:
+        entry = _login_attempts.get(_client_ip())
+        if not entry:
+            return 0
+        return max(0, int(entry[2] - now))
+
+
+def note_failed_login():
+    now = time.time()
+    ip = _client_ip()
+    with _login_lock:
+        count, started, _locked = _login_attempts.get(ip, (0, now, 0))
+        if now - started > LOGIN_WINDOW_SECONDS:
+            count, started = 0, now
+        count += 1
+        locked_until = now + LOGIN_LOCKOUT_SECONDS if count >= LOGIN_MAX_ATTEMPTS else 0
+        _login_attempts[ip] = (count, started, locked_until)
+        # Nie pozwalamy tej mapie rosnac w nieskonczonosc pod rozproszonym ruchem.
+        if len(_login_attempts) > 2048:
+            for old_ip in [k for k, v in _login_attempts.items()
+                           if now - v[1] > LOGIN_WINDOW_SECONDS and now > v[2]]:
+                _login_attempts.pop(old_ip, None)
+    return locked_until > 0
+
+
+def note_successful_login():
+    with _login_lock:
+        _login_attempts.pop(_client_ip(), None)
+
+
 def logged_in():
     return session.get("auth") is True
 
@@ -1173,9 +1231,23 @@ a{color:#8fc0ff}
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
+        remaining = login_locked_for()
+        if remaining:
+            return render_template_string(
+                LOGIN_PAGE, brand=server_brand(),
+                error="Za dużo prób. Spróbuj ponownie za %d s." % remaining), 429
         if check_password(request.form.get("password", "")):
+            note_successful_login()
             session["auth"] = True
             return redirect(url_for("index"))
+        # Stała zwłoka przy każdym błędzie: sama w sobie ścina tempo zgadywania
+        # z tysięcy prób na sekundę do kilku, zanim licznik w ogóle zdąży
+        # zablokować adres.
+        time.sleep(1.0)
+        if note_failed_login():
+            return render_template_string(
+                LOGIN_PAGE, brand=server_brand(),
+                error="Za dużo prób. Adres zablokowany na %d s." % LOGIN_LOCKOUT_SECONDS), 429
         return render_template_string(LOGIN_PAGE, error="Błędne hasło.", brand=server_brand())
     if logged_in():
         return redirect(url_for("index"))

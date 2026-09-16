@@ -1,0 +1,103 @@
+# Co ma zostac zlapane, zanim trafi na serwer.
+#
+# Powod istnienia tego pliku jest konkretny: SIGN_SCRAP byl uzywany
+# w playerbot_town.h i nigdzie niezdefiniowany przez dobe. Nikt tego nie
+# zauwazyl, bo obraz na serwerze pochodzil sprzed tej zmiany, a restart
+# niczego nie kompiluje. Wyszlo dopiero przy pierwszej pelnej przebudowie -
+# na produkcji. Kompilacja czystych regul trwa sekundy i zatrzymalaby to
+# przy pushu.
+#
+# Czego tu NIE ma: pelnego builda silnika. Wymaga 32-bitowego lancucha
+# narzedzi, wlasnych zaleznosci i kilku minut - to zostaje po stronie VPS-a
+# (panel 9797, przycisk Kompiluj). Tu leca rzeczy tanie i szybkie.
+name: testy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  reguly:
+    name: Czyste reguly (C++)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Kompiluj i uruchom testy regul
+        run: |
+          set -eu
+          fail=0
+          for t in tests/*_test.cpp; do
+            name=$(basename "$t" .cpp)
+            printf '%-42s ' "$name"
+            if g++ -std=c++11 -Wall -Wextra -O1 -o "/tmp/$name" "$t" 2>/tmp/err; then
+              if "/tmp/$name"; then echo 'PRZESZEDL'; else echo 'NIE PRZESZEDL'; fail=1; fi
+            else
+              echo 'BLAD KOMPILACJI'; cat /tmp/err; fail=1
+            fi
+          done
+          exit $fail
+
+  overlay:
+    name: Obie kopie zrodel zgodne
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python tools/check-overlay-sync.py
+
+  panel:
+    name: Panel VPS
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install --quiet -r linux-port/vps-panel/requirements.txt
+      - name: Smoke test panelu
+        working-directory: linux-port/vps-panel
+        run: python smoke_test.py
+      - name: Test aktualizatora z GitHuba
+        working-directory: linux-port/vps-panel
+        run: |
+          git config --global user.email "ci@example.com"
+          git config --global user.name "CI"
+          python git_test.py
+
+  sekrety:
+    name: Nic, co nie moze byc publiczne
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Sprawdz, czy sekrety nie weszly do repozytorium
+        run: |
+          set -eu
+          bad=0
+          for f in linux-port/docker/.env .m2launcher.json .m2vps-deploy.json \
+                   .m2operator.json m2panel.conf; do
+            if git ls-files --error-unmatch "$f" >/dev/null 2>&1; then
+              echo "!!! $f jest sledzony przez gita"; bad=1
+            fi
+          done
+          # .env.example ma zostac - to on jest instrukcja, czym wypelnic .env.
+          test -f linux-port/docker/.env.example || { echo '!!! brak .env.example'; bad=1; }
+          if [ "$bad" = 0 ]; then echo 'OK: zadnego sekretu w repozytorium'; fi
+          exit $bad
+
+  powloka:
+    name: Skrypty POSIX sh
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: sh -n na skryptach, ktore uruchamia serwer
+        run: |
+          set -eu
+          for s in linux-port/vps-panel/install.sh linux-port/vps-panel/git-setup.sh \
+                   linux-port/tools/update.sh; do
+            printf '%-46s ' "$s"
+            sh -n "$s" && echo OK
+          done

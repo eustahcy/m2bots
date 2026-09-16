@@ -26,6 +26,20 @@ assert r.status_code == 200 and b"Has\xc5\x82o" in r.data, "login page should re
 r = client.post("/login", data={"password": "wrong"})
 assert b"B\xc5\x82\xc4\x99dne has\xc5\x82o" in r.data, "wrong password should be rejected"
 
+# Brute force: the panel is root over docker on a public port, so guessing has
+# to hit a wall. Eight tries inside the window, then the address is locked out.
+for _ in range(panel.LOGIN_MAX_ATTEMPTS):
+    r = client.post("/login", data={"password": "wrong"})
+assert r.status_code == 429, f"repeated failures should lock out, got {r.status_code}"
+# login_locked_for() needs a request context, so check the state it reads instead.
+assert any(entry[2] > 0 for entry in panel._login_attempts.values()), \
+    "the failing address should carry a lockout deadline"
+# Even the right password waits out the lockout - otherwise it is not a lockout.
+r = client.post("/login", data={"password": password})
+assert r.status_code == 429, "a lockout must hold regardless of the password offered"
+# ...and a clean slate lets the operator back in.
+panel._login_attempts.clear()
+
 r = client.post("/login", data={"password": password}, follow_redirects=True)
 assert b"Panel serwera" in r.data and r.status_code == 200, "correct password should log in"
 
