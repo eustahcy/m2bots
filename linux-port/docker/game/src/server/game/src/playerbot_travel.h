@@ -225,6 +225,36 @@ namespace
 		return ch && ch->GetLevel() > PLAYERBOT_M2_COHORT_MAX_LEVEL;
 	}
 
+	// Joan's own ceiling, which Bokjung has had all along and the first village
+	// never did. Twenty-one, because that is where the graduation already sits:
+	// IsPlayerBotM2LevelingCohort sends every ordinary leveler to M2 at 22 and
+	// keeps a tenth of 20-21 behind. This invents no new number, it applies the
+	// existing one to the question of where a bot may earn experience.
+	//
+	// What the hole looked like, measured on the live world (2500 bots):
+	//
+	//   poziom   na M1   na M2
+	//   01-09     1006       0
+	//   20-21      159      78
+	//   22-24      401     493
+	//   25-29      144     182
+	//
+	// 545 bots of level 22 and up were standing on M1 - 45% of that cohort -
+	// where tools/analyse_map_spawns.py measures the spawns at level 1-31,
+	// median 13, against M2's 18-36, median 29. They were not stuck: the
+	// M1 -> M2 move fires thousands of times a day across the three cores and
+	// not one departure was ever logged overdue. They come back to M1 to trade,
+	// to reach the shops and the offline stalls - and then hunt level-3 wolves
+	// while they are here, because until now nothing said they may not. It is
+	// the same complaint the Discord filed as "boty bija psy", one band lower
+	// than the level 36+ case the M1 travel gate already fixed.
+	const BYTE PLAYERBOT_M1_COHORT_MAX_LEVEL = 21;
+
+	bool IsPlayerBotPastM1Ceiling(LPCHARACTER ch)
+	{
+		return ch && ch->GetLevel() > PLAYERBOT_M1_COHORT_MAX_LEVEL;
+	}
+
 	// May this bot start an ordinary fight where it is standing?
 	//
 	// Bokjung above the cohort ceiling is the one place where the answer is no.
@@ -240,6 +270,23 @@ namespace
 	{
 		if (!ch)
 			return false;
+		// The first village, by the rule the second one has had all along: past
+		// the graduation level this is somewhere to trade and pass through, not
+		// somewhere to earn experience. Everything else a bot does on M1 is
+		// untouched - the combat policy keeps allowing a quest target, a
+		// material it is genuinely short of and self-defence.
+		if (IsPlayerBotM1Map(ch->GetMapIndex()))
+		{
+			if (!IsPlayerBotPastM1Ceiling(ch))
+				return true;
+			// One escape, the same shape as Bokjung's below: a bot that cannot
+			// leave yet must not be left with nothing it is allowed to do.
+			// BlocksPlayerBotTravel is what the M1 travel gate itself asks, so
+			// "may not hunt" and "may not leave" can never both be true at once
+			// - which is exactly the M1 <-> M2 standstill the comment further
+			// down records from the last time a ceiling was added.
+			return BlocksPlayerBotTravel(ch);
+		}
 		if (!IsPlayerBotM2Map(ch->GetMapIndex()))
 			return true;
 		if (!IsPlayerBotPastM2Ceiling(ch))
