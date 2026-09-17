@@ -67,3 +67,10 @@ def bot_predicate(alias="p"):
 
 BOT_IS = bot_predicate("p")
 BOT_IS_BARE = bot_predicate("")
+
+
+# The characters an installer seeds for testing: four 90-level GMs with half a
+# billion Yang each, plus the two older test names. They are nobody's progress,
+# so they count neither as wealth in circulation nor as a rival in a ranking
+# that has been opened up to real players.
+SEEDED_CHARACTERS = ("[SA]Admin", "Test", "Admin", "AdminNinja", "AdminSura", "AdminSzaman")

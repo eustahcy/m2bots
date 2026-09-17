@@ -20,4 +20,5 @@ def index():
         sort_by = "avg"
     ranking = queries.decorate(queries.ranking(kind, sort_by), kind)
     return render_template("rankings.html", kinds=queries.KINDS, kind=kind,
-                           ranking=ranking, sorts=queries.WEAPON30_SORTS, sort_by=sort_by)
+                           ranking=ranking, sorts=queries.WEAPON30_SORTS, sort_by=sort_by,
+                           includes_players=queries.includes_players())

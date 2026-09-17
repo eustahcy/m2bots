@@ -12,7 +12,7 @@ from .. import live, settings, spool, updater
 from ..gamedata import characters as chardata
 from ..gamedata import items as itemdata
 from ..gamedata.maps import MAP_BOUNDS, MAP_NAMES
-from ..queries import economy, rankings, world
+from ..queries import characters, economy, rankings, world
 from ..security import login_required, protected_admin
 
 bp = Blueprint("api", __name__, url_prefix="/api")
@@ -123,6 +123,39 @@ def economy_market():
     for shop in shops:
         shop["shop_url"] = url_for("economy.shop", owner_id=shop["owner"])
     return {"ok": True, "top_items": top_items, "shops": shops}
+
+
+@bp.route("/bot-logs/<int:pid>")
+@login_required
+def bot_logs(pid):
+    """What the game cores are saying about one character right now."""
+    character = characters.profile(pid)
+    if not character:
+        abort(404)
+    return {"ok": True, "logs": characters.live_log(character.get("name"))}
+
+
+@bp.route("/dashboard")
+@login_required
+def dashboard():
+    """The dashboard's slower half: a day of activity and where stalls stand."""
+    return {
+        "ok": True,
+        "activity": world.activity(),
+        "shops_by_map": world.shops_by_map(),
+        "logins": [
+            {**row, "time": row["time"].strftime("%H:%M") if hasattr(row.get("time"), "strftime") else str(row.get("time") or ""),
+             "url": url_for("characters.profile", pid=row["id"]), "portrait": _portrait_url(row.get("job"))}
+            for row in world.recent_logins()
+        ],
+    }
+
+
+@bp.route("/shops/pulse")
+@login_required
+def shops_pulse():
+    """Stall sales per hour and the price they went for, for the shops page."""
+    return {"ok": True, "pulse": economy.sales_pulse(), "by_map": world.shops_by_map()}
 
 
 @bp.route("/heat-events")

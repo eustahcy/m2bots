@@ -1,25 +1,98 @@
 {% extends 'base.html' %}
-{% from 'partials/macros.html' import page_head with context %}
+{% from 'partials/macros.html' import page_head, stat, empty_row with context %}
 {% block title %}Stragany{% endblock %}
 
 {% block content %}
 <a class="back" href="{{ url_for('economy.index') }}">← Wróć do gospodarki</a>
 
-{{ page_head('RYNEK', 'Aktywne stragany',
-             'Każdy stragan to obecnie otwarty sklep Ikarus Shop. Kliknij, aby zobaczyć jego towar i ceny.') }}
+{{ page_head('RYNEK', 'Sklepy offline',
+             'Każdy stragan to otwarty sklep Ikarus Shop. Sprzedaże i ceny pochodzą wprost z logu sklepów.') }}
 
-<p class="muted">{{ shops|length }} straganów otwartych teraz.</p>
+<section class="stat-grid" id="economy-live" data-live="1">
+  {{ stat('Aktywne stragany', thousands(overview.shops), 'otwartych teraz', id='stat-shops') }}
+  {{ stat('Oferty · sztuk towaru', thousands(overview.listed), 'wystawione na wszystkich ladach', id='stat-listed') }}
+  {{ stat('Transakcji łącznie', thousands(totals.total), '+' ~ thousands(totals.last_day) ~ ' w ostatnich 24 h') }}
+  {{ stat('Obrót Yang · 24h', thousands(overview.turnover_24h), 'zapłacone ceny', id='stat-turnover') }}
+</section>
 
-<div class="card-grid">
-  {% for shop in shops %}
-    <a class="item-card" href="{{ url_for('economy.shop', owner_id=shop.owner) }}">
-      <div>
-        <b>{{ shop.shop_name }}</b>
-        <small>{{ shop.owner_name }} · {{ shop.item_count }} przedmiotów{% if shop.is_premium %} · premium{% endif %}</small>
-      </div>
-    </a>
-  {% else %}
-    <p class="muted">Nikt aktualnie nie prowadzi straganu.</p>
-  {% endfor %}
+<div class="dash-row dash-row-two">
+  <section class="card">
+    <header class="card-head"><h2>Tempo sprzedaży · 24 h</h2>
+      <span class="card-sub">sprzedaże na godzinę i średnia cena za sztukę</span></header>
+    <div class="chart"><canvas id="pulse-canvas"></canvas></div>
+  </section>
+  <section class="card">
+    <header class="card-head"><h2>Stragany według map</h2></header>
+    <div class="chart"><canvas id="shops-map-canvas"></canvas></div>
+  </section>
 </div>
+
+<div class="dash-row dash-row-two">
+  <section class="card">
+    <header class="card-head">
+      <h2>Ostatnie sprzedaże <span class="live-badge"><span class="pulse"></span>NA ŻYWO</span></h2>
+    </header>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Przedmiot</th><th>Kupujący</th><th>Sprzedawca</th>
+              <th class="numeric">Cena</th><th class="numeric">Kiedy</th></tr>
+        </thead>
+        <tbody id="recent-trades-body">
+          {{ empty_row(5, 'Ładowanie sprzedaży…') }}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <header class="card-head"><h2>Księgi umiejętności</h2>
+      <span class="card-sub">na ladach teraz i sprzedane w 7 dni</span></header>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Umiejętność</th><th class="numeric">Na ladach</th><th class="numeric">Najtaniej</th>
+              <th class="numeric">Sprzedane*</th><th class="numeric">Śr. cena</th></tr>
+        </thead>
+        <tbody>
+          {% for book in books[:15] %}
+            <tr>
+              <td>{{ book.name }}</td>
+              <td class="numeric">{{ book.offers }}</td>
+              <td class="numeric">{{ thousands(book.cheapest) if book.cheapest else '—' }}</td>
+              <td class="numeric">{{ book.sales }}</td>
+              <td class="numeric">{{ thousands(book.avg_price) if book.avg_price else '—' }}</td>
+            </tr>
+          {% else %}
+            {{ empty_row(5, 'Nikt nie wystawia ani nie sprzedaje ksiąg.') }}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="muted small-note">* Tylko księgi, których kupiec jeszcze nie przeczytał - przeczytana
+      znika z gry razem z informacją, jakiej umiejętności uczyła. To dolna granica.</p>
+  </section>
+</div>
+
+<section class="panel">
+  <div class="panel-head"><h2>Wszystkie stragany</h2><span class="muted">{{ shops|length }} otwartych</span></div>
+  <div class="card-grid">
+    {% for shop in shops %}
+      <a class="item-card" href="{{ url_for('economy.shop', owner_id=shop.owner) }}">
+        <div>
+          <b>{{ shop.shop_name }}</b>
+          <small>{{ shop.owner_name }} · {{ map_name(shop.map) }} · {{ shop.item_count }} przedmiotów{% if shop.is_premium %} · premium{% endif %}</small>
+        </div>
+      </a>
+    {% else %}
+      <p class="muted">Nikt aktualnie nie prowadzi straganu.</p>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="{{ url_for('static', filename='js/economy.js') }}"></script>
+<script src="{{ url_for('static', filename='js/shops.js') }}"></script>
 {% endblock %}

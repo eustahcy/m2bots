@@ -1,5 +1,23 @@
 # Changelog
 
+## 17.09.2026 · 1.6.0
+- Nowy wygląd całego panelu w stylu „Control Center”: pasek boczny z ikonami i aktywną pozycją jako wypełniona pigułka, karta serwera u dołu (stan, boty w świecie, czas działania liczony od startu rdzeni gry), górny pasek z wyszukiwarką postaci (Ctrl+K), przełącznikiem jasny/ciemny, powiadomieniami ze świata, skrótem do Zarządzania i zegarem.
+- Pulpit przebudowany: baner powitalny, pięć kafelków z liczbami (z trendem Yang z ostatniej doby i wykresikiem obecności botów), mapa na żywo obok stanu serwera i pierścieni obciążenia hosta, Top 5, ostatnie logowania, karuzela rankingów, boty/stragany według map, wykres aktywności z 24 godzin (logowania, boty w świecie, sprzedaże) i lista ostatnich zdarzeń.
+- Karuzela rankingów sama przewija się co 8 sekund; kliknięcie strzałki lub kropki zaczyna odliczanie od nowa. Kafelek „Boty według map” co 8 sekund przełącza się na „Stragany według map”.
+- Nowy ranking „Skuteczność ulepszeń” (procent udanych, minimum 20 prób) — w Rankingach i w karuzeli. Porażka liczona jako `REMOVE (REFINE FAIL)`, bo tak silnik ją zapisuje.
+- Nowy przełącznik w Zarządzaniu → Wygląd i dostęp: rankingi i karuzela mogą liczyć także prawdziwych graczy. Domyślnie wyłączony; postacie testowe instalatora nigdy nie trafiają do rankingu.
+- „Yang w obiegu” nie liczy już kont testowych instalatora (Admin, AdminNinja, AdminSura, AdminSzaman — razem 2 mld Yang).
+- Ranking „Przedmiot +9” liczy tylko przedmioty noszone i w plecaku. W magazynie `owner_id` to numer konta, więc cudzy przedmiot trafiał do postaci o tym samym numerze.
+- Profil postaci: znaczniki z czasem gry, ostatnim logowaniem, Smoczymi Monetami, małżeństwem i gildią; osiągnięcia z dziennika (Metiny, bossy, zgony, PvP, ulepszenia udane i spalone, skuteczność); umiejętności jako ikony z rangą i podpowiedzią, plus umiejętności pasywne. Ikony umiejętności są teraz serwowane przez Tuike, a nie z adresu 127.0.0.1:7788, który w przeglądarce operatora wskazywał jego własny komputer.
+- Profil postaci: sekcja „Sklep offline” (towar, ceny, mapa i współrzędne straganu) z przyciskiem „Teleportuj moją postać do sklepu”, działającym także, gdy właściciel jest offline.
+- Profil postaci: „Historia ekwipunku” zamiast surowego logu — założone, ulepszone, spalone, wzmocnienia i zaczarowania, sprzedaże, magazyn — z nazwami przedmiotów. Surowy log zostaje pod rozwijanym przyciskiem.
+- Profil postaci: „Dziennik rdzenia na żywo” — linie z syslogu kanałów gry o tej postaci, uruchamiane same, dopisywane zamiast podmieniane, kolorowane, z pauzą i kopiowaniem.
+- Magazyn ma strony I/II/III jak w grze, a przedmioty zajmują tyle pól w pionie, ile w grze. Wcześniej przedmiot ze strony II rysował się na przedmiocie ze strony I.
+- Księga Umiejętności pokazuje, jakiej umiejętności uczy, zamiast doklejać do podpowiedzi bonusy przypadkowego przedmiotu.
+- Stragany: kafelek „Transakcji łącznie” (z liczbą z ostatnich 24 h), wykres tempa sprzedaży z trendem średniej ceny, stragany według map, ostatnie sprzedaże na żywo i tabela ksiąg umiejętności (na ladach teraz i sprzedane w 7 dni).
+- Nowe mapy: Las, Czerwony Las i Wieża Demonów (historia map i mapy cieplne; bez mapy na żywo, bo nie ma ich grafik).
+- Naprawiono wydarzenia ze świata (lista na pulpicie i dzwonek): z ostatnich 12 godzin zostawał najstarszy fragment zamiast najnowszego.
+
 ## 14.09.2026 · 1.5.0
 - Zakładka Zarządzanie przebudowana: jeden długi scroll zamieniony na sześć zakładek (Świat i restart, Aktualizacje, Zachowanie botów, Narzędzia, Wygląd i dostęp, Populacja), przełączanych bez przeładowania strony. Stare zakładki w przeglądarce (`/manage#behavior` itp.) nadal działają.
 - Sekcja "Zachowanie botów" rozbita na czytelne podsekcje (Gospodarka straganów, Społeczne i widoczność, Nauka, Eventy) zamiast jednego gęstego gridu ~18 kontrolek.

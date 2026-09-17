@@ -1,25 +1,29 @@
-/* Inventory pages and the safebox tab on a character profile. */
+/* Inventory and safebox pages, and the switch between them, on a character
+ * profile. Each storage window pages on its own: turning the backpack to
+ * page II must not hide the safebox's page I. */
 (() => {
-  const pageButtons = [...document.querySelectorAll('.inventory-pages button')];
-  const slots = [...document.querySelectorAll('.grid-slot[data-page]')];
+  document.querySelectorAll('[data-storage-pane]').forEach((pane) => {
+    const pageButtons = [...pane.querySelectorAll('.inventory-pages button')];
+    const slots = [...pane.querySelectorAll('.grid-slot[data-page]')];
 
-  function showPage(page) {
+    function showPage(page) {
+      pageButtons.forEach((button) => {
+        const active = button.dataset.page === String(page);
+        button.classList.toggle('active', active);
+        // Pages 1 and 2 use the client's own button art, swapped between its
+        // active and inactive state; later pages fall back to a plain label
+        // and have nothing to swap.
+        const image = button.querySelector('img');
+        if (image) image.src = active ? image.dataset.active : image.dataset.inactive;
+      });
+      slots.forEach((slot) => { slot.hidden = slot.dataset.page !== String(page); });
+    }
+
     pageButtons.forEach((button) => {
-      const active = button.dataset.page === String(page);
-      button.classList.toggle('active', active);
-      // Pages 1 and 2 use the client's own button art, swapped between its
-      // active and inactive state; later pages fall back to a plain label
-      // and have nothing to swap.
-      const image = button.querySelector('img');
-      if (image) image.src = active ? image.dataset.active : image.dataset.inactive;
+      button.addEventListener('click', () => showPage(Number(button.dataset.page)));
     });
-    slots.forEach((slot) => { slot.hidden = slot.dataset.page !== String(page); });
-  }
-
-  pageButtons.forEach((button) => {
-    button.addEventListener('click', () => showPage(Number(button.dataset.page)));
+    showPage(0);
   });
-  if (pageButtons.length) showPage(0);
 
   const tabs = [...document.querySelectorAll('.storage .tabs button')];
   const panes = {

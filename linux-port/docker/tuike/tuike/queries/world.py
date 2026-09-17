@@ -1,16 +1,19 @@
 """The world as a whole: totals, the news ticker, the season and the heat maps."""
 import re
 import time
+from datetime import datetime, timedelta
+from pathlib import Path
 
 import pymysql
 
-from .. import config, db, engine, live
+from .. import cache, config, db, engine, live
 from ..gamedata import characters as chardata
 from ..gamedata.maps import MAP_BOUNDS, TRACKED_MAP_OPTIONS, map_at, map_name
 from ..text import game_text, hex_text
 
-# Characters the world totals should not count as wealth.
-EXCLUDED_FROM_YANG = ("[SA]Admin", "Test")
+# Characters the world totals should not count as wealth: the installer's test
+# accounts alone carry two billion Yang nobody earned.
+EXCLUDED_FROM_YANG = engine.SEEDED_CHARACTERS
 
 
 def totals():
@@ -107,7 +110,9 @@ def news_events():
             "message": message,
             "refine_tier": tier,
         })
-    return list(reversed(events[-NEWS_KEEP:]))
+    # Rows arrive newest first. Keep the newest NEWS_KEEP and hand them back in
+    # the order they happened; slicing from the end kept the oldest instead.
+    return list(reversed(events[:NEWS_KEEP]))
 
 
 # --- the season -------------------------------------------------------------
@@ -293,13 +298,157 @@ def server_status():
     else:
         state, label = "down", "Serwer nie odpowiada"
     value = {"state": state, "label": label, "auth": auth, "world": world,
-             "bots": len(live.statuses())}
+             "bots": len(live.statuses()), "started_at": core_started_at()}
     _status_cache.update(at=now, value=value)
     return dict(value)
 
 
+def core_started_at():
+    """When the running game cores started, as a Unix time, or 0.
+
+    Each core writes its pid file once, at start, and never again - so the
+    newest one is when the world last came up, whoever restarted it. The rate
+    spool only knows about restarts this panel queued itself.
+    """
+    stamps = []
+    for path in Path("/").glob(config.CORE_PID_GLOB.lstrip("/")):
+        try:
+            stamps.append(path.stat().st_mtime)
+        except OSError:
+            continue
+    return int(max(stamps)) if stamps else 0
+
+
+# --- the dashboard ------------------------------------------------------------
+ACTIVITY_HOURS = 24
+RECENT_LOGINS = 6
+
+
+def _hour_labels(hours=ACTIVITY_HOURS):
+    """The last `hours` whole hours, oldest first, as 'HH:00' keyed by the hour."""
+    now = datetime.now().replace(minute=0, second=0, microsecond=0)
+    return [now - timedelta(hours=offset) for offset in range(hours - 1, -1, -1)]
+
+
+def _per_hour(rows, slots, value="value"):
+    found = {str(row.get("hour")): float(row.get(value) or 0) for row in rows}
+    return [round(found.get(slot.strftime("%Y-%m-%d %H"), 0), 1) for slot in slots]
+
+
+@cache.ttl(240)
+def activity():
+    """A day of logins, bots in the world and stall sales, hour by hour.
+
+    Every source here is cheap on purpose: loginlog is indexed on time, the
+    bot count comes from the collector's own map snapshots, and the trade log
+    is bounded by a one-day window. log.log is not asked - it has no time
+    index, and a per-hour count of drops over it would scan the whole table.
+    """
+    slots = _hour_labels()
+    hour = "DATE_FORMAT({column}, '%%Y-%%m-%%d %%H')"
+    logins, bots, sales = [], [], []
+    try:
+        logins = db.rows(
+            f"""SELECT {hour.format(column='time')} AS hour, COUNT(*) AS value
+                FROM log.loginlog
+                WHERE type = 'LOGIN' AND time >= NOW() - INTERVAL {ACTIVITY_HOURS} HOUR
+                GROUP BY hour""")
+    except pymysql.MySQLError:
+        pass
+    try:
+        # One snapshot is a sum over maps; an hour holds up to twelve of them,
+        # and their average is how many bots that hour really had.
+        bots = db.rows(
+            f"""SELECT hour, AVG(total) AS value FROM (
+                  SELECT {hour.format(column='captured_at')} AS hour, captured_at,
+                         SUM(character_count) AS total
+                  FROM {config.MAP_SNAPSHOT_TABLE}
+                  WHERE captured_at >= NOW() - INTERVAL {ACTIVITY_HOURS} HOUR
+                  GROUP BY captured_at) AS snapshots
+                GROUP BY hour""")
+    except pymysql.MySQLError:
+        pass
+    try:
+        sales = db.rows(
+            f"""SELECT {hour.format(column='time')} AS hour, COUNT(*) AS value
+                FROM log.ikarusshop_log
+                WHERE what = 'BUY_ITEM' AND time >= NOW() - INTERVAL {ACTIVITY_HOURS} HOUR
+                GROUP BY hour""")
+    except pymysql.MySQLError:
+        pass
+    return {
+        "labels": [slot.strftime("%H:00") for slot in slots],
+        "logins": _per_hour(logins, slots),
+        "bots": _per_hour(bots, slots),
+        "sales": _per_hour(sales, slots),
+    }
+
+
+def recent_logins(limit=RECENT_LOGINS):
+    """The newest logins, bots and players alike, marked which is which."""
+    try:
+        rows = db.rows(
+            f"""SELECT l.time, p.id, p.name, p.level, p.job,
+                  {engine.BOT_IS} AS is_bot
+                FROM log.loginlog l JOIN player.player p ON p.id = l.pid
+                WHERE l.type = 'LOGIN'
+                ORDER BY l.time DESC LIMIT {int(limit)}""")
+    except pymysql.MySQLError:
+        return []
+    for row in rows:
+        row["name"] = game_text(row.get("name"))
+        row["is_bot"] = bool(row.get("is_bot"))
+    return rows
+
+
+def yang_change():
+    """Yang in circulation now against the collector's reading a day ago.
+
+    Returns (series, percent). The series is the last day in collector
+    samples, for the sparkline; the percent is None until a day of history
+    exists, rather than a made-up zero.
+    """
+    try:
+        series = db.rows(
+            f"""SELECT value FROM {config.METRIC_SNAPSHOT_TABLE}
+                WHERE metric = 'total_yang' AND captured_at >= NOW() - INTERVAL 1 DAY
+                ORDER BY captured_at""")
+    except pymysql.MySQLError:
+        return [], None
+    values = [int(row.get("value") or 0) for row in series]
+    if len(values) < 2 or not values[0]:
+        return values, None
+    return values, round((values[-1] - values[0]) * 100 / values[0], 1)
+
+
+def bot_presence():
+    """Bots in the world across the last day, one reading per collector pass."""
+    try:
+        rows = db.rows(
+            f"""SELECT SUM(character_count) AS total FROM {config.MAP_SNAPSHOT_TABLE}
+                WHERE captured_at >= NOW() - INTERVAL 1 DAY
+                GROUP BY captured_at ORDER BY captured_at""")
+    except pymysql.MySQLError:
+        return []
+    return [int(row.get("total") or 0) for row in rows]
+
+
+def shops_by_map():
+    """Open stalls per map, busiest first - they only stand in the villages."""
+    try:
+        rows = db.rows(
+            "SELECT map AS map_index, COUNT(*) AS shop_count"
+            " FROM player.ikashop_offlineshop GROUP BY map ORDER BY shop_count DESC")
+    except pymysql.MySQLError:
+        return []
+    for row in rows:
+        row["name"] = map_name(row["map_index"])
+    return rows
+
+
 __all__ = [
     "totals", "bot_count", "news_events", "season", "map_history", "current_map_load",
-    "heat_events", "telemetry", "telemetry_now", "named_map_load",
+    "heat_events", "telemetry", "telemetry_now", "named_map_load", "server_status",
+    "core_started_at", "activity", "recent_logins", "yang_change", "bot_presence", "shops_by_map",
     "HEAT_TYPES", "HEAT_LABELS", "MAP_BOUNDS",
 ]

@@ -159,6 +159,32 @@ def parse_skills(raw, job, group):
     return result
 
 
+# Skills outside the class tree: horse riding and the ability-book skills. The
+# level byte is a plain number there (a horse level, a summon percentage), not
+# the M/G/P grading parse_skills works out for combat skills.
+PASSIVE_SKILLS = {
+    121: "Dowodzenie", 122: "Combo", 124: "Górnictwo", 125: "Kowalstwo",
+    126: "Język Shinsoo", 127: "Język Chunjo", 128: "Język Jinno", 129: "Polimorfia",
+    130: "Poziom konia", 131: "Przywołanie konia",
+}
+
+
+def parse_passive_skills(raw):
+    """The passive skills a character has any level in."""
+    if isinstance(raw, memoryview):
+        raw = raw.tobytes()
+    if isinstance(raw, str):
+        raw = raw.encode("latin1", "ignore")
+    raw = raw or b""
+    result = []
+    for vnum, name in PASSIVE_SKILLS.items():
+        offset = vnum * SKILL_STRIDE + 1
+        level = raw[offset] if offset < len(raw) else 0
+        if level:
+            result.append({"vnum": vnum, "name": name, "level": level})
+    return result
+
+
 def best_skill(skills):
     """The skill a ranking should judge a character by."""
     return max(skills, key=lambda skill: (skill_tier(skill["rank"]), skill["level"]), default=None)

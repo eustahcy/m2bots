@@ -1,10 +1,11 @@
-﻿{% extends 'base.html' %}
+{% extends 'base.html' %}
 {% from 'partials/macros.html' import page_head, character_link, empire_badge, exp_meter, empty_row with context %}
 {% block title %}Rankingi{% endblock %}
 
 {% block content %}
-{{ page_head('RYWALIZACJA', 'Rankingi botów',
-             'Dane pochodzą bezpośrednio z postaci, wyposażenia i questów Playerbots.') }}
+{{ page_head('RYWALIZACJA', 'Rankingi graczy i botów' if includes_players else 'Rankingi botów',
+             'Dane pochodzą bezpośrednio z postaci, wyposażenia i questów Playerbots.'
+             ~ (' Prawdziwi gracze są liczeni razem z botami - przełącznik w Zarządzaniu.' if includes_players else '')) }}
 
 <nav class="tabs tabs-wrap" aria-label="Rodzaj rankingu">
   {% for key, label in kinds.items() %}
@@ -27,7 +28,7 @@
   <h2>{{ kinds[kind] }}</h2>
   <table class="ranking-table">
     <thead>
-      <tr><th class="numeric">#</th><th>Bot</th><th>Klasa</th><th>Poziom</th>
+      <tr><th class="numeric">#</th><th>Postać</th><th>Klasa</th><th>Poziom</th>
           <th>EXP</th>{% if kind != 'level' %}<th>Wynik</th>{% endif %}</tr>
     </thead>
     <tbody>

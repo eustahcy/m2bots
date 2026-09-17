@@ -27,7 +27,11 @@ def index():
 @bp.route("/economy/shops")
 @login_required
 def shops():
-    return render_template("economy/shops.html", shops=queries.active_shops(queries.SHOPS_LIMIT))
+    return render_template("economy/shops.html",
+                           shops=queries.active_shops(queries.SHOPS_LIMIT),
+                           overview=queries.market_overview(),
+                           totals=queries.trade_totals(),
+                           books=queries.skill_books())
 
 
 @bp.route("/economy/shop/<int:owner_id>")

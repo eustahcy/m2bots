@@ -32,6 +32,10 @@ def profile(pid):
         "characters/profile.html",
         character=character,
         logs=queries.recent_logs(pid),
+        gear_history=queries.gear_history(pid),
+        stats=queries.stat_summary(pid),
+        ties=queries.ties(pid),
+        offline_shop=queries.offline_shop(pid),
         layout=EQUIPMENT_LAYOUT,
         page_size=INVENTORY_PAGE_SIZE,
         columns=INVENTORY_COLUMNS,
@@ -82,6 +86,28 @@ def warp_me(pid):
         abort(404)
     try:
         name = commands.warp_operator_to(character["x"], character["y"])
+        return {"ok": True, "name": name}
+    except commands.CommandError as error:
+        return {"ok": False, "error": str(error)}
+    except Exception:
+        return {"ok": False, "error": "Nie udało się połączyć z bazą lub kolejką gry."}
+
+
+@bp.post("/player/<int:pid>/warp-shop")
+@login_required
+def warp_shop(pid):
+    """Teleport the operator's character to this character's stall.
+
+    The stall's own coordinates, not the owner's: IkarusShop keeps a stall
+    open after its owner logs off or wanders away, and the stall is where the
+    operator wants to stand.
+    """
+    require_csrf()
+    shop = queries.offline_shop(pid)
+    if not shop:
+        return {"ok": False, "error": "Ta postać nie ma otwartego straganu."}
+    try:
+        name = commands.warp_operator_to(shop["x"], shop["y"])
         return {"ok": True, "name": name}
     except commands.CommandError as error:
         return {"ok": False, "error": str(error)}

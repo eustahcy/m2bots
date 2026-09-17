@@ -1,6 +1,42 @@
-﻿{% extends 'base.html' %}
+{% extends 'base.html' %}
 {% from 'partials/macros.html' import empire_badge, item_tooltip, item_image with context %}
+{% from 'partials/icons.html' import icon %}
 {% block title %}{{ character.name }}{% endblock %}
+
+{# One storage window: its page tabs and its grid. The backpack and the safebox
+   are both paged in fives-by-nines, so they share this. #}
+{% macro storage_grid(entries, pages, empty_text, extra_class='') %}
+  {% if pages > 1 %}
+    <div class="inventory-pages" role="tablist">
+      {% for page in range(pages) %}
+        {% set active_src = url_for('static', filename='inventory-ui/page-' ~ (page + 1) ~ '-active.png') %}
+        {% set inactive_src = url_for('static', filename='inventory-ui/page-' ~ (page + 1) ~ '-inactive.png') %}
+        <button type="button" class="page-tab {{ 'active' if loop.first }}"
+                data-page="{{ page }}" role="tab" aria-label="Strona {{ page + 1 }}">
+          {% if page < 2 %}
+            <img src="{{ active_src if loop.first else inactive_src }}"
+                 data-active="{{ active_src }}" data-inactive="{{ inactive_src }}" alt="">
+          {% else %}
+            <span>{{ ['I', 'II', 'III', 'IV'][page] if page < 4 else page + 1 }}</span>
+          {% endif %}
+        </button>
+      {% endfor %}
+    </div>
+  {% endif %}
+  <div class="grid-storage {{ extra_class }}" style="--columns:{{ columns }}">
+    {% for entry in entries %}
+      <div class="grid-slot size-{{ entry.item_size }}" data-page="{{ entry.page }}"
+           style="grid-column-start:{{ entry.grid_column + 1 }};grid-row:{{ entry.grid_row + 1 }} / span {{ entry.item_size }}"
+           {% if entry.page != 0 %}hidden{% endif %}>
+        <span class="slot-face">{{ item_image(entry) }}</span>
+        {% if entry.count > 1 %}<b class="count">{{ entry.count }}</b>{% endif %}
+        {{ item_tooltip(entry) }}
+      </div>
+    {% else %}
+      <p class="muted">{{ empty_text }}</p>
+    {% endfor %}
+  </div>
+{% endmacro %}
 
 {% block content %}
 <a class="back" href="{{ url_for('characters.roster') }}">← Powrót do postaci</a>
@@ -24,6 +60,17 @@
     <span class="tag honour {{ character.honour.css }}">{{ character.honour.title }}</span>
   </div>
 </header>
+
+<ul class="badge-row" aria-label="Znaczniki postaci">
+  <li>{{ icon('clock', 16) }}<span>Czas gry</span><b>{{ hours(character.playtime) }} h {{ (character.playtime or 0) % 60 }} min</b></li>
+  <li>{{ icon('login', 16) }}<span>Ostatnie logowanie</span>
+    <b>{{ character.last_play.strftime('%d.%m.%Y %H:%M') if character.last_play and character.last_play.strftime else 'brak danych' }}</b></li>
+  <li class="tone-amber">{{ icon('coins', 16) }}<span>Smocze Monety</span><b>{{ thousands(character.cash) }}</b></li>
+  <li class="tone-pink">{{ icon('sparkles', 16) }}<span>Małżeństwo</span>
+    <b>{% if ties.partner %}<a href="{{ url_for('characters.profile', pid=ties.partner.id) }}">{{ ties.partner.name }}</a>{% else %}wolny stan{% endif %}</b></li>
+  <li class="tone-violet">{{ icon('flag', 16) }}<span>Gildia</span>
+    <b>{% if ties.guild %}<a href="{{ url_for('guilds.detail', guild_id=ties.guild.id) }}">{{ ties.guild.name }}</a>{% if ties.guild.grade %} · {{ ties.guild.grade }}{% endif %}{% else %}bez gildii{% endif %}</b></li>
+</ul>
 
 <div class="profile-layout">
   <div class="profile-main">
@@ -60,6 +107,20 @@
       </dl>
     </section>
 
+    <section class="panel">
+      <h2>Osiągnięcia z dziennika</h2>
+      <div class="stat-cells stat-cells-wide">
+        <div><span>Metiny</span><b>{{ thousands(stats.metins) }}</b></div>
+        <div><span>Bossy</span><b>{{ thousands(stats.bosses) }}</b></div>
+        <div><span>Zgony od potworów</span><b>{{ thousands(stats.deaths) }}</b></div>
+        <div><span>PvP · wygrane / przegrane</span><b>{{ thousands(stats.pvp_kills) }} / {{ thousands(stats.pvp_deaths) }}</b></div>
+        <div><span>Ulepszenia udane</span><b class="ok">{{ thousands(stats.refined) }}</b></div>
+        <div><span>Spalone przy ulepszaniu</span><b class="warn">{{ thousands(stats.burned) }}</b></div>
+        <div><span>Skuteczność ulepszeń</span>
+          <b>{{ stats.refine_rate ~ '%' if stats.refine_rate is not none else '—' }}</b></div>
+      </div>
+    </section>
+
     <div class="split">
       <section class="panel">
         <h2>Statystyki</h2>
@@ -75,46 +136,115 @@
 
       <section class="panel">
         <h2>Umiejętności</h2>
-        <div class="skills">
+        <div class="skill-slots">
           {% for skill in character.skills %}
-            <div class="skill">
-              <img class="skill-icon" alt=""
-                   src="{{ tieru_url }}/static/skill_icons/{{ skill.vnum }}{{ skill.icon_suffix }}.png"
-                   onerror="this.remove()">
-              <span>{{ skill.name }}</span>
+            <div class="skill-slot" tabindex="0">
+              <img src="{{ url_for('static', filename='skill_icons/' ~ skill.vnum ~ skill.icon_suffix ~ '.png') }}"
+                   alt="{{ skill.name }}" onerror="this.remove()">
               <b class="rank rank-{{ skill.rank[0]|lower }}">{{ skill.rank }}</b>
+              <span class="skill-tip" role="tooltip"><b>{{ skill.name }}</b>Ranga: {{ skill.rank }}</span>
             </div>
           {% else %}
             <p class="muted">Postać nie wybrała jeszcze profesji.</p>
           {% endfor %}
         </div>
+        {% if character.passive_skills %}
+          <h3>Umiejętności pasywne</h3>
+          <ul class="passive-skills">
+            {% for skill in character.passive_skills %}
+              <li><span>{{ skill.name }}</span><b>{{ skill.level }}</b></li>
+            {% endfor %}
+          </ul>
+        {% endif %}
       </section>
     </div>
 
     {% include 'partials/actions.html' %}
 
-    <section class="panel">
-      <h2>Ostatnie zdarzenia</h2>
-      <div class="log-lines">
-        {% for line in logs %}
-          <div class="log-line">
-            <time>{{ line.time }}</time>
-            {% if line.label %}
-              <span class="log-event">
-                {% if line.vnum and item_icon(line.vnum) %}
-                  <img class="item-icon" src="{{ item_icon(line.vnum) }}" alt="">
-                {% endif %}
-                {{ line.label }}{% if line.vnum %} <span class="muted">VNUM {{ line.vnum }}</span>{% endif %}
-                {% if line.hint %} <span class="muted">· {{ line.hint }}</span>{% endif %}
-              </span>
-            {% else %}
-              <span>{{ line.type }} · {{ line.how }}{% if line.hint %} · {{ line.hint }}{% endif %}{% if line.what %} · {{ line.what }}{% endif %}</span>
-            {% endif %}
+    {% if offline_shop %}
+      <section class="panel" id="offline-shop">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">SKLEP OFFLINE</p>
+            <h2>{{ offline_shop.name }}{% if offline_shop.is_premium %} <span class="tag tag-live">premium</span>{% endif %}</h2>
+            <p class="muted">{{ map_name(offline_shop.map_index) }} · {{ offline_shop.x }}, {{ offline_shop.y }} ·
+              {{ offline_shop.offers|length }} ofert · wartość towaru {{ thousands(offline_shop.value) }} Yang</p>
           </div>
+          <div class="shop-warp">
+            <button type="button" class="warp-me-button" data-warp
+                    data-action="{{ url_for('characters.warp_shop', pid=character.id) }}"
+                    data-csrf="{{ csrf_token() }}" data-status="shop-warp-status">
+              {{ icon('compass', 18) }} Teleportuj moją postać do sklepu
+            </button>
+            <p class="warp-me-status" id="shop-warp-status" hidden></p>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Przedmiot</th><th class="numeric">Ilość</th><th class="numeric">Cena / szt.</th></tr></thead>
+            <tbody>
+              {% for offer in offline_shop.offers %}
+                <tr>
+                  <td class="item-cell">
+                    <a href="{{ url_for('economy.item', vnum=offer.vnum) }}">
+                      {% if item_icon(offer.vnum) %}<img class="item-icon" src="{{ item_icon(offer.vnum) }}" alt="" loading="lazy">{% endif %}{{ offer.item_name }}</a>
+                  </td>
+                  <td class="numeric">{{ offer.count }}</td>
+                  <td class="numeric">{{ thousands(offer.price) if offer.price else '—' }}</td>
+                </tr>
+              {% else %}
+                <tr><td colspan="3" class="muted empty">Stragan stoi, ale lada jest pusta.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    {% endif %}
+
+    <section class="panel">
+      <h2>Historia ekwipunku</h2>
+      <ol class="gear-history">
+        {% for entry in gear_history %}
+          <li class="kind-{{ entry.kind }}">
+            <i aria-hidden="true"></i>
+            <time>{{ entry.time.strftime('%d.%m %H:%M') if entry.time and entry.time.strftime else entry.time }}</time>
+            <span class="gear-label">{{ entry.label }}</span>
+            <span class="gear-item">
+              {% if entry.vnum and item_icon(entry.vnum) %}<img class="item-icon" src="{{ item_icon(entry.vnum) }}" alt="" loading="lazy">{% endif %}
+              {{ entry.item }}{% if entry.detail %} <span class="muted">{{ entry.detail }}</span>{% endif %}
+            </span>
+          </li>
         {% else %}
-          <p class="muted">Brak zapisanych zdarzeń w logu.</p>
+          <li class="muted">Dziennik nie zapisał jeszcze zmian w ekwipunku tej postaci.</li>
         {% endfor %}
+      </ol>
+      <details class="raw-log">
+        <summary>Surowy log gry ({{ logs|length }} wpisów)</summary>
+        <div class="log-lines">
+          {% for line in logs %}
+            <div class="log-line">
+              <time>{{ line.time }}</time>
+              <span>{{ line.type }} · {{ line.how }}{% if line.hint %} · {{ line.hint }}{% endif %}{% if line.what %} · {{ line.what }}{% endif %}</span>
+            </div>
+          {% else %}
+            <p class="muted">Brak zapisanych zdarzeń w logu.</p>
+          {% endfor %}
+        </div>
+      </details>
+    </section>
+
+    <section class="panel" id="core-log" data-url="{{ url_for('api.bot_logs', pid=character.id) }}">
+      <div class="panel-head">
+        <div>
+          <h2>Dziennik rdzenia <span class="live-badge"><span class="pulse"></span>NA ŻYWO</span></h2>
+          <p class="muted">Linie z syslogu kanałów gry, w których pada nazwa tej postaci. Odświeżane co 4 sekundy.</p>
+        </div>
+        <div class="core-log-actions">
+          <button type="button" class="ghost" id="core-log-pause">Wstrzymaj</button>
+          <button type="button" class="ghost" id="core-log-copy">{{ icon('copy', 16) }} Kopiuj</button>
+        </div>
       </div>
+      <pre class="core-log" id="core-log-lines" aria-live="off"><span class="muted">Łączenie z rdzeniem…</span></pre>
     </section>
   </div>
 
@@ -132,7 +262,7 @@
        own button art (static/inventory-ui), octagonal slot frames instead of
        plain rounded squares. #}
     <div class="game-panel">
-      <div id="storage-inventory">
+      <div id="storage-inventory" data-storage-pane>
         <div class="paperdoll">
           {% for slot in layout %}
             {% set worn = equipment.get(slot) %}
@@ -142,54 +272,12 @@
             </div>
           {% endfor %}
         </div>
-
-        {% if pages > 1 %}
-          <div class="inventory-pages" role="tablist">
-            {% for page in range(pages) %}
-              {% set active_src = url_for('static', filename='inventory-ui/page-' ~ (page + 1) ~ '-active.png') %}
-              {% set inactive_src = url_for('static', filename='inventory-ui/page-' ~ (page + 1) ~ '-inactive.png') %}
-              <button type="button" class="page-tab {{ 'active' if loop.first }}"
-                      data-page="{{ page }}" role="tab" aria-label="Strona {{ page + 1 }}">
-                {% if page < 2 %}
-                  <img src="{{ active_src if loop.first else inactive_src }}"
-                       data-active="{{ active_src }}" data-inactive="{{ inactive_src }}" alt="">
-                {% else %}
-                  <span>{{ page + 1 }}</span>
-                {% endif %}
-              </button>
-            {% endfor %}
-          </div>
-        {% endif %}
-
-        <div class="grid-storage" style="--columns:{{ columns }}">
-          {% for entry in inventory %}
-            <div class="grid-slot" data-page="{{ entry.page }}"
-                 style="grid-column-start:{{ entry.grid_column + 1 }};grid-row-start:{{ entry.grid_row + 1 }}"
-                 {% if entry.page != 0 %}hidden{% endif %}>
-              <span class="slot-face">{{ item_image(entry) }}</span>
-              {% if entry.count > 1 %}<b class="count">{{ entry.count }}</b>{% endif %}
-              {{ item_tooltip(entry) }}
-            </div>
-          {% else %}
-            <p class="muted">Plecak jest pusty.</p>
-          {% endfor %}
-        </div>
+        {{ storage_grid(inventory, pages, 'Plecak jest pusty.') }}
         <p class="storage-foot"><i class="coin" aria-hidden="true"></i>{{ thousands(character.gold) }} Yang</p>
       </div>
 
-      <div id="storage-safebox" hidden>
-        <div class="grid-storage" style="--columns:{{ columns }}">
-          {% for entry in safebox %}
-            <div class="grid-slot"
-                 style="grid-column-start:{{ entry.grid_column + 1 }};grid-row-start:{{ entry.grid_row + 1 }}">
-              <span class="slot-face">{{ item_image(entry) }}</span>
-              {% if entry.count > 1 %}<b class="count">{{ entry.count }}</b>{% endif %}
-              {{ item_tooltip(entry) }}
-            </div>
-          {% else %}
-            <p class="muted">Magazyn dozorcy jest pusty.</p>
-          {% endfor %}
-        </div>
+      <div id="storage-safebox" data-storage-pane hidden>
+        {{ storage_grid(safebox, safebox_pages, 'Magazyn dozorcy jest pusty.') }}
       </div>
     </div>
   </aside>
@@ -200,4 +288,5 @@
 <script src="{{ url_for('static', filename='js/storage.js') }}"></script>
 <script src="{{ url_for('static', filename='js/item-search.js') }}"></script>
 <script src="{{ url_for('static', filename='js/tools.js') }}"></script>
+<script src="{{ url_for('static', filename='js/profile.js') }}"></script>
 {% endblock %}

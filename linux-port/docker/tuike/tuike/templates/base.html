@@ -1,61 +1,79 @@
 <!doctype html>
-<html lang="pl" data-theme="{{ settings.theme }}" data-density="{{ settings.density }}">
+{% from 'partials/icons.html' import icon %}
+<html lang="pl" data-theme="{{ settings.theme }}" data-density="{{ settings.density }}"
+      data-server-theme="{{ settings.theme }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>{% block title %}{{ panel_brand }}{% endblock %} · {{ panel_codename }}</title>
   <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/tuike.css') }}">
+  {# The light/dark switch in the top bar is a per-browser choice laid over the
+     theme saved in Zarządzanie. It is applied here, before the stylesheet
+     paints anything, so a dark-mode operator never sees a white flash. #}
+  <script>
+    try {
+      var override = localStorage.getItem('tuike.theme.override');
+      if (override) document.documentElement.dataset.theme = override;
+    } catch (_) { /* storage blocked: the saved theme stands */ }
+  </script>
   {% block head %}{% endblock %}
 </head>
 <body>
 <a class="skip-link" href="#content">Przejdź do treści</a>
 
 <input type="checkbox" id="nav-toggle" class="nav-toggle" hidden>
-<header class="mobile-bar">
-  <label for="nav-toggle" class="nav-button" aria-label="Menu">☰</label>
-  <span class="mobile-brand">{{ panel_brand }}</span>
-</header>
+<label for="nav-toggle" class="nav-scrim" aria-hidden="true"></label>
 
 <aside class="sidebar">
   <a class="brand" href="{{ url_for('dashboard.index') }}">
-    <span class="brand-mark">{{ panel_codename[0] }}</span>
+    <span class="brand-mark" aria-hidden="true">
+      <svg viewBox="0 0 32 32" width="26" height="26" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linejoin="round">
+        <path d="M16 3 27 9.5v13L16 29 5 22.5v-13z"/>
+        <path d="M16 9.5 21.5 13v6L16 22.5 10.5 19v-6z" fill="currentColor" fill-opacity=".25"/>
+      </svg>
+    </span>
     <span class="brand-text">
       <b>{{ panel_brand }}</b>
-      <small>{{ panel_tagline }}</small>
-    </span>
-  </a>
-
-  <a class="server-status" id="server-status" href="{{ url_for('manage.index') }}"
-     title="Stan serwera gry">
-    <span class="status-dot" aria-hidden="true"></span>
-    <span class="server-status-text">
-      <b id="server-status-label">Sprawdzanie…</b>
-      <small id="server-status-note">stan serwera gry</small>
+      <small>Control Center</small>
     </span>
   </a>
 
   <nav aria-label="Nawigacja główna">
     {% for group, links in navigation %}
       <p class="nav-group">{{ group }}</p>
-      {% for endpoint, icon, label in links %}
+      {% for endpoint, icon_name, label in links %}
         <a href="{{ url_for(endpoint) }}"
            {% if request.endpoint == endpoint %}aria-current="page"{% endif %}>
-          <i aria-hidden="true">{{ icon }}</i>{{ label }}
+          {{ icon(icon_name, 19) }}<span>{{ label }}</span>
         </a>
       {% endfor %}
     {% endfor %}
 
     <p class="nav-group">Inne panele</p>
     <a href="{{ tieru_url }}" target="_blank" rel="noopener">
-      <i aria-hidden="true">↗</i>Panel klasyczny
+      {{ icon('external', 19) }}<span>Panel klasyczny</span>
     </a>
     {% if seban_url %}
       <a href="{{ seban_url }}" target="_blank" rel="noopener">
-        <i aria-hidden="true">↗</i>Seban Panel
+        {{ icon('external', 19) }}<span>Seban Panel</span>
       </a>
     {% endif %}
   </nav>
+
+  <a class="server-card" id="server-status" href="{{ url_for('manage.index') }}"
+     title="Stan serwera gry">
+    <span class="server-card-head">
+      <span class="status-dot" aria-hidden="true"></span>
+      <b id="server-status-label">Sprawdzanie…</b>
+    </span>
+    <span class="server-card-row">{{ icon('bot', 15) }}<span>Boty w świecie</span>
+      <b id="server-status-bots">—</b></span>
+    <span class="server-card-row">{{ icon('clock', 15) }}<span>Czas działania</span>
+      <b id="server-status-uptime">—</b></span>
+    <small id="server-status-note">stan serwera gry</small>
+  </a>
 
   <footer class="sidebar-foot">
     {% if settings.auth_enabled == '1' and is_admin %}
@@ -63,25 +81,74 @@
         <button class="ghost" type="submit">Wyloguj</button>
       </form>
     {% endif %}
-    <small>{{ panel_codename }} v{{ panel_version }}</small>
+    <small>{{ panel_codename }} v{{ panel_version }} · {{ panel_tagline }}</small>
   </footer>
 </aside>
 
-<main id="content">
-  {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-      <div class="flashes">
-        {% for category, message in messages %}
-          <p class="flash {{ category }}">{{ message }}</p>
-        {% endfor %}
-      </div>
-    {% endif %}
-  {% endwith %}
+<div class="shell">
+  <header class="topbar">
+    <label for="nav-toggle" class="icon-button nav-button" aria-label="Menu">{{ icon('menu') }}</label>
 
-  {% block content %}{% endblock %}
-</main>
+    <form class="topbar-search" action="{{ url_for('characters.roster') }}" method="get" role="search">
+      {{ icon('search', 18) }}
+      <input id="global-search" name="q" placeholder="Szukaj postaci lub bota…" autocomplete="off"
+             aria-label="Szukaj postaci">
+      <kbd>Ctrl K</kbd>
+    </form>
+
+    <div class="topbar-actions">
+      <button type="button" class="icon-button" id="theme-toggle"
+              aria-label="Przełącz jasny i ciemny wygląd" title="Jasny / ciemny">
+        <span class="when-dark">{{ icon('sun') }}</span>
+        <span class="when-light">{{ icon('moon') }}</span>
+      </button>
+
+      <div class="notify">
+        <button type="button" class="icon-button" id="notify-button" aria-expanded="false"
+                aria-controls="notify-menu" aria-label="Powiadomienia ze świata">
+          {{ icon('bell') }}<span class="notify-count" id="notify-count" hidden></span>
+        </button>
+        <div class="notify-menu" id="notify-menu" hidden>
+          <header><b>Ze świata</b><small>ostatnie 12 godzin</small></header>
+          <ol id="notify-list"><li class="muted">Ładowanie…</li></ol>
+        </div>
+      </div>
+
+      <a class="icon-button" href="{{ url_for('manage.index') }}" aria-label="Zarządzanie"
+         title="Zarządzanie">{{ icon('settings') }}</a>
+
+      <span class="topbar-user">
+        <span class="avatar" aria-hidden="true">OP</span>
+        <span class="topbar-user-text">
+          <b>Operator</b>
+          <small>{{ 'Administrator' if settings.auth_enabled == '1' else 'Dostęp lokalny' }}</small>
+        </span>
+      </span>
+
+      <span class="topbar-clock" aria-live="off">
+        <b id="clock-time">--:--</b>
+        <small id="clock-date"></small>
+      </span>
+    </div>
+  </header>
+
+  <main id="content">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flashes">
+          {% for category, message in messages %}
+            <p class="flash {{ category }}">{{ message }}</p>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </main>
+</div>
 
 <script src="{{ url_for('static', filename='js/status.js') }}"></script>
+<script src="{{ url_for('static', filename='js/shell.js') }}"></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

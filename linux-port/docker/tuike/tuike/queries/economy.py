@@ -10,9 +10,11 @@ a table of what is open right now), so there is nothing for a collector to
 snapshot - these read the source directly, bounded by LIMIT and a time window.
 """
 import json
+from datetime import datetime, timedelta
 
-from .. import config, db
+from .. import cache, config, db
 from ..gamedata import items as itemdata
+from ..gamedata.characters import SKILL_NAMES
 from ..text import game_text
 
 ITEM_LIST_LIMIT = 500
@@ -27,6 +29,8 @@ SHOPS_LIMIT = 300
 SHOP_ITEMS_LIMIT = 200
 ITEM_TRADE_LIMIT = 20
 ITEM_LISTING_LIMIT = 30
+# A plain Skill Book is one vnum whatever it teaches; see queries.characters.
+SKILL_BOOK_VNUMS = (50300,)
 
 
 def latest_capture():
@@ -297,3 +301,104 @@ def prototype(vnum):
         "SELECT vnum, locale_name, type, size FROM player.item_proto WHERE vnum = %s",
         (vnum,),
     )
+
+
+# --- the stalls page: totals, tempo, skill books ------------------------------
+# log.ikarusshop_log is indexed on its id and not on time. Every windowed query
+# below first narrows to the newest rows by id - a primary-key range - and only
+# then filters by time, so a day's window does not read the whole history.
+RECENT_TRADE_ROWS = 200000
+PULSE_HOURS = 24
+BOOK_SALES_DAYS = 7
+
+
+def _recent_rows():
+    return (f"l.id > (SELECT GREATEST(COALESCE(MAX(id), 0) - {RECENT_TRADE_ROWS}, 0)"
+            " FROM log.ikarusshop_log)")
+
+
+@cache.ttl(120)
+def trade_totals():
+    """Every stall sale ever logged, and the last day's share of them."""
+    row = db.one(
+        f"""SELECT COUNT(*) AS total,
+              (SELECT COUNT(*) FROM log.ikarusshop_log l
+                 WHERE {_recent_rows()} AND l.what = 'BUY_ITEM'
+                   AND l.time >= NOW() - INTERVAL 1 DAY) AS last_day
+            FROM log.ikarusshop_log WHERE what = 'BUY_ITEM'"""
+    )
+    return {"total": int(row.get("total") or 0), "last_day": int(row.get("last_day") or 0)}
+
+
+@cache.ttl(240)
+def sales_pulse():
+    """Sales per hour over a day, with the average price per unit sold.
+
+    The average is over everything sold that hour, so it moves with the mix
+    of goods as much as with prices - it says whether the market is buying
+    cheap or dear, not what one item costs.
+    """
+    rows = db.rows(
+        f"""SELECT DATE_FORMAT(l.time, '%%Y-%%m-%%d %%H') AS hour, COUNT(*) AS sales,
+              ROUND(SUM(l.yang) / GREATEST(SUM(l.count), 1)) AS avg_price
+            FROM log.ikarusshop_log l
+            WHERE {_recent_rows()} AND l.what = 'BUY_ITEM'
+              AND l.time >= NOW() - INTERVAL {PULSE_HOURS} HOUR
+            GROUP BY hour ORDER BY hour"""
+    )
+    by_hour = {str(row["hour"]): row for row in rows}
+    now = datetime.now().replace(minute=0, second=0, microsecond=0)
+    slots = [now - timedelta(hours=offset) for offset in range(PULSE_HOURS - 1, -1, -1)]
+    pulse = {"labels": [], "sales": [], "avg_price": []}
+    for slot in slots:
+        row = by_hour.get(slot.strftime("%Y-%m-%d %H"), {})
+        pulse["labels"].append(slot.strftime("%H:00"))
+        pulse["sales"].append(int(row.get("sales") or 0))
+        pulse["avg_price"].append(int(row.get("avg_price") or 0) or None)
+    return pulse
+
+
+@cache.ttl(300)
+def skill_books():
+    """Which skills are on sale as books right now, and which have sold.
+
+    A plain Skill Book is always vnum 50300; the skill it teaches is socket0.
+    Offers still carry their item row. A sold book keeps its row only until
+    the buyer reads it, so the sold column counts the books still readable -
+    a floor, and labelled as one on the page.
+    """
+    listed = db.rows(
+        f"""SELECT i.socket0 AS skill, COUNT(*) AS offers, SUM(i.count) AS units, i.ikashop_data
+            FROM player.item i
+            WHERE i.window = 'IKASHOP_OFFLINESHOP' AND i.vnum IN ({",".join(str(v) for v in SKILL_BOOK_VNUMS)})
+            GROUP BY i.socket0, i.ikashop_data"""
+    )
+    sold = db.rows(
+        f"""SELECT i.socket0 AS skill, COUNT(*) AS sales, ROUND(AVG(l.yang / GREATEST(l.count, 1))) AS avg_price
+            FROM log.ikarusshop_log l JOIN player.item i ON i.id = l.itemid
+            WHERE {_recent_rows()} AND l.what = 'BUY_ITEM'
+              AND l.vnum IN ({",".join(str(v) for v in SKILL_BOOK_VNUMS)})
+              AND l.time >= NOW() - INTERVAL {BOOK_SALES_DAYS} DAY
+            GROUP BY i.socket0"""
+    )
+    books = {}
+
+    def entry(skill):
+        skill = int(skill or 0)
+        return books.setdefault(skill, {
+            "skill": skill, "name": SKILL_NAMES.get(skill, f"Umiejętność #{skill}"),
+            "offers": 0, "cheapest": None, "sales": 0, "avg_price": None,
+        })
+
+    for row in listed:
+        book = entry(row.get("skill"))
+        book["offers"] += int(row.get("units") or row.get("offers") or 0)
+        price = _shop_price(row.get("ikashop_data"))
+        if price and (book["cheapest"] is None or int(price) < book["cheapest"]):
+            book["cheapest"] = int(price)
+    for row in sold:
+        book = entry(row.get("skill"))
+        book["sales"] = int(row.get("sales") or 0)
+        book["avg_price"] = int(row.get("avg_price") or 0) or None
+    return sorted((book for book in books.values() if book["skill"]),
+                  key=lambda book: (book["sales"], book["offers"]), reverse=True)

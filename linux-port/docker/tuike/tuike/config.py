@@ -78,6 +78,10 @@ GAME_HOST = _env("PLAYERBOTS_GAME_HOST") or "metin2-game"
 GAME_LOGIN_PORT = _int("PLAYERBOTS_LOGIN_PORT", 11000)
 GAME_WORLD_PORT = _int("PLAYERBOTS_WORLD_PORT", 13000)
 STATUS_GLOB = _env("PLAYERBOTS_STATUS_GLOB") or "/opt/metin2/var/channel1/*/playerbot_status.tsv"
+# The cores' own syslogs, for the live log on a character's page, and the pid
+# files each core writes once as it starts - the honest source for uptime.
+SYSLOG_GLOB = _env("PLAYERBOTS_SYSLOG_GLOB") or "/opt/metin2/var/channel1/*/syslog"
+CORE_PID_GLOB = _env("PLAYERBOTS_CORE_PID_GLOB") or "/opt/metin2/var/channel1/*/pid"
 # A status file older than this is a core that stopped writing, not a world
 # standing still.
 STATUS_MAX_AGE_SECONDS = 25

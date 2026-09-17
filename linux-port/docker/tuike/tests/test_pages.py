@@ -104,6 +104,19 @@ ROUTES = [
      [{"vnum": 189, "sales": 5, "units": 10, "turnover": 50000, "avg_price": 5000,
        "item_name": b"Miecz Wojownika"}]),
     ("COUNT(*) FROM player.ikashop_offlineshop", [{"count": 4}]),
+    # The stall on a character's own page, and stalls counted per map.
+    ("SELECT map, x, y, name, is_premium FROM player.ikashop_offlineshop WHERE owner",
+     [{"map": 21, "x": 60000, "y": 160000, "name": "Kramik Testowy", "is_premium": 0}]),
+    ("SELECT map AS map_index, COUNT(*) AS shop_count", [{"map_index": 21, "shop_count": 353}]),
+    ("SELECT i.id, i.vnum, i.count, i.pos, i.socket0, i.ikashop_data",
+     [{"id": 21, "vnum": 50300, "count": 1, "pos": 0, "socket0": 94,
+       "ikashop_data": '{"yang": 57150}', "item_name": b"Ksi\xeaga Umiej\xeatno\x9cci"}]),
+    # Skill books on the stalls page: offers now, and sales still readable.
+    ("SELECT i.socket0 AS skill, COUNT(*) AS offers",
+     [{"skill": 94, "offers": 3, "units": 3, "ikashop_data": '{"yang": 50000}'}]),
+    ("SELECT i.socket0 AS skill, COUNT(*) AS sales", [{"skill": 94, "sales": 4, "avg_price": 55000}]),
+    ("SELECT COUNT(*) AS total", [{"total": 205000, "last_day": 30000}]),
+    ("COUNT(*) AS sales, ROUND(SUM(l.yang)", [{"hour": NOW.strftime("%Y-%m-%d %H"), "sales": 12, "avg_price": 4200}]),
     ("COUNT(*) FROM player.item WHERE window = 'IKASHOP_OFFLINESHOP'", [{"count": 42}]),
     ("FROM log.ikarusshop_log WHERE what = 'BUY_ITEM' AND time",
      [{"count": 12, "yang": 250000}]),
@@ -114,6 +127,22 @@ ROUTES = [
                                       "name": "botarek7", "level": 42, "job": 2,
                                       "map_index": 23, "playtime": 100}]),
     ("FROM player.guild g", [dict(GUILD)]),
+    # The dashboard's day of activity and its recent logins.
+    ("FROM log.loginlog l JOIN player.player p", [{"time": NOW, "id": 7, "name": "botarek7",
+                                                    "level": 42, "job": 2, "is_bot": 1}]),
+    ("FROM log.loginlog", [{"hour": NOW.strftime("%Y-%m-%d %H"), "value": 17}]),
+    ("FROM log.ikarusshop_log l WHERE", [{"hour": NOW.strftime("%Y-%m-%d %H"), "value": 9}]),
+    # A character's ties, lifetime tallies and equipment history.
+    ("FROM player.marriage m", [{"id": 8, "name": "botarek8"}]),
+    ("SUM(how = 'BOSS_KILL') AS bosses", [{"bosses": 1, "metins": 40, "deaths": 3, "pvp_deaths": 0,
+                                          "refined": 314, "burned": 62}]),
+    ("HEX(proto.locale_name) AS name_hex", [
+        {"time": NOW, "how": b"PLAYERBOT_EQUIP", "hint": b"slot 4 zamiast 189", "vnum": 190,
+         "socket0": 0, "name_hex": "4D6965637A"},
+        {"time": NOW, "how": b"PLAYERBOT_STALL_SOLD", "hint": b"50300 x1 za 57150", "vnum": 50300,
+         "socket0": 94, "name_hex": "4B7369EA6761"},
+        {"time": NOW, "how": b"REMOVE (REFINE FAIL)", "hint": b"", "vnum": 199,
+         "socket0": 0, "name_hex": ""}]),
     ("FROM log.log l", [{"time": NOW, "how": b"STONE_KILL", "hint": b"+7", "hint_hex": "2B37",
                          "what": b"", "who": 7, "name": "botarek7",
                          "item_name_hex": "4D6965637A", "x": 110000, "y": 210000,
@@ -259,6 +288,8 @@ PAGES = [
     ("/api/heat-events?type=nope", 400),
     ("/api/status", 200), ("/api/items?q=miecz", 200), ("/api/items?q=189", 200),
     ("/api/economy", 200), ("/api/economy/market", 200),
+    ("/api/bot-logs/7", 200), ("/api/bot-logs/999999", 404),
+    ("/api/dashboard", 200), ("/api/shops/pulse", 200),
     ("/player/999999", 404), ("/nie-ma-takiej-strony", 404),
 ]
 
@@ -284,7 +315,7 @@ def run():
     for path in ("/manage/settings", "/manage/behavior", "/manage/restart",
                  "/manage/restart-config", "/manage/clear-stale", "/manage/update",
                  "/manage/language", "/accounts",
-                 "/player/7/action", "/player/7/gm", "/player/7/warp-me"):
+                 "/player/7/action", "/player/7/gm", "/player/7/warp-me", "/player/7/warp-shop"):
         response = client.post(path, data={})
         if response.status_code != 403:
             failures.append((path, f"POST bez CSRF dal {response.status_code}, oczekiwano 403", ""))
@@ -299,7 +330,7 @@ def run():
         print(f"{path}  ->  {why}")
         print(detail)
     sys.exit(1)
-  print(f"Wszystkie {len(PAGES)} stron i 11 testow CSRF przeszlo.")
+  print(f"Wszystkie {len(PAGES)} stron i 12 testow CSRF przeszlo.")
 
 
 if __name__ == "__main__":

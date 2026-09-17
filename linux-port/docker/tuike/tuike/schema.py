@@ -14,6 +14,9 @@ DEFAULT_SETTINGS = {
     "theme": "midnight",
     "monitor_mode": "vps",
     "density": "comfortable",
+    # Rankings and the dashboard carousel count Playerbots only unless the
+    # operator opens them to real players too.
+    "rankings_include_players": "0",
     # A single-player suite needs no wizard and no passphrase - one player at
     # their own machine. An operator who publishes the panel turns auth on from
     # the settings page.

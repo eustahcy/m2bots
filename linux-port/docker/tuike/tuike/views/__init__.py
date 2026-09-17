@@ -6,28 +6,29 @@ adding a blueprint and one line here, and nothing in the templates changes.
 from . import (accounts, api, auth, characters, dashboard, economy, grants,
                guilds, manage, rankings, reference, system, world)
 
-# (endpoint, icon, label). A bare string is a separator between groups.
+# (group, ((endpoint, icon, label), ...)). The icon is a name from
+# templates/partials/icons.html.
 NAVIGATION = (
     ("Świat", (
-        ("dashboard.index", "◎", "Pulpit"),
-        ("characters.roster", "☗", "Postacie i boty"),
-        ("guilds.roster", "⚑", "Gildie"),
-        ("rankings.index", "♛", "Rankingi"),
-        ("world.maps", "⌖", "Aktywność map"),
-        ("world.season", "✦", "Sezon"),
+        ("dashboard.index", "dashboard", "Pulpit"),
+        ("characters.roster", "users", "Postacie i boty"),
+        ("guilds.roster", "flag", "Gildie"),
+        ("rankings.index", "trophy", "Rankingi"),
+        ("world.maps", "map", "Aktywność map"),
+        ("world.season", "sparkles", "Sezon"),
     )),
     ("Dane", (
-        ("economy.index", "◈", "Gospodarka"),
-        ("economy.shops", "🛒", "Stragany"),
-        ("economy.catalogue", "▦", "Baza przedmiotów"),
-        ("system.index", "▤", "Wydajność"),
+        ("economy.index", "coins", "Gospodarka"),
+        ("economy.shops", "store", "Stragany"),
+        ("economy.catalogue", "box", "Baza przedmiotów"),
+        ("system.index", "gauge", "Wydajność"),
     )),
     ("Administracja", (
-        ("manage.index", "⚙", "Zarządzanie"),
-        ("grants.index", "🎁", "Nadawanie przedmiotów"),
-        ("accounts.index", "☘", "Konta i GM"),
-        ("reference.gm_commands", "⌘", "Komendy GM"),
-        ("reference.changelog", "☷", "Changelog"),
+        ("manage.index", "settings", "Zarządzanie"),
+        ("grants.index", "gift", "Nadawanie przedmiotów"),
+        ("accounts.index", "key", "Konta i GM"),
+        ("reference.gm_commands", "terminal", "Komendy GM"),
+        ("reference.changelog", "list", "Changelog"),
     )),
 )
 

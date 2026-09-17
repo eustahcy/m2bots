@@ -14,6 +14,7 @@ MAP_NAMES = {
     61: "Góra Sohan", 63: "Pustynia Yongbi", 64: "Dolina Orków", 104: "Loch Pająków V1",
     65: "Świątynia Hwang", 71: "Loch Pająków V2",
     108: "Loch Małp Normalny", 109: "Loch Małp Trudny",
+    67: "Las", 68: "Czerwony Las", 66: "Wieża Demonów",
 }
 
 # (origin x, origin y, width, height) in world units. A bot's screen position is
@@ -30,6 +31,13 @@ MAP_BOUNDS = {
     64: (256000, 665600, 153600, 153600), 104: (51200, 486400, 76800, 76800),
     65: (537600, 51200, 102400, 102400), 71: (665600, 435200, 102400, 102400),
     108: (128000, 640000, 76800, 76800), 109: (128000, 716800, 76800, 76800),
+    # BasePosition and MapSize x 25600 from each map's own Setting.txt - the
+    # formula that reproduces Chunjo M1's (0, 102400, 102400, 128000) above.
+    # No picture ships for these three, so they are tracked (map history, the
+    # heat-map buckets) but never drawn; the Demon Tower is a private dungeon
+    # instance anyway, where live dots would mean nothing.
+    67: (281600, 0, 51200, 51200), 68: (1049600, 0, 76800, 76800),
+    66: (128000, 793600, 76800, 76800),
 }
 
 # A map is drawable only where there is a picture of it. Spider Dungeon V2

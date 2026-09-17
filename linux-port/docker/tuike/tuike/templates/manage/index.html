@@ -379,6 +379,9 @@
             <option value="{{ key }}" {{ 'selected' if settings.monitor_mode == key }}>{{ label }}</option>
           {% endfor %}
         </select></label>
+      <label class="switch"><span>Rankingi z graczami</span>
+        <input type="checkbox" name="rankings_include_players" value="1"
+               {{ 'checked' if settings.rankings_include_players == '1' }}><small>licz też prawdziwych graczy</small></label>
       <label class="switch"><span>Ochrona hasłem</span>
         <input type="checkbox" name="auth_enabled" value="1"
                {{ 'checked' if settings.auth_enabled == '1' }}><small>włącz</small></label>

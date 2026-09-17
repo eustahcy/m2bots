@@ -92,6 +92,7 @@ def validate_display(form):
         "theme": theme,
         "density": density,
         "monitor_mode": monitor_mode,
+        "rankings_include_players": "1" if form.get("rankings_include_players") == "1" else "0",
     }, None
 
 
