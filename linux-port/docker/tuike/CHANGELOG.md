@@ -5,6 +5,7 @@
 - Nowe kafelki tam, gdzie ich nie było: Postacie i boty (postacie, playerboty, gracze, w grze teraz), Gildie (gildie, członkowie, najwyższy poziom, punkty rangi), Rankingi (kategoria, lider, liczba sklasyfikowanych, kto się liczy), Aktywność map (postacie w świecie, mapy z ruchem, najbardziej zatłoczona), Baza przedmiotów (przedmioty, kategorie, pokazane), Konta (konta na liście, botów, graczy, ostatnie logowanie), Komendy GM i Changelog.
 - Zarządzanie: dotychczasowy wąski pasek stanu zastąpiony pięcioma kafelkami — stan serwera, boty w świecie, mnożniki, język gry i wersja Playerbots.
 - Profil postaci, stragany, gildia, stragan i karta przedmiotu: powrót do listy jest teraz w banerze, a nie osobnym linkiem nad nagłówkiem. Profil pokazuje portret postaci w banerze.
+- Naprawiona zakładka Sezon: pokazywała „Internal Server Error”, bo MariaDB odrzuca nazwę sumy użytą w sortowaniu („Reference 'metins' not supported”). Zakładka znów działa.
 - Panele na wszystkich stronach mają tę samą oprawę co karty pulpitu, a ich nagłówki ten sam niebieski znacznik.
 
 ## 17.09.2026 · 1.6.0

@@ -122,14 +122,19 @@ SEASON_SIZE = 30
 _season_cache = {"at": 0.0, "weekly": [], "records": {}}
 
 
+def _season_counts():
+    """The three counted events, as SQL, keyed by the name each one gets."""
+    tiers = " OR ".join(f"l.hint LIKE '%%+{tier}'" for tier in (7, 8, 9))
+    return {
+        "metins": "SUM(l.how='STONE_KILL')",
+        "bosses": "SUM(l.how='BOSS_KILL')",
+        "refine7": f"SUM(l.how='REFINE SUCCESS' AND ({tiers}))",
+    }
+
+
 def _season_sums():
     """The three event counts, spelled once for the ranking and the records."""
-    tiers = " OR ".join(f"l.hint LIKE '%%+{tier}'" for tier in (7, 8, 9))
-    return (
-        "SUM(l.how='STONE_KILL') AS metins,"
-        " SUM(l.how='BOSS_KILL') AS bosses,"
-        f" SUM(l.how='REFINE SUCCESS' AND ({tiers})) AS refine7"
-    )
+    return ", ".join(f"{sql} AS {name}" for name, sql in _season_counts().items())
 
 
 def season():
@@ -140,8 +145,12 @@ def season():
     """
     if time.time() - _season_cache["at"] < SEASON_CACHE_SECONDS:
         return _season_cache["weekly"], _season_cache["records"]
+    # The sums are repeated in ORDER BY rather than referred to by their
+    # aliases: MariaDB refuses an aggregate alias inside an expression there
+    # ("Reference 'metins' not supported"), which took the whole page down.
+    counts = _season_counts()
     score = " + ".join(
-        f"COALESCE({column},0) * {points}" for column, points in SEASON_POINTS.items())
+        f"COALESCE({counts[column]},0) * {points}" for column, points in SEASON_POINTS.items())
     weekly = db.rows(
         f"""SELECT p.id, p.name, p.level, {_season_sums()}
             FROM log.log l JOIN player.player p ON p.id = l.who
