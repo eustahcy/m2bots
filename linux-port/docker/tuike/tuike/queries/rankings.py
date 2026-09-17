@@ -374,14 +374,28 @@ def quick_rankings(top_by_level):
     return boards
 
 
-def _fishing():
+# Caught fish arrive as ordinary GET rows for the fish items themselves:
+# Drobne Ryby (27802) to Złoty Karaś (27823). Bait, worms and the dead-fish
+# variants sit outside that range. Matching on the item column alone rode the
+# how index; the old LIKE '%ryb%' over `what` read the whole log (35 s on a
+# 1.4M-row table) and matched nothing, because `what` holds an item id.
+FISH_VNUMS = (27802, 27823)
+
+
+@cache.ttl(600)
+def _fishing_rows(scope_sql):
     return db.rows(
         f"""SELECT p.id, p.name, p.level, COUNT(*) AS score
             FROM log.log l JOIN player.player p ON p.id = l.who
-            WHERE {scope()} AND l.time >= NOW() - INTERVAL 7 DAY
-              AND (l.what LIKE '%%ryb%%' OR l.what LIKE '%%fish%%')
+            WHERE l.how = 'GET' AND l.vnum BETWEEN {FISH_VNUMS[0]} AND {FISH_VNUMS[1]}
+              AND l.time >= NOW() - INTERVAL 7 DAY AND {scope_sql}
             GROUP BY p.id, p.name ORDER BY score DESC, p.name LIMIT {QUICK_SIZE}"""
     )
+
+
+def _fishing():
+    """Fish caught in the last week. Remembered for ten minutes."""
+    return _fishing_rows(scope())
 
 
 def _attach_jobs(boards):

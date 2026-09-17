@@ -16,6 +16,7 @@
 - Księga Umiejętności pokazuje, jakiej umiejętności uczy, zamiast doklejać do podpowiedzi bonusy przypadkowego przedmiotu.
 - Stragany: kafelek „Transakcji łącznie” (z liczbą z ostatnich 24 h), wykres tempa sprzedaży z trendem średniej ceny, stragany według map, ostatnie sprzedaże na żywo i tabela ksiąg umiejętności (na ladach teraz i sprzedane w 7 dni).
 - Nowe mapy: Las, Czerwony Las i Wieża Demonów (historia map i mapy cieplne; bez mapy na żywo, bo nie ma ich grafik).
+- Ranking „Ryby” w karuzeli wreszcie coś pokazuje i nie spowalnia pulpitu: liczy wyłowione ryby, a nie szukał słowa „ryb” w numerach przedmiotów (35 s przy każdym otwarciu pulpitu i zawsze pusty wynik).
 - Naprawiono wydarzenia ze świata (lista na pulpicie i dzwonek): z ostatnich 12 godzin zostawał najstarszy fragment zamiast najnowszego.
 
 ## 14.09.2026 · 1.5.0
