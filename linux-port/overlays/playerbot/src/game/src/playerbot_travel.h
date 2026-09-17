@@ -295,9 +295,14 @@ namespace
 			return playerbot_gear_urgency::ANSWER_HUNT_ON;
 
 		context.canRefine = HasPlayerBotRefineOpportunity(ch);
+		// Od 2.0.63 bot nie kupuje kamieni za yang - uzywa tylko tych, ktore ma
+		// z dropow i skrzyn ("bot bez kamienia radzi sobie bez, jak gracz",
+		// playerbot_bonus.h, HasPlayerBotBonusStone). Wiec "stac go na
+		// przerzucenie" znaczy: ma w plecaku kamien albo marmur.
 		context.canRerollBonus = ch->GetLevel() >= PLAYERBOT_BONUS_MIN_LEVEL &&
-				ch->GetGold() >= (long long)PLAYERBOT_BONUS_GOLD_FLOOR +
-						PLAYERBOT_BONUS_STONE_PRICE;
+				(HasPlayerBotBonusStone(ch, PLAYERBOT_BONUS_ADD_VNUM) ||
+				 HasPlayerBotBonusStone(ch, PLAYERBOT_BONUS_CHANGE_VNUM) ||
+				 FindPlayerBotBlessingMarbleCell(ch) >= 0);
 		context.canBuyBetter = NeedsPlayerBotProgressionWeapon(ch) ||
 				NeedsPlayerBotProgressionArmor(ch);
 		return playerbot_gear_urgency::Decide(context);
