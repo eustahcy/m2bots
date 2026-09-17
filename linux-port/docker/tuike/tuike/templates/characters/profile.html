@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% from 'partials/macros.html' import empire_badge, item_tooltip, item_image with context %}
 {% from 'partials/icons.html' import icon %}
+{% from 'partials/hero.html' import hero_art %}
 {% block title %}{{ character.name }}{% endblock %}
 
 {# One storage window: its page tabs and its grid. The backpack and the safebox
@@ -39,15 +40,15 @@
 {% endmacro %}
 
 {% block content %}
-<a class="back" href="{{ url_for('characters.roster') }}">← Powrót do postaci</a>
-
-<header class="profile-head">
+<section class="hero hero-page hero-profile">
+  {{ hero_art() }}
   <img class="portrait portrait-large" src="{{ class_portrait(character.job) }}"
        alt="{{ character.job_name }}">
-  <div>
-    <p class="eyebrow">PODGLĄD POSTACI</p>
+  <div class="hero-body">
+    <a class="hero-back" href="{{ url_for('characters.roster') }}">← Powrót do postaci</a>
+    <p class="hero-eyebrow">PODGLĄD POSTACI</p>
     <h1>{{ character.name }}</h1>
-    <p class="lead">
+    <p class="hero-tagline">
       {{ character.job_name }} · {{ character.class_profile.gender }} · poziom {{ character.level }}
       {% if character.live %}<span class="tag tag-live">w świecie</span>
       {% else %}<span class="tag">offline</span>{% endif %}
@@ -59,7 +60,7 @@
     <span class="tag">{{ thousands(character.gold) }} Yang</span>
     <span class="tag honour {{ character.honour.css }}">{{ character.honour.title }}</span>
   </div>
-</header>
+</section>
 
 <ul class="badge-row" aria-label="Znaczniki postaci">
   <li>{{ icon('clock', 16) }}<span>Czas gry</span><b>{{ hours(character.playtime) }} h {{ (character.playtime or 0) % 60 }} min</b></li>

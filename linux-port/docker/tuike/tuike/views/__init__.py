@@ -38,6 +38,27 @@ BLUEPRINTS = (
 )
 
 
+# The icon each page wears in its banner. Pages that are not menu entries of
+# their own (one character, one guild, one stall) borrow the icon of the list
+# they belong to, so a detail page still looks like where it came from.
+NAV_ICONS = {endpoint: name for _group, links in NAVIGATION for endpoint, name, _label in links}
+NAV_ICONS.update({
+    "characters.profile": "users",
+    "guilds.detail": "flag",
+    "economy.shops": "store",
+    "economy.shop": "store",
+    "economy.item": "coins",
+    "auth.login": "key",
+})
+
+
+def page_icon():
+    """The icon for the page being rendered, or a neutral one."""
+    from flask import request
+
+    return NAV_ICONS.get(request.endpoint or "", "sparkles")
+
+
 def register_blueprints(app):
     for blueprint in BLUEPRINTS:
         app.register_blueprint(blueprint)

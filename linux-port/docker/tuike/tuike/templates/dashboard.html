@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% from 'partials/icons.html' import icon %}
+{% from 'partials/hero.html' import hero_art %}
 {% block title %}Pulpit{% endblock %}
 
 {% macro kpi_card(tone, icon_name, label, value, note=None, delta=None, bars=None, value_id=None, live_bots=False) %}
@@ -25,50 +26,7 @@
 
 {% block content %}
 <section class="hero">
-  {# Drawn here rather than shipped as a picture: a night valley in the
-     game's spirit - moon, mountain ridges, a pagoda on the crest, mist - in
-     shapes simple enough to redraw in any theme's colours. #}
-  <svg class="hero-art" viewBox="0 0 1200 320" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-    <defs>
-      <linearGradient id="hero-sky" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="#0b1330"/><stop offset=".55" stop-color="#1b2b5c"/>
-        <stop offset="1" stop-color="#3a3f74"/>
-      </linearGradient>
-      <radialGradient id="hero-moon" cx=".5" cy=".5" r=".5">
-        <stop offset="0" stop-color="#fff6d8"/><stop offset=".55" stop-color="#ffe7a8"/>
-        <stop offset="1" stop-color="#ffe7a8" stop-opacity="0"/>
-      </radialGradient>
-      <linearGradient id="hero-mist" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="#8fb3ff" stop-opacity="0"/><stop offset="1" stop-color="#8fb3ff" stop-opacity=".22"/>
-      </linearGradient>
-      <linearGradient id="hero-fade" x1="0" y1="0" x2="1" y2="0">
-        <stop offset="0" stop-color="#050b1c" stop-opacity=".92"/><stop offset=".55" stop-color="#050b1c" stop-opacity=".45"/>
-        <stop offset="1" stop-color="#050b1c" stop-opacity="0"/>
-      </linearGradient>
-    </defs>
-    <rect width="1200" height="320" fill="url(#hero-sky)"/>
-    <g fill="#fff" opacity=".7">
-      <circle cx="620" cy="40" r="1.2"/><circle cx="700" cy="88" r=".9"/><circle cx="760" cy="30" r="1.4"/>
-      <circle cx="840" cy="70" r="1"/><circle cx="1110" cy="46" r="1.2"/><circle cx="1160" cy="110" r=".8"/>
-      <circle cx="560" cy="110" r=".8"/><circle cx="1030" cy="22" r="1"/><circle cx="480" cy="52" r="1"/>
-    </g>
-    <circle cx="960" cy="92" r="92" fill="url(#hero-moon)" opacity=".55"/>
-    <circle cx="960" cy="92" r="38" fill="#fff3cf"/>
-    <path d="M0 230 L120 170 L210 205 L330 130 L450 200 L560 150 L690 215 L800 160 L930 210 L1050 140 L1200 195 V320 H0Z" fill="#2a3569" opacity=".85"/>
-    <path d="M0 260 L150 215 L260 240 L380 190 L520 250 L640 205 L760 250 L880 200 L1010 245 L1120 215 L1200 235 V320 H0Z" fill="#1c2550"/>
-    <g fill="#10173a">
-      <path d="M820 206 h70 l-10 -9 h-50z"/><rect x="832" y="206" width="46" height="16"/>
-      <path d="M826 190 h58 l-11 -10 h-36z"/><rect x="838" y="190" width="34" height="8"/>
-      <path d="M836 176 h38 l-19 -16z"/>
-    </g>
-    <rect y="220" width="1200" height="100" fill="url(#hero-mist)"/>
-    <path d="M0 290 L90 262 L170 280 L260 250 L360 285 L470 258 L590 290 L700 262 L820 292 L950 266 L1080 290 L1200 270 V320 H0Z" fill="#0b1127"/>
-    <g fill="#0b1127">
-      <path d="M1040 290 l14 -44 l14 44z"/><path d="M1068 292 l10 -32 l10 32z"/>
-      <path d="M140 286 l12 -38 l12 38z"/><path d="M162 288 l9 -28 l9 28z"/>
-    </g>
-    <rect width="1200" height="320" fill="url(#hero-fade)"/>
-  </svg>
+  {{ hero_art() }}
 
   <div class="hero-body">
     <p class="hero-eyebrow">Witaj ponownie, Operatorze</p>

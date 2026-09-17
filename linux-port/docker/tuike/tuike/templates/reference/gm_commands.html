@@ -1,12 +1,19 @@
-﻿{% extends 'base.html' %}
-{% from 'partials/macros.html' import page_head with context %}
+{% extends 'base.html' %}
+{% from 'partials/macros.html' import page_head, stat with context %}
 {% block title %}Komendy GM{% endblock %}
 
 {% block content %}
 {{ page_head('NARZĘDZIA ADMINISTRATORA', 'Komendy GM',
              'Lista komend dla tej paczki. Parametry w nawiasach ostrokątnych zastąp własną wartością.') }}
 
+<section class="stat-grid">
+  {{ stat('Opisane komendy', listed, 'dla tej paczki serwera', icon_name='terminal') }}
+  {{ stat('Linii dokumentacji', commands.splitlines()|length, 'plik gm_commands.txt', icon_name='list') }}
+  {{ stat('Gdzie ich użyć', 'Czat w grze', 'postacią z rangą GM', icon_name='users') }}
+</section>
+
 <section class="panel">
+  <h2>Pełna lista</h2>
   <pre class="reference">{{ commands }}</pre>
 </section>
 {% endblock %}

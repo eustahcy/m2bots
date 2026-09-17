@@ -6,6 +6,7 @@ from ..gamedata.actions import (GM_RANKS, GOLD_PRESETS, SPEED_PRESETS, WARP_LOCA
                                 gm_rank_label)
 from ..gamedata.characters import EQUIPMENT_LAYOUT, INVENTORY_COLUMNS, INVENTORY_PAGE_SIZE
 from ..queries import characters as queries
+from ..queries import world
 from ..security import login_required, require_csrf
 
 bp = Blueprint("characters", __name__)
@@ -15,8 +16,19 @@ bp = Blueprint("characters", __name__)
 @login_required
 def roster():
     query = request.args.get("q", "").strip()
-    return render_template("characters/roster.html",
-                           characters=queries.roster(query), query=query)
+    totals = world.totals()
+    bots = world.bot_count()
+    return render_template(
+        "characters/roster.html",
+        characters=queries.roster(query),
+        query=query,
+        counts={
+            "characters": totals.get("characters", 0),
+            "bots": bots,
+            "players": max(0, int(totals.get("characters") or 0) - int(bots or 0)),
+            "live": len(live.statuses()),
+        },
+    )
 
 
 @bp.route("/player/<int:pid>")

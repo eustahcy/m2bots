@@ -1,16 +1,15 @@
 {% extends 'base.html' %}
-{% from 'partials/macros.html' import character_link with context %}
+{% from 'partials/macros.html' import page_head, character_link with context %}
 {% block title %}{{ owner.shop_name }}{% endblock %}
 
 {% block content %}
-<a class="back" href="{{ url_for('economy.shops') }}">← Wróć do straganów</a>
+{{ page_head('STRAGAN', owner.shop_name,
+             'Prowadzi ' ~ owner.owner_name ~ ' · ' ~ map_name(owner.map) ~ ' · '
+             ~ items|length ~ ' przedmiotów' ~ (' · premium' if owner.is_premium else ''),
+             back=url_for('economy.shops'), back_label='Wróć do straganów') }}
 
-<header class="page-head">
-  <p class="eyebrow">STRAGAN</p>
-  <h1>{{ owner.shop_name }}</h1>
-  <p class="lead">Prowadzi {{ character_link(owner.owner, owner.owner_name, owner.owner_job) }}
-    · {{ items|length }} przedmiotów{% if owner.is_premium %} · premium{% endif %}</p>
-</header>
+<p class="muted list-note">Właściciel:
+  {{ character_link(owner.owner, owner.owner_name, owner.owner_job) }}</p>
 
 <section class="panel table-wrap">
   <table>

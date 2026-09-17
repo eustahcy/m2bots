@@ -1,11 +1,21 @@
 {# Reusable pieces. Anything that appears on more than one page lives here. #}
+{% from 'partials/hero.html' import hero_art %}
+{% from 'partials/icons.html' import icon %}
 
-{% macro page_head(eyebrow, title, lead=None) %}
-<header class="page-head">
-  <p class="eyebrow">{{ eyebrow }}</p>
-  <h1>{{ title }}</h1>
-  {% if lead %}<p class="lead">{{ lead }}</p>{% endif %}
-</header>
+{# Every page opens the same way the dashboard does: the night valley behind a
+   short banner. The icon is the one the sidebar uses for this page, so the
+   banner and the menu entry always agree - `back` puts a return link inside
+   the banner instead of above it. #}
+{% macro page_head(eyebrow, title, lead=None, back=None, back_label=None) %}
+<section class="hero hero-page">
+  {{ hero_art() }}
+  <div class="hero-body">
+    {% if back %}<a class="hero-back" href="{{ back }}">← {{ back_label or 'Wróć' }}</a>{% endif %}
+    <p class="hero-eyebrow">{{ eyebrow }}</p>
+    <h1>{{ icon(page_icon, 26, 'hero-icon') }}{{ title }}</h1>
+    {% if lead %}<p class="hero-tagline">{{ lead }}</p>{% endif %}
+  </div>
+</section>
 {% endmacro %}
 
 
@@ -18,11 +28,18 @@
 {% endmacro %}
 
 
-{% macro stat(label, value, note=None, tone=None, id=None) %}
-<article class="stat {{ tone or '' }}">
-  <span class="stat-label">{{ label }}</span>
-  <strong class="stat-value"{% if id %} id="{{ id }}"{% endif %}>{{ value }}</strong>
-  {% if note %}<small class="stat-note">{{ note }}</small>{% endif %}
+{# The dashboard's KPI card, for every other page. Without an icon name it
+   still gets the tile, filled with the page's own icon, so a row of numbers
+   reads the same everywhere. The colour comes from the card's position in the
+   row (see .stat-grid in the stylesheet), not from the caller. #}
+{% macro stat(label, value, note=None, tone=None, id=None, icon_name=None) %}
+<article class="stat kpi {{ tone or '' }}">
+  <header>
+    <span class="kpi-icon">{{ icon(icon_name or page_icon, 22) }}</span>
+    <span class="kpi-label">{{ label }}</span>
+  </header>
+  <strong class="kpi-value"{% if id %} id="{{ id }}"{% endif %}>{{ value }}</strong>
+  {% if note %}<footer><small>{{ note }}</small></footer>{% endif %}
 </article>
 {% endmacro %}
 

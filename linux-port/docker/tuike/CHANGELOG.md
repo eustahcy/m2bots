@@ -1,5 +1,12 @@
 # Changelog
 
+## 17.09.2026 · 1.7.0
+- Wszystkie zakładki dostały wygląd strony głównej: każda otwiera się tym samym banerem z nocnym krajobrazem i ikoną, jaką ma w menu, a liczby nad treścią są takimi samymi kolorowymi kafelkami jak na pulpicie.
+- Nowe kafelki tam, gdzie ich nie było: Postacie i boty (postacie, playerboty, gracze, w grze teraz), Gildie (gildie, członkowie, najwyższy poziom, punkty rangi), Rankingi (kategoria, lider, liczba sklasyfikowanych, kto się liczy), Aktywność map (postacie w świecie, mapy z ruchem, najbardziej zatłoczona), Baza przedmiotów (przedmioty, kategorie, pokazane), Konta (konta na liście, botów, graczy, ostatnie logowanie), Komendy GM i Changelog.
+- Zarządzanie: dotychczasowy wąski pasek stanu zastąpiony pięcioma kafelkami — stan serwera, boty w świecie, mnożniki, język gry i wersja Playerbots.
+- Profil postaci, stragany, gildia, stragan i karta przedmiotu: powrót do listy jest teraz w banerze, a nie osobnym linkiem nad nagłówkiem. Profil pokazuje portret postaci w banerze.
+- Panele na wszystkich stronach mają tę samą oprawę co karty pulpitu, a ich nagłówki ten sam niebieski znacznik.
+
 ## 17.09.2026 · 1.6.0
 - Nowy wygląd całego panelu w stylu „Control Center”: pasek boczny z ikonami i aktywną pozycją jako wypełniona pigułka, karta serwera u dołu (stan, boty w świecie, czas działania liczony od startu rdzeni gry), górny pasek z wyszukiwarką postaci (Ctrl+K), przełącznikiem jasny/ciemny, powiadomieniami ze świata, skrótem do Zarządzania i zegarem.
 - Pulpit przebudowany: baner powitalny, pięć kafelków z liczbami (z trendem Yang z ostatniej doby i wykresikiem obecności botów), mapa na żywo obok stanu serwera i pierścieni obciążenia hosta, Top 5, ostatnie logowania, karuzela rankingów, boty/stragany według map, wykres aktywności z 24 godzin (logowania, boty w świecie, sprzedaże) i lista ostatnich zdarzeń.

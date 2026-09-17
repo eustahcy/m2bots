@@ -1,10 +1,17 @@
-﻿{% extends 'base.html' %}
-{% from 'partials/macros.html' import page_head with context %}
+{% extends 'base.html' %}
+{% from 'partials/macros.html' import page_head, stat with context %}
 {% block title %}Changelog{% endblock %}
 
 {% block content %}
 {{ page_head(panel_codename ~ ' · v' ~ panel_version, 'Changelog',
              'Każda zmiana panelu jest zapisywana wraz z datą wdrożenia.') }}
+
+<section class="stat-grid">
+  {{ stat('Zainstalowana wersja', 'v' ~ panel_version, panel_codename ~ ' na tym serwerze') }}
+  {{ stat('Wydania', entries|length, 'opisane w changelogu', icon_name='list') }}
+  {{ stat('Ostatnia zmiana', entries[0].timestamp if entries else '—',
+          entries[0].version if entries else 'brak wpisów', icon_name='clock') }}
+</section>
 
 <section class="changelog">
   {% for entry in entries %}

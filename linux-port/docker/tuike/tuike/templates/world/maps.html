@@ -1,10 +1,22 @@
-﻿{% extends 'base.html' %}
-{% from 'partials/macros.html' import page_head, empty_row with context %}
+{% extends 'base.html' %}
+{% from 'partials/macros.html' import page_head, stat, empty_row with context %}
 {% block title %}Aktywność map{% endblock %}
 
 {% block content %}
 {{ page_head('AKTYWNOŚĆ ŚWIATA', 'Mapy w czasie',
              'Natężenie z ostatnich 24 godzin oraz zdarzenia odnotowane w logach serwera.') }}
+
+<section class="stat-grid">
+  {{ stat('Postacie w świecie', thousands(current|sum(attribute='character_count')),
+          'sumarycznie na wszystkich mapach', icon_name='users') }}
+  {{ stat('Mapy z ruchem', current|selectattr('character_count')|list|length,
+          'z ' ~ current|length ~ ' śledzonych') }}
+  {{ stat('Najbardziej zatłoczona',
+          (current|sort(attribute='character_count', reverse=true)|first).name if current else '—',
+          thousands((current|sort(attribute='character_count', reverse=true)|first).character_count) ~ ' postaci'
+          if current else 'brak danych', icon_name='pin') }}
+  {{ stat('Historia', '24 h', 'tyle trzyma kolektor', icon_name='clock') }}
+</section>
 
 <section class="panel">
   <header class="panel-head">

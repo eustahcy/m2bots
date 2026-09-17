@@ -27,9 +27,11 @@ def index():
             flash(str(error), "error")
     query = request.args.get("q", "").strip()[:60]
     display = request.args.get("display", "100")
+    accounts = queries.roster(query, display)
     return render_template(
         "accounts.html",
-        accounts=queries.roster(query, display),
+        accounts=accounts,
+        bot_accounts=sum(1 for row in accounts if str(row.get("login") or "").startswith("playerbot_")),
         query=query,
         display=display if display in queries.DISPLAY_SIZES else "100",
         display_sizes=queries.DISPLAY_SIZES,

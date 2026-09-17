@@ -44,7 +44,8 @@ def changelog_entries():
 @bp.route("/gm-commands")
 @login_required
 def gm_commands():
-    return render_template("reference/gm_commands.html", commands=GM_COMMANDS)
+    listed = sum(1 for line in GM_COMMANDS.splitlines() if line.strip().startswith("/"))
+    return render_template("reference/gm_commands.html", commands=GM_COMMANDS, listed=listed)
 
 
 @bp.route("/changelog")

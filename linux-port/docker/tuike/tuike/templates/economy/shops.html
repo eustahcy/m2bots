@@ -3,10 +3,9 @@
 {% block title %}Stragany{% endblock %}
 
 {% block content %}
-<a class="back" href="{{ url_for('economy.index') }}">← Wróć do gospodarki</a>
-
 {{ page_head('RYNEK', 'Sklepy offline',
-             'Każdy stragan to otwarty sklep Ikarus Shop. Sprzedaże i ceny pochodzą wprost z logu sklepów.') }}
+             'Każdy stragan to otwarty sklep Ikarus Shop. Sprzedaże i ceny pochodzą wprost z logu sklepów.',
+             back=url_for('economy.index'), back_label='Wróć do gospodarki') }}
 
 <section class="stat-grid" id="economy-live" data-live="1">
   {{ stat('Aktywne stragany', thousands(overview.shops), 'otwartych teraz', id='stat-shops') }}

@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% from 'partials/macros.html' import page_head, csrf_field, empty_row with context %}
+{% from 'partials/macros.html' import page_head, stat, csrf_field, empty_row with context %}
 {% set weight_min, weight_max, weight_neutral = weight_bounds %}
 {% block title %}Zarządzanie{% endblock %}
 
@@ -7,13 +7,17 @@
 {{ page_head('ADMINISTRACJA ŚWIATA', 'Zarządzanie serwerem',
              'Mnożniki i respawny rdzeń czyta przy starcie, więc wchodzą w życie po restarcie. Zachowanie botów działa od ręki.') }}
 
-<section class="status-strip status-{{ status.state }}">
-  <span class="status-dot" aria-hidden="true"></span>
-  <b>{{ status.label }}</b>
-  <span class="muted">logowanie {{ 'działa' if status.auth else 'nie odpowiada' }}
-    · świat {{ 'działa' if status.world else 'nie odpowiada' }}
-    · {{ status.bots }} botów w świecie</span>
-  <span class="status-language">Język gry: <b>{{ language_name }}</b></span>
+<section class="stat-grid">
+  {{ stat('Serwer', status.label,
+          'logowanie ' ~ ('działa' if status.auth else 'nie odpowiada') ~
+          ' · świat ' ~ ('działa' if status.world else 'nie odpowiada'),
+          tone='tone-current' if status.state == 'up' else 'tone-outdated', icon_name='server') }}
+  {{ stat('Boty w świecie', thousands(bot_count), 'raportuje je rdzeń gry', icon_name='bot') }}
+  {{ stat('Mnożniki', rates.exp ~ '% / ' ~ rates.drop ~ '% / ' ~ rates.yang ~ '%',
+          'doświadczenie / drop / Yang', icon_name='coins') }}
+  {{ stat('Język gry', language_name, 'komunikaty i nazwy w kliencie', icon_name='list') }}
+  {{ stat('Playerbots', release.installed or '—', release.label,
+          tone='tone-' ~ release.tone, icon_name='sparkles') }}
 </section>
 
 {% if not helper.ready %}

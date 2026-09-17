@@ -1,11 +1,19 @@
-﻿{% extends 'base.html' %}
-{% from 'partials/macros.html' import page_head, search_form, character_link, empty_row with context %}
+{% extends 'base.html' %}
+{% from 'partials/macros.html' import page_head, stat, search_form, character_link, empty_row with context %}
 {% block title %}Postacie i boty{% endblock %}
 
 {% block content %}
 {{ page_head('BAZA POSTACI', 'Postacie i boty',
              'Mapa „na żywo” pochodzi z rdzenia; „ostatni zapis” to pozycja z bazy.') }}
+<section class="stat-grid">
+  {{ stat('Postacie w świecie', thousands(counts.characters), 'wszystkie zapisane w bazie') }}
+  {{ stat('Playerboty', thousands(counts.bots), 'kont z prefiksem playerbot_', icon_name='bot') }}
+  {{ stat('Gracze', thousands(counts.players), 'postacie spoza rejestru botów', icon_name='users') }}
+  {{ stat('W grze teraz', thousands(counts.live), 'rdzeń raportuje je na żywo', icon_name='pin') }}
+</section>
+
 {{ search_form(query, 'Nick lub ID postaci') }}
+<p class="muted list-note">Pokazane {{ characters|length }} postaci{% if query %} pasujących do „{{ query }}”{% endif %}.</p>
 
 <section class="panel table-wrap">
   <table>

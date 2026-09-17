@@ -44,6 +44,9 @@ def create_app():
 def register_template_globals(app):
     @app.context_processor
     def template_globals():
+        # Imported here, not at module level: views import this package back.
+        from .views import page_icon
+
         current = settings.read()
 
         def item_icon(vnum):
@@ -67,6 +70,7 @@ def register_template_globals(app):
             "panel_codename": config.PANEL_CODENAME,
             "panel_tagline": config.PANEL_TAGLINE,
             "panel_version": config.PANEL_VERSION,
+            "page_icon": page_icon(),
             "tieru_url": config.TIERU_PANEL_URL,
             "seban_url": config.SEBAN_PANEL_URL,
             "itemshop_url": config.ITEMSHOP_URL,

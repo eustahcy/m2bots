@@ -3,9 +3,9 @@
 {% block title %}Masowe nadawanie{% endblock %}
 
 {% block content %}
-<a class="back" href="{{ url_for('manage.index') }}">← Zarządzanie</a>
 {{ page_head('MASOWE NADAWANIE', 'Przedmioty dla postaci i botów',
-             'Panel nie tworzy przedmiotów. Tworzy je gra, po jednej postaci naraz, przez kolejkę questa web_admin.') }}
+             'Panel nie tworzy przedmiotów. Tworzy je gra, po jednej postaci naraz, przez kolejkę questa web_admin.',
+             back=url_for('manage.index'), back_label='Zarządzanie') }}
 
 <div class="split grants-top">
   <section class="panel">

@@ -1,9 +1,19 @@
-﻿{% extends 'base.html' %}
-{% from 'partials/macros.html' import page_head, search_form, character_link, empty_row with context %}
+{% extends 'base.html' %}
+{% from 'partials/macros.html' import page_head, stat, search_form, character_link, empty_row with context %}
 {% block title %}Gildie{% endblock %}
 
 {% block content %}
-{{ page_head('SPOŁECZNOŚĆ', 'Gildie') }}
+{{ page_head('SPOŁECZNOŚĆ', 'Gildie',
+             'Kto się z kim trzyma: skład, punkty rangi i bilans wojen.') }}
+
+<section class="stat-grid">
+  {{ stat('Gildie', guilds|length, 'znalezione' if query else 'założone w świecie') }}
+  {{ stat('Członkowie', thousands(guilds|sum(attribute='member_count')), 'we wszystkich gildiach', icon_name='users') }}
+  {{ stat('Najwyższy poziom', 'Lv ' ~ (guilds|map(attribute='level')|select|max|default(0)),
+          'najsilniejsza gildia', icon_name='trophy') }}
+  {{ stat('Najwięcej punktów rangi', thousands(guilds|map(attribute='ladder_point')|select|max|default(0)),
+          'w rankingu gildii', icon_name='trophy') }}
+</section>
 {{ search_form(query, 'Nazwa gildii lub nick lidera') }}
 
 <section class="panel table-wrap">

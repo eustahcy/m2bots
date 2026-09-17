@@ -1,20 +1,15 @@
-﻿{% extends 'base.html' %}
-{% from 'partials/macros.html' import stat, character_link, empty_row with context %}
+{% extends 'base.html' %}
+{% from 'partials/macros.html' import page_head, stat, character_link, empty_row with context %}
 {% block title %}{{ guild.name }}{% endblock %}
 
 {% block content %}
-<a class="back" href="{{ url_for('guilds.roster') }}">← Powrót do gildii</a>
-
-<header class="page-head">
-  <p class="eyebrow">GILDIA</p>
-  <h1>{{ guild.name }}</h1>
-  <p class="lead">poziom {{ guild.level or 0 }}</p>
-</header>
+{{ page_head('GILDIA', guild.name, 'Poziom ' ~ (guild.level or 0) ~ ' · ' ~ guild.member_count ~ ' w składzie',
+             back=url_for('guilds.roster'), back_label='Powrót do gildii') }}
 
 <section class="stat-grid">
   {{ stat('Lider', guild.leader_name or '—',
-          'Lv ' ~ guild.leader_level if guild.leader_level else None) }}
-  {{ stat('Członkowie', guild.member_count, 'aktualny skład') }}
+          'Lv ' ~ guild.leader_level if guild.leader_level else None, icon_name='trophy') }}
+  {{ stat('Członkowie', guild.member_count, 'aktualny skład', icon_name='users') }}
   {{ stat('Punkty rangi', thousands(guild.ladder_point), 'ranking gildii') }}
   {{ stat('Wojny', guild.win ~ ' / ' ~ guild.draw ~ ' / ' ~ guild.loss,
           'wygrane / remisy / porażki') }}

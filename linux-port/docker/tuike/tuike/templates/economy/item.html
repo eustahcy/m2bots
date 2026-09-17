@@ -1,19 +1,12 @@
 {% extends 'base.html' %}
-{% from 'partials/macros.html' import character_link, empty_row with context %}
+{% from 'partials/macros.html' import page_head, character_link, empty_row with context %}
 {% block title %}{{ item.item_name }}{% endblock %}
 
 {% block content %}
-<a class="back" href="{{ url_for('economy.index') }}">← Wróć do gospodarki</a>
-
-<header class="page-head">
-  <p class="eyebrow">HISTORIA PRZEDMIOTU</p>
-  <h1>
-    {% if item_icon(item.vnum) %}
-      <img class="item-icon item-icon-large" src="{{ item_icon(item.vnum) }}" alt="">
-    {% endif %}{{ item.item_name }}
-  </h1>
-  <p class="lead">VNUM {{ item.vnum }}</p>
-</header>
+{{ page_head('HISTORIA PRZEDMIOTU', item.item_name,
+             'VNUM ' ~ item.vnum ~ ' · ' ~ listings|length ~ ' ofert na straganach · '
+             ~ trades|length ~ ' ostatnich sprzedaży',
+             back=url_for('economy.index'), back_label='Wróć do gospodarki') }}
 
 <section class="panel">
   <h2>Sztuk na serwerze · ostatnie 14 dni</h2>

@@ -1,10 +1,17 @@
-﻿{% extends 'base.html' %}
-{% from 'partials/macros.html' import page_head with context %}
+{% extends 'base.html' %}
+{% from 'partials/macros.html' import page_head, stat with context %}
 {% block title %}Baza przedmiotów{% endblock %}
 
 {% block content %}
 {{ page_head('KATALOG GRY', 'Baza przedmiotów',
              'Komplet danych z bazy serwera: polskie nazwy, VNUM-y i ikony klienta.') }}
+
+<section class="stat-grid">
+  {{ stat('Przedmioty w bazie', thousands(total),
+          'w tej kategorii' if selected_type else 'wszystkie prototypy gry') }}
+  {{ stat('Kategorie', types|length, 'typów przedmiotów', icon_name='list') }}
+  {{ stat('Pokazane', thousands(items|length), 'bez stron, wszystko naraz', icon_name='search') }}
+</section>
 
 <nav class="tabs tabs-wrap" aria-label="Kategoria przedmiotu">
   <a class="{{ 'active' if not selected_type }}"

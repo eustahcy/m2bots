@@ -1,11 +1,20 @@
 {% extends 'base.html' %}
-{% from 'partials/macros.html' import page_head, character_link, empire_badge, exp_meter, empty_row with context %}
+{% from 'partials/macros.html' import page_head, stat, character_link, empire_badge, exp_meter, empty_row with context %}
 {% block title %}Rankingi{% endblock %}
 
 {% block content %}
 {{ page_head('RYWALIZACJA', 'Rankingi graczy i botów' if includes_players else 'Rankingi botów',
              'Dane pochodzą bezpośrednio z postaci, wyposażenia i questów Playerbots.'
              ~ (' Prawdziwi gracze są liczeni razem z botami - przełącznik w Zarządzaniu.' if includes_players else '')) }}
+
+<section class="stat-grid">
+  {{ stat('Kategoria', kinds[kind], 'z ' ~ kinds|length ~ ' dostępnych', icon_name='list') }}
+  {{ stat('Na czele', ranking[0].name if ranking else '—',
+          ranking[0].detail if ranking else 'brak danych do rankingu') }}
+  {{ stat('Sklasyfikowanych', ranking|length, 'w tej kategorii', icon_name='users') }}
+  {{ stat('Kto się liczy', 'Gracze i boty' if includes_players else 'Tylko boty',
+          'przełącznik w Zarządzaniu', icon_name='settings') }}
+</section>
 
 <nav class="tabs tabs-wrap" aria-label="Rodzaj rankingu">
   {% for key, label in kinds.items() %}
