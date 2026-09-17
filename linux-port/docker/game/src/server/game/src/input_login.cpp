@@ -1211,6 +1211,12 @@ int CInputLogin::Analyze(LPDESC d, BYTE bHeader, const char* c_pData)
 		case HEADER_CG_TARGET:
 			break;
 
+		// The guild-mark connection's login, sent once the handshake has put it
+		// here (playerbotify.py, apply_mark_login_quiet): nothing to do, and
+		// nothing worth a syserr line on every mark download.
+		case HEADER_CG_MARK_LOGIN:
+			break;
+
 		default:
 			sys_err("login phase does not handle this packet! header %d", bHeader);
 			//d->SetPhase(PHASE_CLOSE);

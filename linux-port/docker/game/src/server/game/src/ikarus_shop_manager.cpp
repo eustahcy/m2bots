@@ -39,15 +39,11 @@ DerivedType DerivedFromBase(const BaseType& base) {
 }
 
 
-#define ENABLE_IKASHOP_GM_PROTECTION
-static bool CheckGMLevel(LPCHARACTER ch) 
+// playerbot: a GM plays the single-player world, and Ikarus serves it
+// like anybody (playerbotify.py, apply_gm_gameplay).
+static bool CheckGMLevel(LPCHARACTER ch)
 {
-	return
-#ifdef ENABLE_IKASHOP_GM_PROTECTION
-		ch->GetGMLevel() == GM_PLAYER || test_server;
-#else
-		true;
-#endif
+	return ch != nullptr;
 }
 
 bool MatchAttributes(const TPlayerItemAttribute* pAttributesFilter,const TPlayerItemAttribute* pAttributesItem)

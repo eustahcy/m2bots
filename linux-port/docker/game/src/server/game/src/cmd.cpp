@@ -305,6 +305,8 @@ ACMD(do_map_spawn_delay);
 ACMD(do_map_spawn_delay_list);
 ACMD(do_report_player);
 ACMD(do_check_mob);
+ACMD(do_autohunt_target);
+ACMD(do_autohunt_loot);
 ACMD(do_gmpanel_lookup);
 ACMD(do_gmpanel_createitem);
 ACMD(do_gmpanel_itemlist);
@@ -683,6 +685,8 @@ struct command_info cmd_info[] =
 	{ "list_map_spawn_delay", do_map_spawn_delay_list, 	0, POS_DEAD,		GM_IMPLEMENTOR },
 
 	{ "check_mob", do_check_mob, 	0, POS_DEAD,		GM_IMPLEMENTOR },
+	{ "autohunt_target",	do_autohunt_target,	0,			POS_DEAD,	GM_PLAYER	},
+	{ "autohunt_loot",	do_autohunt_loot,	0,			POS_DEAD,	GM_PLAYER	},
 
 	{ "gmpanel_lookup",	do_gmpanel_lookup,	0,			POS_DEAD,	GM_HIGH_WIZARD	},
 	{ "gmpanel_createitem",	do_gmpanel_createitem,	0,			POS_DEAD,	GM_HIGH_WIZARD	},
@@ -691,18 +695,18 @@ struct command_info cmd_info[] =
 	{ "gmpanel_addgm",	do_gmpanel_addgm,	0,			POS_DEAD,	GM_IMPLEMENTOR	},
 	{ "gmpanel_spawn",	do_gmpanel_spawn,	0,			POS_DEAD,	GM_HIGH_WIZARD	},
 	{ "gmpanel_botlist",	do_gmpanel_botlist,	0,			POS_DEAD,	GM_HIGH_WIZARD	},
-	{ "botadmin",	do_botadmin,	0,			POS_DEAD,	GM_IMPLEMENTOR	},
+	{ "botadmin",	do_botadmin,	0,			POS_DEAD,	GM_PLAYER	},
 	{ "botadmin_stats",	do_botadmin_stats,	0,			POS_DEAD,	GM_IMPLEMENTOR	},
 	{ "botadmin_list",	do_botadmin_list,	0,			POS_DEAD,	GM_IMPLEMENTOR	},
 	{ "botadmin_botlog",	do_botadmin_botlog,	0,			POS_DEAD,	GM_IMPLEMENTOR	},
 	{ "botadmin_give",	do_botadmin_give,	0,			POS_DEAD,	GM_IMPLEMENTOR	},
 	{ "botadmin_achievements",	do_botadmin_achievements,	0,			POS_DEAD,	GM_IMPLEMENTOR	},
-	{ "gmpanel_open",	do_gmpanel_open,	0,			POS_DEAD,	GM_HIGH_WIZARD	},
+	{ "gmpanel_open",	do_gmpanel_open,	0,			POS_DEAD,	GM_PLAYER	},
 	{ "gmpanel_available_bots",	do_gmpanel_available_bots,	0,			POS_DEAD,	GM_HIGH_WIZARD	},
 	{ "gmpanel_moblist",	do_gmpanel_moblist,	0,			POS_DEAD,	GM_HIGH_WIZARD	},
 	{ "gmpanel_metinlist",	do_gmpanel_metinlist,	0,			POS_DEAD,	GM_HIGH_WIZARD	},
 	{ "gmpanel_spawnmob",	do_gmpanel_spawnmob,	0,			POS_DEAD,	GM_HIGH_WIZARD	},
-	{ "gmpanel_check_gm",	do_gmpanel_check_gm,	0,			POS_DEAD,	GM_HIGH_WIZARD	},
+	{ "gmpanel_check_gm",	do_gmpanel_check_gm,	0,			POS_DEAD,	GM_PLAYER	},
 	{ "gmpanel_view_equip",	do_gmpanel_view_equip,	0,			POS_DEAD,	GM_HIGH_WIZARD	},
 	{ "gmpanel_give_gold",	do_gmpanel_give_gold,	0,			POS_DEAD,	GM_HIGH_WIZARD	},
 	{ "gmpanel_give_cash",	do_gmpanel_give_cash,	0,			POS_DEAD,	GM_HIGH_WIZARD	},

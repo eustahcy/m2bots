@@ -70,6 +70,25 @@ namespace
 				ch->GetQuestFlag(GetPlayerBotBiologistFlag(mission, "__status")) == completeState;
 	}
 
+	// The collect rows are one chain in the quests themselves: the Orc Tooth's
+	// last state starts the Curse Book, and the Curse Book's the Demon Souvenir.
+	// A bot takes its missions without the quest's dialog, so it keeps that
+	// order itself - it did not, and bots of seventy finished the Demon Souvenir
+	// with the Orc Tooth still open (Tieru, 15 September: "Ksiegi Klatw sa po
+	// Zebach Orka, a po Ksiegach Klatw sa Pamiatki Po Demonie"). A collect row
+	// after the first is open once the row before it is complete.
+	bool IsPlayerBotBiologistMissionOpen(LPCHARACTER ch, size_t missionIndex)
+	{
+		if (!ch || missionIndex == 0 || missionIndex >= PLAYERBOT_BIOLOGIST_MISSION_COUNT)
+			return true;
+		const TPlayerBotBiologistMission& mission = PLAYERBOT_BIOLOGIST_MISSIONS[missionIndex];
+		const TPlayerBotBiologistMission& previous = PLAYERBOT_BIOLOGIST_MISSIONS[missionIndex - 1];
+		if (mission.requiredLevel <= PLAYERBOT_BIOLOGIST_COLLECT_QUEST_LEVEL ||
+				previous.requiredLevel < PLAYERBOT_BIOLOGIST_COLLECT_QUEST_LEVEL)
+			return true;
+		return IsPlayerBotBiologistMissionComplete(ch, missionIndex - 1);
+	}
+
 	// Anything a row collects, and anything a row's second half waits for.
 	// Both used to be spelled out as vnums wherever they mattered - the junk
 	// rule and the stall each carried "50701..50706, the tooth, the stone" -
@@ -100,13 +119,18 @@ namespace
 	// handed in. Those used to stay in the bag for good ("niech dadza sklepik
 	// z zebami jesli maja nadmiar"); now they are goods. A key item is never
 	// surplus - it is what the second half of its own row is waiting for.
+	bool IsPlayerBotBiologistKeyPhase(LPCHARACTER ch, size_t missionIndex);
+
 	bool IsPlayerBotBiologistSpecimenSurplus(LPCHARACTER ch, DWORD vnum)
 	{
 		if (!ch || IsPlayerBotBiologistKeyItem(vnum))
 			return false;
+		// So is one whose row waits in key_item: the Biologist has every
+		// specimen he wanted and asks only for the key now.
 		for (size_t i = 0; i < PLAYERBOT_BIOLOGIST_MISSION_COUNT; ++i)
 			if (PLAYERBOT_BIOLOGIST_MISSIONS[i].itemVnum == vnum)
-				return IsPlayerBotBiologistMissionComplete(ch, i);
+				return IsPlayerBotBiologistMissionComplete(ch, i) ||
+						IsPlayerBotBiologistKeyPhase(ch, i);
 		return false;
 	}
 
@@ -125,6 +149,37 @@ namespace
 				PLAYERBOT_BIOLOGIST_MISSIONS[missionIndex], "__status")) == keyState;
 	}
 
+	// How many of a specimen the Biologist is still owed: for every row that
+	// collects it, that the bot is old enough for and has neither finished
+	// nor filled (a row in key_item wants the key), the rest of its count over
+	// the accept roll - ten teeth at sixty percent is seventeen. Only rows from
+	// PLAYERBOT_BIOLOGIST_COLLECT_QUEST_LEVEL, whose specimens are refine
+	// materials; a herb is nobody's material. The anvil leaves this many alone
+	// (CanPlayerBotAttemptRefineItem).
+	int GetPlayerBotBiologistReserve(LPCHARACTER ch, DWORD vnum)
+	{
+		if (!ch || vnum == 0)
+			return 0;
+		int reserve = 0;
+		for (size_t i = 0; i < PLAYERBOT_BIOLOGIST_MISSION_COUNT; ++i)
+		{
+			const TPlayerBotBiologistMission& mission = PLAYERBOT_BIOLOGIST_MISSIONS[i];
+			if (mission.itemVnum != vnum ||
+					mission.requiredLevel < PLAYERBOT_BIOLOGIST_COLLECT_QUEST_LEVEL ||
+					ch->GetLevel() < mission.requiredLevel ||
+					!IsPlayerBotHuntingMobHosted(mission.mobVnum) ||
+					IsPlayerBotBiologistMissionComplete(ch, i) ||
+					IsPlayerBotBiologistKeyPhase(ch, i))
+				continue;
+			const int accepted = std::max(0, ch->GetQuestFlag(
+					GetPlayerBotBiologistFlag(mission, "collect_count")));
+			const int remaining = std::max(0, (int)mission.requiredCount - accepted);
+			const int percent = std::max(1, (int)mission.acceptPercent);
+			reserve += (remaining * 100 + percent - 1) / percent;
+		}
+		return reserve;
+	}
+
 	// What the mission wants carried right now, and how many: the collection
 	// item, or in a row's second half, the one key item.
 	DWORD GetPlayerBotBiologistWantedItem(LPCHARACTER ch, size_t missionIndex, int* outRequired)
@@ -141,10 +196,52 @@ namespace
 		return mission.itemVnum;
 	}
 
+	// Who is away on an outgrown herb row right now (pid -> since), so the
+	// trip to the first village is a trickle and not the whole population
+	// at once: PLAYERBOT_BIOLOGIST_HERB_TRIP_PER_MILLE of the live bots hold
+	// a place, a place expires after PLAYERBOT_BIOLOGIST_HERB_ERRAND_MAX_MS
+	// and is given back when the bot's herb rows are done.
+	std::map<DWORD, DWORD> s_mapPlayerBotHerbErrand;
+
+	bool PlayerBotMayTakeHerbErrand(LPCHARACTER ch, size_t missionIndex, DWORD dwNow)
+	{
+		const DWORD pid = ch->GetPlayerID();
+		std::map<DWORD, DWORD>::iterator it = s_mapPlayerBotHerbErrand.find(pid);
+		if (it != s_mapPlayerBotHerbErrand.end())
+		{
+			if (dwNow - it->second < PLAYERBOT_BIOLOGIST_HERB_ERRAND_MAX_MS)
+				return true;
+			s_mapPlayerBotHerbErrand.erase(it);
+		}
+		for (std::map<DWORD, DWORD>::iterator old = s_mapPlayerBotHerbErrand.begin();
+				old != s_mapPlayerBotHerbErrand.end();)
+		{
+			if (dwNow - old->second >= PLAYERBOT_BIOLOGIST_HERB_ERRAND_MAX_MS)
+				s_mapPlayerBotHerbErrand.erase(old++);
+			else
+				++old;
+		}
+		const size_t cap = std::max<size_t>(1, (size_t)GetPlayerBotsAlive() * PLAYERBOT_BIOLOGIST_HERB_TRIP_PER_MILLE / 1000);
+		if (s_mapPlayerBotHerbErrand.size() >= cap)
+			return false;
+		s_mapPlayerBotHerbErrand[pid] = dwNow;
+		sys_log(0, "PLAYERBOT_BIOLOGIST: herb errand pid=%u name=%s level=%d row=%u map=%ld away=%u/%u",
+				pid, ch->GetName(), (int)ch->GetLevel(), (unsigned int)missionIndex, ch->GetMapIndex(),
+				(unsigned int)s_mapPlayerBotHerbErrand.size(), (unsigned int)cap);
+		return true;
+	}
+
 	const TPlayerBotBiologistMission* GetActivePlayerBotBiologistMission(
 			LPCHARACTER ch, size_t* outIndex = NULL)
 	{
 		if (!ch)
+			return NULL;
+		// A dropper is a drop character: its table, its gear and its counter,
+		// and no quests ("jesli to osobowosc typowo dropek medali to powinien
+		// sie skupic tylko na lochu i eq ... a nie na robieniu questow", Tieru,
+		// 15 September - dropki of twenty-five doing the Biologist in M2). The
+		// planner, the pass, the travel and the status all ask this.
+		if (IsPlayerBotDropper(GetPlayerBotPersonalityByPID(ch->GetPlayerID())))
 			return NULL;
 		// Four passes: a mission whose specimens the bot already carries, then
 		// one whose monster stands on this map, then the first left undone that
@@ -168,6 +265,9 @@ namespace
 				break;
 			if (IsPlayerBotBiologistMissionComplete(ch, i))
 				continue;
+			// A chain row waits for the one before it (IsPlayerBotBiologistMissionOpen).
+			if (!IsPlayerBotBiologistMissionOpen(ch, i))
+				continue;
 			// A row whose monster stands on no map this world hosts can never
 			// be finished, and choosing it means saying so above the bot's head
 			// for ever. The Demon Souvenir is that row here: 1001 lives only on
@@ -178,38 +278,53 @@ namespace
 			// 0/15" exactly the way they once all read "Korzen Gango 0/5".
 			if (!IsPlayerBotHuntingMobHosted(mission.mobVnum))
 				continue;
+			// An outgrown first-village herb row is a stay in the first village
+			// - and those are a trickle (PLAYERBOT_BIOLOGIST_HERB_TRIP_PER_MILLE),
+			// wherever the bot stands: with the place free for a bot already
+			// there, the 483 bots the update had drawn into the first villages
+			// stayed for all six rows. A bot without a place steps over the row,
+			// in every pass, and takes what stands next in order - which sends a
+			// bot of fifty out of Joan the way it always left; a hand-in it
+			// already holds waits for the place too.
+			if (mission.mobVnum < 500 &&
+					(int)ch->GetLevel() > mission.requiredLevel + PLAYERBOT_BIOLOGIST_OUTGROWN_LEVELS &&
+					!PlayerBotMayTakeHerbErrand(ch, i, get_dword_time()))
+				continue;
 			last = (int)i;
-			// Outgrown rows are stepped over by both of the middle passes. A bot
-			// of forty-two standing in Joan for a hand-in has the Gango Root's
-			// monster underfoot, and picking it there would leave it camped on
-			// level-fifteen ground for the rest of the evening; the row it is in
-			// town for is the one it is carrying.
-			const bool outgrown = (int)ch->GetLevel() >
-					(int)mission.requiredLevel + PLAYERBOT_BIOLOGIST_OUTGROWN_LEVELS;
-			if (first < 0 && !outgrown)
+			// No row is ever "too low": rows are done in order, whatever the
+			// bot's level, and a bot of seventy-eight with the Gango Root undone
+			// goes back to Joan for it. Until 2.0.60 a row more than
+			// PLAYERBOT_BIOLOGIST_OUTGROWN_LEVELS under the bot was stepped
+			// over by the middle passes, so the panel read "Zab Orka 4/10, za
+			// niskie dla bota, pominiete: 4" over a bot that would never finish
+			// either ("nie ma czegos takiego jak za niskie dla bota", Tieru,
+			// 16 September). The travel and the wander take the bot to the
+			// row's monster (playerbot_travel.h, playerbot_wandering.h).
+			if (first < 0)
 				first = (int)i;
 			int required = 0;
 			const DWORD wanted = GetPlayerBotBiologistWantedItem(ch, i, &required);
-			// "Carrying" outranks everything, so it has to mean carrying enough.
-			// It used to mean one: a single Gango Root picked up on a fishing
-			// trip to Joan pinned a bot of forty to the level-fifteen row for
-			// good - the row is outgrown, so it never hunts the monster, so it
-			// never reaches the five it needs, so the panel read "Korzen Gango
-			// 0/5" beside a bot hitting Orcs. Measured: thirty-eight bots of
-			// twenty-six and up held the root, thirty-six of them with one to
-			// four, and that is the "wszystkie maja 4/7 Korzen Gango" from the
-			// Discord. An outgrown row is taken only when the bag already holds
-			// the whole hand-in; a row the bot has not outgrown keeps the old
-			// rule, because there it will hunt the rest.
+			// "Carrying" still comes first: a row half done is finished before
+			// an earlier one is begun, which is what "niech je zrobi do konca by
+			// przejsc do kolejnej misji" asks for.
 			const int held = ch->CountSpecifyItem(wanted);
-			if (carrying < 0 && held > 0 && (!outgrown || held >= required))
+			if (carrying < 0 && held > 0)
 				carrying = (int)i;
-			if (here < 0 && !outgrown &&
-					IsPlayerBotHuntingMobHosted(mission.mobVnum, ch->GetMapIndex()))
+			if (here < 0 && IsPlayerBotHuntingMobHosted(mission.mobVnum, ch->GetMapIndex()))
 				here = (int)i;
 		}
+		// The row whose specimens the bag holds, else the first in order; a
+		// row whose monster happens to stand on this map is taken ahead of an
+		// earlier one only when the earlier one is not yet begun, because a
+		// trip for it is the same trip either way.
 		const int pick = carrying >= 0 ? carrying
 				: (here >= 0 ? here : (first >= 0 ? first : last));
+		// A place on the herb errand is given back the moment the bot's
+		// active row is not a first-village one any more.
+		if ((pick < 0 || PLAYERBOT_BIOLOGIST_MISSIONS[pick].mobVnum >= 500) &&
+				s_mapPlayerBotHerbErrand.erase(ch->GetPlayerID()) != 0)
+			sys_log(0, "PLAYERBOT_BIOLOGIST: herb errand over pid=%u name=%s away=%u",
+					ch->GetPlayerID(), ch->GetName(), (unsigned int)s_mapPlayerBotHerbErrand.size());
 		if (pick < 0)
 			return NULL;
 		if (outIndex)
@@ -227,6 +342,73 @@ namespace
 				return false;
 		}
 		return true;
+	}
+
+	// The bag holds what the next hand-in takes: the same threshold the hand-in
+	// itself uses, or the trip to Joan would never start for a bot the
+	// Biologist would happily serve.
+	bool PlayerBotBiologistHoldsHandIn(LPCHARACTER ch, const TPlayerBotBiologistMission* mission, size_t missionIndex)
+	{
+		if (!ch || !mission)
+			return false;
+		int required = mission->requiredCount;
+		const DWORD wantedVnum = GetPlayerBotBiologistWantedItem(ch, missionIndex, &required);
+		const int accepted = IsPlayerBotBiologistKeyPhase(ch, missionIndex) ? 0 : std::max(0, ch->GetQuestFlag(
+				GetPlayerBotBiologistFlag(*mission, "collect_count")));
+		const int remaining = std::max(0, required - accepted);
+		return remaining > 0 && ch->CountSpecifyItem(wantedVnum) >=
+				std::min(remaining, PLAYERBOT_BIOLOGIST_MIN_HANDIN);
+	}
+
+	// The monster the active row still wants killed, or zero: the row's own
+	// while specimens are short, the key's monster in the key phase, nothing
+	// while the bag already holds the hand-in.
+	DWORD GetPlayerBotBiologistHuntMob(LPCHARACTER ch)
+	{
+		// The horse trial comes first. A bot of seventy-seven with its horse
+		// at ten read "Zdobywam konia bojowego na pustyni (0/100)" in Jayang
+		// for the whole evening (Tieru, 16 September): the Gango Root's monster
+		// stands in the first village, so the herb row's hunt sent it there
+		// through NeedsPlayerBotM1OnlyServices ahead of the frontier draw, which
+		// wanted the desert - 35 such bots on map 3, and the same on every
+		// other village map. While a horse trial is open the row's monster is
+		// not a destination; the row waits, and the hand-in still walks.
+		if (IsPlayerBotOnBattleHorseTrial(ch) || IsPlayerBotOnMilitaryHorseTrial(ch))
+			return 0;
+		size_t missionIndex = 0;
+		const TPlayerBotBiologistMission* mission = GetActivePlayerBotBiologistMission(ch, &missionIndex);
+		if (!mission || PlayerBotBiologistHoldsHandIn(ch, mission, missionIndex))
+			return 0;
+		return IsPlayerBotBiologistKeyPhase(ch, missionIndex) ? mission->keyMobVnum : mission->mobVnum;
+	}
+
+	// A first-village herb row is being hunted: the reason to go to a first
+	// village (NeedsPlayerBotM1OnlyServices) and, once there, the reason to
+	// stay. The M1 branch of the world travel did not ask, and a bot of forty
+	// with a place on the herb errand crossed Joan <-> Bokjung every four
+	// seconds - "level_to_m2" out, "m1_only_service" back - because both
+	// gates' arrival points stand beside the return gate (Greess, Logi.txt,
+	// 16 September, "nie przechodza przez teleporty").
+	bool PlayerBotHuntsVillageHerbs(LPCHARACTER ch)
+	{
+		const DWORD mob = GetPlayerBotBiologistHuntMob(ch);
+		return mob != 0 && mob < 500;
+	}
+
+	// The level the first village's hubs are chosen for: the active herb row's
+	// own level while its monster is wanted - a bot of seventy-eight after the
+	// Gango Root stands where the Gango Root's monster is, not with the
+	// tigers - and the bot's otherwise.
+	int GetPlayerBotVillageHuntLevel(LPCHARACTER ch)
+	{
+		if (!ch)
+			return 1;
+		size_t missionIndex = 0;
+		const TPlayerBotBiologistMission* mission = GetActivePlayerBotBiologistMission(ch, &missionIndex);
+		if (!mission || mission->mobVnum >= 500 || IsPlayerBotBiologistKeyPhase(ch, missionIndex) ||
+				PlayerBotBiologistHoldsHandIn(ch, mission, missionIndex))
+			return ch->GetLevel();
+		return std::max<int>(1, mission->requiredLevel);
 	}
 
 	bool EnsurePlayerBotBiologistMissionStarted(LPCHARACTER ch, size_t missionIndex)

@@ -16,7 +16,7 @@
   restartInfo.id = 'last-restart';
   document.querySelector('.live-shell header > div').appendChild(restartInfo);
   [...document.querySelectorAll('.live-shell footer span')].filter(node => node.textContent.includes('Podkład graficzny')).forEach(node => node.remove());
-  const mapLabels = {21:'Chunjo M1 — Joan',23:'Chunjo M2 — Bokjung',24:'Chunjo M3 — Waryong',25:'Łatwy Loch Małp',61:'Góra Sohan',64:'Dolina Orków',63:'Pustynia Yongbi',104:'Loch Pająków V1',108:'Loch Małp Normalny',109:'Loch Małp Trudny'};
+  const mapLabels = {21:'Chunjo M1 — Joan',23:'Chunjo M2 — Bokjung',24:'Chunjo M3 — Waryong',25:'Łatwy Loch Małp',61:'Góra Sohan',64:'Dolina Orków',63:'Pustynia Yongbi',104:'Loch Pająków V1',108:'Loch Małp Normalny',109:'Loch Małp Trudny',65:'Świątynia Hwang',4:'Shinsoo M3 — Jungrang',44:'Jinno M3 — Imha',5:'Loch Małp Shinsoo',45:'Loch Małp Jinno',1:'Shinsoo M1 — Yongan',3:'Shinsoo M2 — Jayang',41:'Jinno M1 — Pyongmoo',43:'Jinno M2 — Bakra',67:'Las',68:'Czerwony Las',66:'Wieża Demonów'};
   Object.entries(mapLabels).forEach(([id,label]) => {
     const option = select.querySelector(`option[value="${id}"]`);
     if (option) option.textContent = label;
@@ -26,14 +26,16 @@
   if (overview) {
     overviewMaps = document.createElement('section');
     overviewMaps.className = 'overview-maps';
-    overviewMaps.innerHTML = '<h4>🗺 Boty na mapach</h4><div class="muted">Ładowanie…</div>';
+    overviewMaps.innerHTML = '<h4>🗺 Boty na mapach</h4><div class="overview-maps-list"><div class="muted">Ładowanie…</div></div>';
     overview.insertBefore(overviewMaps, overview.querySelector('.overview-restart'));
   }
   function renderOverviewMaps() {
     if (!overviewMaps) return;
     const counts = snapshot.reduce((all, bot) => { all[bot.map_index] = (all[bot.map_index] || 0) + 1; return all; }, Object.fromEntries(Object.keys(mapLabels).map(id => [id, 0])));
     const entries = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
-    overviewMaps.innerHTML = '<h4>🗺 Boty na mapach</h4>' + (entries.map(([id,count]) => `<div><span>${escape(mapLabels[id] || `Mapa #${id}`)}</span><b>${count}</b></div>`).join('') || '<div class="muted">Brak botów online.</div>');
+    // Scrollable inner list -- with 20+ maps now tracked, the plain list
+    // used to spill past the fixed-height world-overview sidebar box.
+    overviewMaps.innerHTML = '<h4>🗺 Boty na mapach</h4><div class="overview-maps-list">' + (entries.map(([id,count]) => `<div><span>${escape(mapLabels[id] || `Mapa #${id}`)}</span><b>${count}</b></div>`).join('') || '<div class="muted">Brak botów online.</div>') + '</div>';
   }
   const levelOK = (level) => currentLevel === 'all' || (currentLevel === '16+' ? level >= 16 : (() => { const [a,b] = currentLevel.split('-').map(Number); return level >= a && level <= b; })());
   const escape = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -43,7 +45,7 @@
     if (/łow|low|ryb|fishing|branie/.test(status)) return 'Łowi ryby';
     const goals = {2:'Wybiera profesję',3:'Zdobywa ekwipunek',4:'Uzupełnia zapasy',5:'Ulepsza ekwipunek',6:'Rozwija umiejętności',7:'Poluje na Metiny',8:'Gra w grupie',9:'Robi Biologa',10:'Misje polowania',11:'Rozwija konia'};
     if (goals[bot.goal] !== undefined) return goals[bot.goal];
-    const actions = {2:'Expi / walczy',3:'Zbiera łup',4:'Regeneruje się',6:'Handluje',7:'Ulepsza ekwipunek',8:'Rozwija umiejętności',9:'Ulepsza ekwipunek',10:'Gra w grupie',11:'Robi Biologa',12:'Rozwija konia'};
+    const actions = {2:'Expi / walczy',3:'Zbiera łup',4:'Regeneruje się',5:'Wybiera profesję',6:'Handluje',7:'Ulepsza ekwipunek',8:'Rozwija umiejętności',9:'Ulepsza ekwipunek',10:'Gra w grupie',11:'Robi Biologa',12:'Rozwija konia',13:'Prowadzi stragan',15:'Przegląda stragany',16:'Wabi potwory',17:'Odpoczywa w mieście',18:'Kopie rudę'};
     return actions[bot.action] || (bot.action === 1 ? 'Przemieszcza się' : 'Expi / walczy');
   }
   function renderActivities(bots) {

@@ -53,8 +53,19 @@ namespace
 			long* pBossX, long* pBossY, char* pName = NULL, size_t nameSize = 0)
 	{
 		struct TBossAnswer { DWORD dwStamp; bool bAlive; long lX; long lY; char szName[32]; };
-		static std::map<WORD, TBossAnswer> s_mapAnswers;
-		std::map<WORD, TBossAnswer>::iterator it = s_mapAnswers.find(wRace);
+		// By map as well as race. The Bestial Captain (591) stands in all three
+		// second villages, and an answer kept by race alone gave a bot in
+		// Bokjung the Captain of Jayang for the thirty seconds it was trusted:
+		// a walk to another map's coordinates, which the planner clamped onto
+		// Bokjung's far corner (204750,307150) and called unreachable - 1615
+		// far plans a day on the test world, and close to four thousand
+		// refusals a minute once MovePlayerBot refused such a point. The raid
+		// roster and the guild call below are still kept by race, which holds
+		// while every boss hub is the boss of one map.
+		typedef std::pair<long, WORD> TBossKey;
+		static std::map<TBossKey, TBossAnswer> s_mapAnswers;
+		const TBossKey key(mapIndex, wRace);
+		std::map<TBossKey, TBossAnswer>::iterator it = s_mapAnswers.find(key);
 		if (it != s_mapAnswers.end() && dwNow - it->second.dwStamp < PLAYERBOT_RAID_BOSS_CHECK_INTERVAL)
 		{
 			if (pBossX) *pBossX = it->second.lX;
@@ -71,7 +82,7 @@ namespace
 			pMap->for_each(finder);
 			boss = finder.m_found;
 		}
-		TBossAnswer& answer = s_mapAnswers[wRace];
+		TBossAnswer& answer = s_mapAnswers[key];
 		const bool bAlive = boss != NULL;
 		if (it == s_mapAnswers.end() || answer.bAlive != bAlive)
 			sys_log(0, "PLAYERBOT_RAID: boss race=%u map=%ld %s pos=(%ld,%ld)", (unsigned int)wRace, mapIndex,
@@ -343,6 +354,33 @@ namespace
 		return count;
 	}
 
+	// The second villages' choice: the band rule above, and when it admits
+	// fewer than PLAYERBOT_M2_HUB_CHOICES_MIN hubs, the nearest bands by
+	// distance fill the set. The first villages have thirty-two hubs over a
+	// spread of thirty levels and never needed this; a second village has
+	// three bands, and the one under twenty-five matches none of them.
+	int CollectPlayerBotM2HubsForLevel(int botLevel, const TPlayerBotVillageHub* hubs,
+			int hubTotal, int* out, int cap)
+	{
+		int count = CollectPlayerBotM1HubsForLevel(botLevel, hubs, hubTotal, out, cap);
+		for (int distance = 0;
+				count < PLAYERBOT_M2_HUB_CHOICES_MIN && count < hubTotal && count < cap && distance < 64;
+				++distance)
+		{
+			for (int h = 0; h < hubTotal && count < PLAYERBOT_M2_HUB_CHOICES_MIN && count < cap; ++h)
+			{
+				if (abs(hubs[h].mobLevel - botLevel) != distance)
+					continue;
+				bool have = false;
+				for (int i = 0; i < count && !have; ++i)
+					have = out[i] == h;
+				if (!have)
+					out[count++] = h;
+			}
+		}
+		return count;
+	}
+
 	void ManagePlayerBotWandering(LPCHARACTER ch, TPlayerBotAIState& state, DWORD dwNow);
 
 	// A frontier map is worked, not squatted on.
@@ -568,7 +606,7 @@ namespace
 				if (partyCamps == NULL || campTotal <= 0)
 					return;
 				int campChoices[16];
-				const int campCount = CollectPlayerBotM1HubsForLevel(ch->GetLevel(),
+				const int campCount = CollectPlayerBotM1HubsForLevel(GetPlayerBotVillageHuntLevel(ch),
 						partyCamps, campTotal, campChoices, 16);
 				if (campCount <= 0)
 					return;
@@ -618,7 +656,9 @@ namespace
 				if (hubs == NULL || hubTotal <= 0)
 					return;
 				int hubChoices[64];
-				const int hubCount = CollectPlayerBotM1HubsForLevel(ch->GetLevel(),
+				// The active herb row's level while its monster is wanted, the
+				// bot's own otherwise (GetPlayerBotVillageHuntLevel).
+				const int hubCount = CollectPlayerBotM1HubsForLevel(GetPlayerBotVillageHuntLevel(ch),
 						hubs, hubTotal, hubChoices, 64);
 				if (hubCount <= 0)
 					return;
@@ -691,11 +731,28 @@ namespace
 			}
 			else
 			{
-				// Real spawn clusters from this village's own regen.txt.
-				// Persistent hub assignment stops the M2 cohort from tracing one
-				// identical route.
+				// Real spawn clusters from this village's own regen.txt, each with
+				// the median monster level round it, and a bot goes only to the
+				// hubs of its own band, the way the first villages do it. Persistent
+				// hub assignment by pid stops the cohort from tracing one route.
+				//
+				// The table used to be twelve hubs taken by pid with no band, and
+				// the wander pass only runs on a tick nothing was worth attacking:
+				// a bot came in at the gate, found monsters, and chain-killed its
+				// way outward from there for the rest of its life. Jayang's gate is
+				// in its south and Bakra's in its north, and the far half of each -
+				// the 501-504 ground of 29-36 - had nobody on it ("boty z Shinsoo
+				// omijaja gorna czesc Jayang, z Jinno dolna czesc Bakra", blasty,
+				// 16 September). The band choice sends the 33+ there, and the
+				// outgrown-prey rule in the combat policy is what lets them leave.
 				const TPlayerBotVillageHub* hubs = ground->hubs;
-				const size_t hubIndex = (pid + state.uMetinHotspotIndex) % ground->hubCount;
+				int hubChoices[32];
+				const int hubCount = CollectPlayerBotM2HubsForLevel(ch->GetLevel(),
+						hubs, (int)ground->hubCount, hubChoices, 32);
+				if (hubCount <= 0)
+					return;
+				const size_t hubIndex =
+						(size_t)hubChoices[(pid + state.uMetinHotspotIndex) % (DWORD)hubCount];
 				long offsetX = 0, offsetY = 0;
 				GetPlayerBotStableOffset(pid, 0x4d324855U + (DWORD)hubIndex,
 						150, 700, offsetX, offsetY);

@@ -39,6 +39,29 @@ namespace
 		return std::max(0, ch->GetQuestFlag(PLAYERBOT_BATTLE_HORSE_KILLS_FLAG));
 	}
 
+	// playerbot_travel.h; the trial is asked about long before the travel is
+	// included.
+	bool IsPlayerBotMapHostedHere(long mapIndex);
+
+	// A trial is open only on the core that hosts its map. A bot cannot
+	// cross to a map its core does not host, and on a split world the
+	// desert and the Demon Tower are on one core each: 58 Shinsoo and 42
+	// Jinno bots stood in their second villages reading "Zdobywam konia
+	// bojowego na pustyni (0/100)" (seban latino, 16 September) - the
+	// frontier draw answered the desert and was filtered to nothing, and
+	// since 2.0.61 the Biologist yielded to the trial as well, so those
+	// bots had neither. The answer is kept per map because the target
+	// collector asks it per candidate monster; the maps are loaded before
+	// the first bot ticks.
+	bool IsPlayerBotHorseTrialOpenHere(long trialMap)
+	{
+		static std::map<long, bool> s_mapTrialHosted;
+		std::map<long, bool>::iterator it = s_mapTrialHosted.find(trialMap);
+		if (it == s_mapTrialHosted.end())
+			it = s_mapTrialHosted.insert(std::make_pair(trialMap, IsPlayerBotMapHostedHere(trialMap))).first;
+		return it->second;
+	}
+
 	// Everything the stable keeper checks before it will talk about a battle
 	// horse, minus the two items this world cannot supply.
 	bool IsPlayerBotBattleHorseCandidate(LPCHARACTER ch)
@@ -53,7 +76,8 @@ namespace
 	// Out in the desert working on it.
 	bool IsPlayerBotOnBattleHorseTrial(LPCHARACTER ch)
 	{
-		return IsPlayerBotBattleHorseCandidate(ch) &&
+		return IsPlayerBotHorseTrialOpenHere(PLAYERBOT_MAP_DESERT) &&
+				IsPlayerBotBattleHorseCandidate(ch) &&
 				GetPlayerBotBattleHorseKills(ch) < PLAYERBOT_BATTLE_HORSE_KILLS;
 	}
 
@@ -95,7 +119,8 @@ namespace
 
 	bool IsPlayerBotOnMilitaryHorseTrial(LPCHARACTER ch)
 	{
-		return IsPlayerBotMilitaryHorseCandidate(ch) &&
+		return IsPlayerBotHorseTrialOpenHere(PLAYERBOT_MAP_DEMON_TOWER) &&
+				IsPlayerBotMilitaryHorseCandidate(ch) &&
 				GetPlayerBotMilitaryHorseKills(ch) < PLAYERBOT_MILITARY_HORSE_KILLS;
 	}
 

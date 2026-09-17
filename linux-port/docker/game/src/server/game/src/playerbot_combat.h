@@ -140,7 +140,11 @@ namespace
 				buffVnum == 109;    // Leczenie           (Szaman)
 	}
 
-	bool ManagePlayerBotCombatBuffs(LPCHARACTER ch, TPlayerBotAIState& state, DWORD dwNow)
+	// duel: asked by the duel pass, which claims the tick above this one. A
+	// duellist buffs wherever the duel stands and whatever errand it paused,
+	// and counts as in combat from the start.
+	bool ManagePlayerBotCombatBuffs(LPCHARACTER ch, TPlayerBotAIState& state, DWORD dwNow,
+			bool duel = false)
 	{
 		if (!ch || ch->GetSkillGroup() == 0 || dwNow < state.dwNextBuffCheckTime)
 			return false;
@@ -153,9 +157,9 @@ namespace
 		// out in the world too - just not during a town errand, a retreat or a
 		// pull, each of which owns the tick and would be interrupted by a cast
 		// claiming it.
-		if (state.bVisitingShop || state.bVisitingBiologist || state.bVisitingStable ||
+		if (!duel && (state.bVisitingShop || state.bVisitingBiologist || state.bVisitingStable ||
 				state.bRecoveringAfterDeath || state.bTacticalRetreat ||
-				state.bMultiPullActive || state.bFishingSession)
+				state.bMultiPullActive || state.bFishingSession))
 			return false;
 		// Nor from the saddle of a transport horse: CHARACTER::UseSkill refuses
 		// every non-horse skill while riding one, and a rider on a long leg
@@ -170,7 +174,7 @@ namespace
 		if (ch->GetMyShop())
 			return false;
 
-		if (ch->GetMapIndex() == 21)
+		if (!duel && ch->GetMapIndex() == 21)
 		{
 			const long townX = 60600;
 			const long townY = 170900;
@@ -180,7 +184,7 @@ namespace
 		// The market is in Bokjung, and this check only ever covered Joan. A bot
 		// browsing the stalls has no business buffing in the middle of them.
 		playerbot_empire_rules::TPoint pitch;
-		if (playerbot_empire_rules::GetTownPitch(ch->GetMapIndex(), pitch) &&
+		if (!duel && playerbot_empire_rules::GetTownPitch(ch->GetMapIndex(), pitch) &&
 				DISTANCE_APPROX(ch->GetX() - pitch.x,
 						ch->GetY() - pitch.y) <= PLAYERBOT_SHOPPING_RANGE)
 			return false;
@@ -192,7 +196,7 @@ namespace
 		// town casting an aura they would lose long before reaching the monsters a
 		// kilometre away. "Hunting" is the middle ground - in a fight, or recently
 		// enough in one that another is coming.
-		const bool inCombat = state.dwTargetVID != 0 || ch->GetVictim() != NULL ||
+		const bool inCombat = duel || state.dwTargetVID != 0 || ch->GetVictim() != NULL ||
 				(state.dwLastCombatActionTime != 0 &&
 				 dwNow - state.dwLastCombatActionTime < PLAYERBOT_BUFF_COMBAT_WINDOW);
 
@@ -361,6 +365,114 @@ namespace
 		return ch && victim && victim->IsPC() && battle_is_attackable(ch, victim);
 	}
 
+	// A duel ends for both of its sides at once, and the engine's half with it.
+	//
+	// CPVP::Win keeps the pair after a fight is decided: the loser may take a
+	// revenge, and until it does the winner's client will not attack it
+	// (PVP_MODE_REVENGE - "nie moge mu oddac", Drip). A bot takes no revenge,
+	// so a player who beat one could neither hit it nor challenge it again
+	// until CPVPManager::Process dropped the pair ten minutes later; and a
+	// player beaten by a bot could take a revenge on a bot that no longer
+	// counted itself in a duel, and so never hit back. Deleting the pair with
+	// the engine's own NONE packet puts both clients back where they stood
+	// before the challenge. When the other side is a bot its memory of the
+	// duel goes too, or it would first be refused its blows for
+	// PLAYERBOT_PVP_REFUSED_GIVE_UP.
+	void EndPlayerBotDuel(LPCHARACTER ch, TPlayerBotAIState& state, DWORD dwNow, const char* szReason)
+	{
+		if (!ch)
+			return;
+		const DWORD pid = ch->GetPlayerID();
+		const DWORD foePid = (DWORD)playerbot_pvp::GetDuelOpponent(pid, dwNow);
+		playerbot_pvp::EndDuel(pid);
+		if (foePid == 0)
+			return;
+		LPCHARACTER foe = CHARACTER_MANAGER::instance().FindByPID(foePid);
+		CPVP key(pid, foePid);
+		CPVP* pair = CPVPManager::instance().Find(key.GetCRC());
+		const bool pairRemoved = pair != NULL;
+		if (pair)
+		{
+			pair->Packet(true);
+			CPVPManager::instance().Delete(pair);
+		}
+		if (foe)
+		{
+			if (ch->GetVictim() == foe)
+				ch->SetVictim(NULL);
+			if (state.dwTargetVID == (DWORD)foe->GetVID())
+				state.dwTargetVID = 0;
+			if ((DWORD)playerbot_pvp::GetDuelOpponent(foePid, dwNow) == pid)
+			{
+				playerbot_pvp::EndDuel(foePid);
+				if (foe->GetVictim() == ch)
+					foe->SetVictim(NULL);
+				TPlayerBotAIStateMap::iterator foeState = s_mapPlayerBotAIStates.find(foePid);
+				if (foeState != s_mapPlayerBotAIStates.end() &&
+						foeState->second.dwTargetVID == (DWORD)ch->GetVID())
+					foeState->second.dwTargetVID = 0;
+			}
+		}
+		sys_log(0, "PLAYERBOT_PVP: duel over pid=%u name=%s foe_pid=%u foe=%s reason=%s level=%u foe_level=%u pair_removed=%d",
+				pid, ch->GetName(), foePid, foe ? foe->GetName() : "-", szReason,
+				(unsigned int)ch->GetLevel(), foe ? (unsigned int)foe->GetLevel() : 0U, pairRemoved ? 1 : 0);
+	}
+
+	// A splash skill lands on every attackable thing in its radius, stones
+	// included - FuncSplashDamage asks battle_is_attackable and nothing else -
+	// so a bot fighting beside a Demon Tower stone could still break it with a
+	// last blow meant for a monster, and the kill is the bot's: see
+	// PLAYERBOT_DEVIL_TOWER_STONE_FIRST. The stone stands on map 66 alone (the
+	// other four only inside instances no bot enters), so the look round is
+	// paid there and nowhere else.
+	class FPlayerBotTriggerStoneNear
+	{
+		public:
+			FPlayerBotTriggerStoneNear(long x, long y, int range) :
+				m_x(x), m_y(y), m_range(range), m_found(false) {}
+
+			void operator () (LPENTITY entity)
+			{
+				if (m_found || !entity || !entity->IsType(ENTITY_CHARACTER))
+					return;
+				LPCHARACTER stone = static_cast<LPCHARACTER>(entity);
+				if (stone->IsStone() && !stone->IsDead() &&
+						IsPlayerBotDungeonTriggerStone(stone->GetRaceNum()) &&
+						DISTANCE_APPROX(stone->GetX() - m_x, stone->GetY() - m_y) <= m_range)
+					m_found = true;
+			}
+
+			bool Found() const { return m_found; }
+
+		private:
+			long m_x;
+			long m_y;
+			int m_range;
+			bool m_found;
+	};
+
+	bool IsPlayerBotSplashNearTriggerStone(LPCHARACTER ch, LPCHARACTER target, DWORD skillVnum)
+	{
+		// Climbing with a player, the stone is the floor's objective and a
+		// splash that reaches it is welcome.
+		if (IsPlayerBotClimbingWithPlayer(ch) || IsPlayerBotTowerRaider(ch))
+			return false;
+		if (!ch || !target || ch->GetMapIndex() != PLAYERBOT_MAP_DEMON_TOWER || !ch->GetSectree())
+			return false;
+		CSkillProto* proto = CSkillManager::instance().Get(skillVnum);
+		const int reach = (proto && proto->iSplashRange > 0
+				? proto->iSplashRange : PLAYERBOT_SPLASH_STONE_DEFAULT_RANGE) + PLAYERBOT_SPLASH_STONE_MARGIN;
+		// Round the caster and round the target: a splash is centred on one or
+		// the other.
+		FPlayerBotTriggerStoneNear nearCaster(ch->GetX(), ch->GetY(), reach);
+		ch->GetSectree()->ForEachAround(nearCaster);
+		if (nearCaster.Found())
+			return true;
+		FPlayerBotTriggerStoneNear nearTarget(target->GetX(), target->GetY(), reach);
+		ch->GetSectree()->ForEachAround(nearTarget);
+		return nearTarget.Found();
+	}
+
 	bool ExecutePlayerBotAttackSkill(LPCHARACTER ch, LPCHARACTER target, TPlayerBotAIState& state, DWORD dwNow)
 	{
 		// Under a polymorph marble the engine refuses every skill - five
@@ -401,6 +513,8 @@ namespace
 				continue;
 			if (target->IsStone() && IsPlayerBotSplashSkill(skillVnum))
 				continue;
+			if (IsPlayerBotSplashSkill(skillVnum) && IsPlayerBotSplashNearTriggerStone(ch, target, skillVnum))
+				continue;
 
 			if (ch->UseSkill(skillVnum, target))
 			{
@@ -431,6 +545,63 @@ namespace
 		}
 
 		return false;
+	}
+
+	// A skill cast in a duel, on the duel's clock. A duel is short and the
+	// rotation is the fight: on the hunt's clock (PLAYERBOT_SKILL_ATTACK_INTERVAL,
+	// a Shaman's six seconds) a duel of twenty seconds saw one skill, and a
+	// warrior's Wir Miecza and Szarza never came round.
+	bool CastPlayerBotDuelSkill(LPCHARACTER ch, LPCHARACTER foe, TPlayerBotAIState& state, DWORD dwNow)
+	{
+		if (!ExecutePlayerBotAttackSkill(ch, foe, state, dwNow))
+			return false;
+		const DWORD interval = ch->GetJob() == JOB_SHAMAN
+				? PLAYERBOT_DUEL_SHAMAN_SKILL_INTERVAL : PLAYERBOT_DUEL_SKILL_INTERVAL;
+		state.dwNextSkillCastTime = std::min(state.dwNextSkillCastTime, dwNow + interval);
+		return true;
+	}
+
+	// The skill that closes a gap, per build: Szarza (5) for the body warrior,
+	// Uderzenie Miecza (20, whose target range is 1200) for the mental one.
+	DWORD GetPlayerBotDuelGapCloser(LPCHARACTER ch)
+	{
+		if (!ch || ch->GetJob() != JOB_WARRIOR)
+			return 0;
+		if (ch->GetSkillGroup() == 1)
+			return 5;
+		return ch->GetSkillGroup() == 2 ? 20 : 0;
+	}
+
+	// A warrior charges a duellist standing off instead of walking up to him, as
+	// a player does. Only from as far as the lunge carries -
+	// PLAYERBOT_DUEL_CHARGE_RANGE - so the blow it lands is one that could land,
+	// and the walk after the cast is the lunge itself. The cast is the
+	// rotation's own: UseSkill, ComputeSkill, the motion packet.
+	bool TryPlayerBotDuelGapCloser(LPCHARACTER ch, LPCHARACTER foe, TPlayerBotAIState& state,
+			DWORD dwNow, int distance)
+	{
+		const DWORD skill = GetPlayerBotDuelGapCloser(ch);
+		if (!ch || !foe || skill == 0 || distance < PLAYERBOT_DUEL_CHARGE_MIN_RANGE ||
+				distance > PLAYERBOT_DUEL_CHARGE_RANGE || ch->GetSkillLevel(skill) == 0 ||
+				ch->IsRiding() || ch->IsPolymorphed() ||
+				dwNow < state.dwNextSkillCastTime || dwNow < state.dwNextAttackTime ||
+				!CanPlayerBotStrikeCharacter(ch, foe))
+			return false;
+		if (ch->IsStateMove())
+			ch->Stop();
+		ch->SetRotationToXY(foe->GetX(), foe->GetY());
+		if (!ch->UseSkill(skill, foe))
+			return false;
+		ch->ComputeSkill(skill, foe);
+		SendPlayerBotSkillPacket(ch, skill);
+		state.dwLastBotSkillTime = dwNow;
+		state.dwLastCombatActionTime = dwNow;
+		state.dwNextSkillCastTime = dwNow + PLAYERBOT_DUEL_SKILL_INTERVAL;
+		state.dwNextAttackTime = dwNow + PLAYERBOT_SKILL_ANIMATION_LOCK;
+		MovePlayerBot(ch, foe->GetX(), foe->GetY(), dwNow, 4, false, false);
+		sys_log(0, "PLAYERBOT_PVP: charged pid=%u name=%s foe_pid=%u skill=%u dist=%d",
+				ch->GetPlayerID(), ch->GetName(), foe->GetPlayerID(), skill, distance);
+		return true;
 	}
 
 	class FPlayerBotPartyCohesion

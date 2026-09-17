@@ -66,6 +66,30 @@ BIOLOGIST_ITEM_VNUMS = {
     "collect_quest_lv40": 30047, "collect_quest_lv50": 30015,
 }
 BIOLOGIST_OUTGROWN_LEVELS = 10
+# From this level a row's specimen is a refine material too, and the core takes
+# any of it the bot carries to the Biologist, outgrown row or not
+# (PLAYERBOT_BIOLOGIST_COLLECT_QUEST_LEVEL).
+BIOLOGIST_COLLECT_QUEST_LEVEL = 30
+# A compiled quest's state index is a hash of the state's name, the same number
+# in every quest (quest/object/state/). key_item is the second half of the three
+# collect rows: every specimen is in and the Biologist waits for the key.
+BIOLOGIST_KEY_ITEM_STATE = -1726153001
+BIOLOGIST_KEY_VNUMS = {
+    "collect_quest_lv30": 30220, "collect_quest_lv40": 30221, "collect_quest_lv50": 30222,
+}
+# The collect rows are one chain in the quests: the Orc Tooth's last state starts
+# the Curse Book and the Curse Book's the Demon Souvenir. The core keeps that order
+# (IsPlayerBotBiologistMissionOpen, playerbot_missions.h), and so does the panel.
+BIOLOGIST_CHAIN_PREVIOUS = {
+    "collect_quest_lv40": "collect_quest_lv30", "collect_quest_lv50": "collect_quest_lv40",
+}
+# Where each row's monster stands (PLAYERBOT_HUNTING_MOB_HOMES): the herb rows
+# hunt village game, which every first and second village hosts.
+BIOLOGIST_VILLAGE_MAPS = frozenset((1, 3, 21, 23, 41, 43))
+BIOLOGIST_MOB_MAPS = {
+    "collect_quest_lv30": frozenset((64,)), "collect_quest_lv40": frozenset((64,)),
+    "collect_quest_lv50": frozenset((66,)),
+}
 
 # The official ``special.levelup_quest`` choices for the M1/M2 stage.  The
 # game server writes progress to quest ``levelup``; the panel only interprets
@@ -1007,12 +1031,22 @@ def read_ai_weights():
     vals["CHAT"] = 1
     vals["BOOKS"] = 1
     vals["NIGHT"] = 1
+    # "Boty graja jak zywi ludzie": sessions and rests. Experimental, off.
+    vals["LIFE"] = 0
+    # Guild wars between the bots' guilds (playerbot_guild_war.h). On.
+    vals["WARS"] = 1
+    vals["TOWER"] = 1
+    # The bots' ItemShop purchases (playerbot_itemshop.h). On.
+    vals["ISHOP"] = 1
     vals["SCRAP"] = 0
     # Percent of bots that rest on the market ring after a town errand; 100 is
     # the author's town, 0 is "every bot hunting".
     vals["REST"] = 100
     # Percent of bots that pick fights with bots of another kingdom; 0 is off.
     vals["KINGDOMPVP"] = 0
+    # The lowest plus a refine under a Blessing or Dragon God scroll may land
+    # on; 1 is no floor, which is also what the core starts from.
+    vals["SCROLL_FROM"] = 1
     # The chest event's two figures. None until the file says: the panel does
     # not know what CONFIG holds, and must not write a guess over it.
     vals["CHEST"] = None
@@ -1036,6 +1070,17 @@ def read_ai_weights():
                 if name == "NIGHT":
                     vals["NIGHT"] = 0 if parts[1].strip() in ("0", "off", "no") else 1
                     continue
+                if name == "LIFE":
+                    vals["LIFE"] = 0 if parts[1].strip() in ("0", "off", "no") else 1
+                    continue
+                if name == "WARS":
+                    vals["WARS"] = 0 if parts[1].strip() in ("0", "off", "no") else 1
+                if name == "TOWER":
+                    vals["TOWER"] = 0 if parts[1].strip() in ("0", "off", "no") else 1
+                    continue
+                if name == "ISHOP":
+                    vals["ISHOP"] = 0 if parts[1].strip() in ("0", "off", "no") else 1
+                    continue
                 if name == "SCRAP":
                     try:
                         vals["SCRAP"] = max(0, min(100, int(parts[1])))
@@ -1051,6 +1096,12 @@ def read_ai_weights():
                 if name == "KINGDOMPVP":
                     try:
                         vals["KINGDOMPVP"] = max(0, min(100, int(parts[1])))
+                    except ValueError:
+                        pass
+                    continue
+                if name == "SCROLL_FROM":
+                    try:
+                        vals["SCROLL_FROM"] = max(1, min(9, int(parts[1])))
                     except ValueError:
                         pass
                     continue
@@ -1092,6 +1143,14 @@ def write_ai_weights(vals):
     # Not a weight: whether the core raises the night flag (xmas_snow) between
     # 22:00 and 05:59 of the server's local time.
     body.append("NIGHT\t%d" % (1 if vals.get("NIGHT", 1) else 0))
+    # Not a weight: whether bots play in sessions and log out to rest in
+    # between (experimental, off by default).
+    body.append("LIFE\t%d" % (1 if vals.get("LIFE", 0) else 0))
+    # Not a weight: whether the bots' guilds fight field wars.
+    body.append("WARS\t%d" % (1 if vals.get("WARS", 1) else 0))
+    body.append("TOWER\t%d" % (1 if vals.get("TOWER", 1) else 0))
+    # Not a weight: whether the bots cash their vouchers and buy in the ItemShop.
+    body.append("ISHOP\t%d" % (1 if vals.get("ISHOP", 1) else 0))
     # Percent of stall keepers that sell scrap gear; 0 is off.
     body.append("SCRAP\t%d" % max(0, min(100, int(vals.get("SCRAP", 0)))))
     # Percent of bots that rest in town after an errand; 0 means nobody does.
@@ -1099,6 +1158,9 @@ def write_ai_weights(vals):
     # Percent of bots hostile to the other kingdoms; 0 means the world is at
     # peace with itself, which is the default the core also starts from.
     body.append("KINGDOMPVP\t%d" % max(0, min(100, int(vals.get("KINGDOMPVP", 0)))))
+    # The lowest plus a scroll refine may land on; 1 leaves the bots' own
+    # rules alone.
+    body.append("SCROLL_FROM\t%d" % max(1, min(9, int(vals.get("SCROLL_FROM", 1)))))
     # The Moonlight chest: thousandths per kill and per Metin. Written only once
     # the operator has set them, so an untouched install keeps its CONFIG.
     for key in ("CHEST", "CHEST_STONE"):
@@ -1108,6 +1170,261 @@ def write_ai_weights(vals):
     with open(tmp, "w", encoding="utf-8", newline="\n") as fh:
         fh.write("\n".join(body) + "\n")
     os.replace(tmp, AI_WEIGHTS)
+
+
+# The Moonlight chest switch: one click that turns the drop off without
+# losing the two figures the operator had set ("Daj w panelu www mozliwosc
+# wylaczenia dropu szkat blasku", Tieru, 16 September). Off is CHEST 0 and
+# CHEST_STONE 0 in the weights file - what the core reads within five
+# seconds - and the sliders' values kept beside it in a file of the panel's
+# own, because an unknown key in the weights file costs the core a log line
+# on every re-read.
+CHEST_SWITCH = os.path.join(AI_SPOOL, "playerbot_chest_switch.tsv")
+
+# The timed events the game core runs (playerbot_events.h): chest windows,
+# rate windows, and "activate now" lines. Same shape as the weights: the
+# panel writes, the core stats the file every five seconds. The core answers
+# with playerbot_events_status.tsv beside its playerbot_status.tsv.
+EVENTS_FILE = os.path.join(AI_SPOOL, "playerbot_events.tsv")
+EVENT_KINDS = ("chest", "exp", "drop", "yang")
+EVENTS_STATUS_FILES = [
+    "/opt/metin2/var/channel1/game1/playerbot_events_status.tsv",
+    "/opt/metin2/var/channel1/first/playerbot_events_status.tsv",
+    "/opt/metin2/var/channel1/game2/playerbot_events_status.tsv",
+]
+# The bot guilds, one file per core (playerbot_guild.h writes it once a
+# minute): every core knows every guild, but counts only the bots of it
+# standing in its own world, so the page adds the three up.
+GUILD_STATUS_FILES = [
+    "/opt/metin2/var/channel1/game1/playerbot_guild_status.tsv",
+    "/opt/metin2/var/channel1/first/playerbot_guild_status.tsv",
+    "/opt/metin2/var/channel1/game2/playerbot_guild_status.tsv",
+]
+GUILD_TIER_KEYS = ("gl_tier_elite", "gl_tier_strong", "gl_tier_medium", "gl_tier_ordinary")
+GUILD_EMPIRE_KEYS = {1: "gl_empire_shinsoo", 2: "gl_empire_chunjo", 3: "gl_empire_jinno"}
+EVENT_NOW_MINUTES = (15, 30, 60, 120, 180, 360)
+_EVENT_HHMM = re.compile(r"^([01]?\d|2[0-4]):([0-5]\d)$")
+
+
+def event_hhmm(text):
+    """'HH:MM' normalised, or None. 24:00 is a valid end."""
+    m = _EVENT_HHMM.match((text or "").strip())
+    if not m:
+        return None
+    h, mi = int(m.group(1)), int(m.group(2))
+    if h == 24 and mi != 0:
+        return None
+    return "%02d:%02d" % (h, mi)
+
+
+def read_events():
+    """The file as the page shows it: rows (a row switched off is kept as a
+    '#off' line the core skips) and the 'now' lines by kind."""
+    rows, nows = [], {}
+    try:
+        with open(EVENTS_FILE, "r", encoding="utf-8", errors="replace") as fh:
+            lines = fh.read().splitlines()
+    except OSError:
+        return rows, nows
+    for line in lines:
+        line = line.rstrip("\r")
+        if not line.strip():
+            continue
+        on = True
+        if line.startswith("#off\t"):
+            on = False
+            line = line[len("#off\t"):]
+        elif line.startswith("#"):
+            continue
+        f = line.split("\t")
+        if f[0] == "now" and len(f) >= 4 and f[1] in EVENT_KINDS:
+            try:
+                nows[f[1]] = {"until": int(f[2]), "value": int(f[3])}
+            except ValueError:
+                pass
+            continue
+        if len(f) < 5 or f[0] not in EVENT_KINDS:
+            continue
+        days = [d for d in range(1, 8) if f[1] == "*" or str(d) in f[1].split(",")]
+        start, end = event_hhmm(f[2]), event_hhmm(f[3])
+        if not start or not end:
+            continue
+        try:
+            value = int(f[4])
+        except ValueError:
+            value = 0
+        rows.append({"kind": f[0], "days": days, "start": start, "end": end,
+                     "value": value, "on": on})
+    return rows, nows
+
+
+def write_events(rows, nows):
+    """Replace the file in one step, written beside and renamed over, because
+    the core reads it on its own clock and must never see half of it."""
+    body = ["# Metin2 playerbots -- timed events (the panel's Events page).",
+            "# kind<TAB>days<TAB>from<TAB>to<TAB>value  |  now<TAB>kind<TAB>until_epoch<TAB>value",
+            "# days: * or 1..7 (1 = Monday); a '#off' line is a row switched off.",
+            ""]
+    for r in rows:
+        days = "*" if len(r["days"]) == 7 else (",".join(str(d) for d in r["days"]) or "-")
+        line = "%s\t%s\t%s\t%s\t%d" % (r["kind"], days, r["start"], r["end"], int(r["value"]))
+        body.append(line if r.get("on", True) else "#off\t" + line)
+    for kind in EVENT_KINDS:
+        n = nows.get(kind)
+        if n and int(n.get("until", 0)) > time.time():
+            body.append("now\t%s\t%d\t%d" % (kind, int(n["until"]), int(n.get("value", 0))))
+    tmp = EVENTS_FILE + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as fh:
+        fh.write("\n".join(body) + "\n")
+    os.replace(tmp, EVENTS_FILE)
+
+
+def read_events_status():
+    """What the core last wrote, by kind; {} when no core has written for five
+    minutes (an older core, or none running)."""
+    best, best_written = {}, 0
+    for path in EVENTS_STATUS_FILES:
+        try:
+            with open(path, "r", encoding="utf-8", errors="replace") as fh:
+                lines = fh.read().splitlines()
+        except OSError:
+            continue
+        cur, written = {}, 0
+        for line in lines[1:]:
+            f = line.rstrip("\r").split("\t")
+            if len(f) < 8 or f[0] not in EVENT_KINDS:
+                continue
+            try:
+                cur[f[0]] = {"scheduled": f[1] == "1", "active": f[2] == "1", "value": int(f[3]),
+                             "until": int(f[4]), "next_start": int(f[5]), "next_value": int(f[6])}
+                written = int(f[7])
+            except ValueError:
+                continue
+        if cur and written > best_written:
+            best, best_written = cur, written
+    if not best or time.time() - best_written > 300:
+        return {}
+    now = time.localtime()
+    for st in best.values():
+        for key in ("until", "next_start"):
+            stamp = st.get(key, 0)
+            if stamp:
+                lt = time.localtime(stamp)
+                same_day = (lt.tm_year, lt.tm_yday) == (now.tm_year, now.tm_yday)
+                st[key + "_text"] = time.strftime("%H:%M" if same_day else "%d.%m %H:%M", lt)
+    return best
+
+
+
+def read_guild_status():
+    """The bot guilds as the cores last reported them: a list of dicts sorted
+    by tier, then level, then members; [] when no core has written for five
+    minutes. Online bots and the experience offered are summed over the cores,
+    everything else is the guild's own (the same on every core)."""
+    guilds, newest = {}, 0
+    for path in GUILD_STATUS_FILES:
+        try:
+            mtime = os.path.getmtime(path)
+            with open(path, "r", encoding="utf-8", errors="replace") as fh:
+                lines = fh.read().splitlines()
+        except OSError:
+            continue
+        if not lines:
+            continue
+        newest = max(newest, mtime)
+        head = lines[0].rstrip("\r").split("\t")
+        for line in lines[1:]:
+            f = line.rstrip("\r").split("\t")
+            if len(f) < len(head):
+                continue
+            row = dict(zip(head, f))
+            try:
+                gid = int(row.get("guild_id", 0))
+                online = int(row.get("online", 0))
+                avg = int(row.get("avg_strength", 0))
+                offered = int(row.get("exp_offered_here", 0))
+            except ValueError:
+                continue
+            if gid <= 0:
+                continue
+            g = guilds.get(gid)
+            if g is None:
+                g = {"guild_id": gid, "name": row.get("name", ""), "online": 0, "strength_sum": 0,
+                     "exp_offered": 0, "master": row.get("master", "")}
+                for key in ("empire", "tier", "level", "members", "master_pid", "ladder",
+                            "wins", "draws", "losses", "war_score", "war_enemy_score"):
+                    try:
+                        g[key] = int(row.get(key, 0))
+                    except ValueError:
+                        g[key] = 0
+                g["war_with"] = row.get("war_with", "")
+                g["next_war_in_s"] = None
+                g["tower_raid"] = 0
+                guilds[gid] = g
+            # The kingdom's next war, as the core that hosts its guild map
+            # counts it (0 = under way, -1 = none scheduled); a core that
+            # does not host it writes -1, so the best answer wins.
+            try:
+                nw = int(row.get("next_war_in_s", -1))
+            except ValueError:
+                nw = -1
+            if nw >= 0 and (g["next_war_in_s"] is None or g["next_war_in_s"] < 0 or nw < g["next_war_in_s"]):
+                g["next_war_in_s"] = nw
+            if not g["master"] and row.get("master"):
+                g["master"] = row["master"]
+            if not g["war_with"] and row.get("war_with"):
+                g["war_with"] = row["war_with"]
+            if row.get("tower_raid", "0").strip() == "1":
+                g["tower_raid"] = 1
+            g["online"] += online
+            g["strength_sum"] += avg * online
+            g["exp_offered"] += offered
+    if not guilds or time.time() - newest > 300:
+        return []
+    out = []
+    for g in guilds.values():
+        g["avg_strength"] = g["strength_sum"] // g["online"] if g["online"] else 0
+        g["tier_key"] = GUILD_TIER_KEYS[min(max(g["tier"], 0), 3)]
+        g["empire_key"] = GUILD_EMPIRE_KEYS.get(g["empire"], "gl_empire_unknown")
+        out.append(g)
+    out.sort(key=lambda g: (g["tier"], -g["level"], -g["members"], g["name"]))
+    return out
+
+
+def read_chest_switch():
+    """(off, saved_kill, saved_stone); the saved values are None until set."""
+    off, kill, stone = False, None, None
+    try:
+        with open(CHEST_SWITCH, encoding="utf-8", errors="replace") as fh:
+            for line in fh:
+                parts = line.replace("\t", " ").split()
+                if len(parts) < 2:
+                    continue
+                try:
+                    value = int(parts[1])
+                except ValueError:
+                    continue
+                if parts[0] == "off":
+                    off = value == 1
+                elif parts[0] == "kill":
+                    kill = max(0, min(1000, value))
+                elif parts[0] == "stone":
+                    stone = max(0, min(1000, value))
+    except OSError:
+        pass
+    return off, kill, stone
+
+
+def write_chest_switch(off, kill, stone):
+    body = ["off\t%d" % (1 if off else 0)]
+    if kill is not None:
+        body.append("kill\t%d" % max(0, min(1000, int(kill))))
+    if stone is not None:
+        body.append("stone\t%d" % max(0, min(1000, int(stone))))
+    tmp = CHEST_SWITCH + ".tmp"
+    with open(tmp, "w", encoding="utf-8", newline="\n") as fh:
+        fh.write("\n".join(body) + "\n")
+    os.replace(tmp, CHEST_SWITCH)
 
 
 LANG_SPOOL   = _env_path("M2PANEL_LANG_SPOOL", "/opt/m2spool")
@@ -2997,6 +3314,34 @@ T.update({
                   "de":"Zwischen 22:00 und 05:59 Serverzeit (M2_TZ) setzt der Kern die Nacht-Flagge - dieselbe, die ein GM mit /xmas_snow 1 setzt - und nimmt sie morgens zurück. Der Client zeigt den Nachthimmel und, weil es die Weihnachtsflagge ist, Schnee.",
                   "tr":"Sunucu saatine göre (M2_TZ) 22:00-05:59 arasında çekirdek gece bayrağını kaldırır - GM'in /xmas_snow 1 ile ayarladığı bayrağın aynısı - ve sabah indirir. İstemci gece gökyüzünü ve, bayrak Noel bayrağı olduğu için, kar gösterir."},
  "ai_night_on":  {"en":"Enabled","pl":"Włączone","de":"Eingeschaltet","tr":"Açık"},
+ "ai_life":      {"en":"Bots play like people","pl":"Boty grają jak żywi ludzie","de":"Bots spielen wie Menschen","tr":"Botlar insan gibi oynar"},
+ "ai_life_help": {"en":"Experimental. Each bot plays a session of 3-6 hours (the first after a start from half an hour up), logs out, rests 3-9 hours and comes back - about two bots in five are online at any moment. Off, every bot stays in the world as before. Applies within a minute; switching it off brings the resting bots back within a few minutes. A bot in a player's party waits before logging out.",
+                  "pl":"Eksperymentalne. Każdy bot gra sesję 3–6 godzin (pierwszą po starcie serwera od pół godziny wzwyż), wylogowuje się, odpoczywa 3–9 godzin i wraca — w danej chwili online jest około dwóch botów na pięć. Wyłączone: wszystkie boty są w świecie jak dotąd. Działa w ciągu minuty; wyłączenie sprowadza odpoczywające boty z powrotem w kilka minut. Bot w drużynie gracza czeka z wylogowaniem.",
+                  "de":"Experimentell. Jeder Bot spielt eine Sitzung von 3-6 Stunden (die erste nach einem Start ab einer halben Stunde), loggt sich aus, ruht 3-9 Stunden und kommt zurück - etwa zwei von fünf Bots sind jeweils online. Aus: alle Bots bleiben wie bisher in der Welt. Greift innerhalb einer Minute; Ausschalten holt die ruhenden Bots in wenigen Minuten zurück. Ein Bot in der Gruppe eines Spielers wartet mit dem Ausloggen.",
+                  "tr":"Deneysel. Her bot 3-6 saatlik bir oturum oynar (başlangıçtan sonraki ilki yarım saatten itibaren), çıkış yapar, 3-9 saat dinlenir ve geri gelir - her an botların yaklaşık beşte ikisi çevrimiçidir. Kapalıyken tüm botlar eskisi gibi dünyada kalır. Bir dakika içinde uygulanır; kapatmak dinlenen botları birkaç dakika içinde geri getirir. Bir oyuncunun grubundaki bot çıkış yapmadan bekler."},
+ "ai_life_on":   {"en":"Enabled (experimental)","pl":"Włączone (eksperymentalne)","de":"Eingeschaltet (experimentell)","tr":"Açık (deneysel)"},
+ "ai_wars":      {"en":"Guild wars between the bots","pl":"Wojny gildii botów","de":"Gildenkriege der Bots","tr":"Botların lonca savaşları"},
+ "ai_wars_help": {"en":"Every two hours or so two bot guilds of one kingdom fight a field war on that kingdom's guild map: thirty minutes, the game's own declaration and scoring, a notice on the chat when it starts. A guild needs eight bots online to be picked. Off: no new war is declared; one under way is fought to its end.",
+                  "pl":"Mniej więcej co dwie godziny dwie gildie botów z jednego królestwa toczą wojnę polową na mapie gildyjnej tego królestwa: trzydzieści minut, wypowiedzenie i punktacja gry, komunikat na czacie przy starcie. Gildia musi mieć osiem botów online, żeby ją wylosowano. Wyłączone: nowa wojna nie jest wypowiadana; trwająca dobiega końca.",
+                  "de":"Etwa alle zwei Stunden führen zwei Bot-Gilden eines Königreichs einen Feldkrieg auf der Gildenkarte dieses Königreichs: dreißig Minuten, Kriegserklärung und Wertung des Spiels selbst, eine Meldung im Chat beim Start. Eine Gilde braucht acht Bots online, um gewählt zu werden. Aus: kein neuer Krieg wird erklärt; ein laufender wird zu Ende gekämpft.",
+                  "tr":"Yaklaşık iki saatte bir, aynı krallıktan iki bot loncası o krallığın lonca haritasında bir saha savaşı yapar: otuz dakika, oyunun kendi ilanı ve puanlaması, başlangıçta sohbette bir duyuru. Bir loncanın seçilmesi için sekiz botu çevrimiçi olmalı. Kapalı: yeni savaş ilan edilmez; süren savaş sonuna kadar oynanır."},
+ "ai_wars_on":   {"en":"Enabled","pl":"Włączone","de":"Eingeschaltet","tr":"Açık"},
+ "ai_tower":     {"en":"Bot guilds climb the Demon Tower","pl":"Gildie botów chodzą do Wieży Demonów","de":"Bot-Gilden steigen in den Dämonenturm","tr":"Bot loncaları Şeytan Kulesi'ne çıkar"},
+ "ai_tower_help": {"en":"About every hour and a half one bot guild of this core calls its members of level 40 and up to the tower's ground floor (the game says it on the chat), they break the Metin of Toughness together after four minutes and climb the floors: monsters, stones, keys and seals as in the game; from the sixth floor on a bot of 75 is needed, as for players. Whoever stands on the ground floor when the stone breaks - a bot on its errand, a player who came to watch - goes in with them. 'Now' calls a raid on the core's next check when none is under way.",
+                  "pl":"Mniej więcej co półtorej godziny jedna gildia botów tego rdzenia zwołuje członków od 40. poziomu na parter Wieży (ogłoszenie na czacie), po czterech minutach razem rozbijają Metin Twardości i przechodzą piętra: potwory, kamienie, klucze i pieczęcie jak w grze; od 6. piętra potrzebny jest bot z 75. poziomem, tak jak u graczy. Kto stoi na parterze, gdy pęka kamień — bot na własnej misji albo gracz, który przyszedł popatrzeć — wchodzi razem z nimi. „Teraz” zwołuje wyprawę przy najbliższym sprawdzeniu rdzenia, jeśli żadna nie trwa.",
+                  "de":"Etwa alle anderthalb Stunden ruft eine Bot-Gilde dieses Kerns ihre Mitglieder ab Stufe 40 ins Erdgeschoss des Turms (Ansage im Chat), nach vier Minuten zerschlagen sie gemeinsam den Metin der Härte und steigen die Etagen hinauf: Monster, Steine, Schlüssel und Siegel wie im Spiel; ab der sechsten Etage wird ein Bot mit Stufe 75 gebraucht, wie bei Spielern. Wer beim Zerbrechen des Steins im Erdgeschoss steht - ein Bot auf seinem Botengang, ein zuschauender Spieler - geht mit hinein. 'Jetzt' ruft beim nächsten Check des Kerns eine Expedition, wenn keine läuft.",
+                  "tr":"Yaklaşık her bir buçuk saatte bu çekirdeğin bir bot loncası 40 ve üzeri üyelerini kulenin zemin katına çağırır (sohbette duyurulur), dört dakika sonra Sertlik Metini'ni birlikte kırar ve katları çıkarlar: canavarlar, taşlar, anahtarlar ve mühürler oyundaki gibi; 6. kattan itibaren oyuncularda olduğu gibi 75 seviye bir bot gerekir. Taş kırıldığında zemin katta duran herkes - görevindeki bir bot, izlemeye gelen bir oyuncu - onlarla girer. 'Şimdi', hiçbiri sürmüyorsa çekirdeğin bir sonraki kontrolünde bir sefer çağırır."},
+ "ai_tower_on":  {"en":"Enabled","pl":"Włączone","de":"Eingeschaltet","tr":"Açık"},
+ "ai_tower_now": {"en":"Call a Demon Tower raid now","pl":"Wyprawa do Wieży Demonów teraz","de":"Jetzt eine Turm-Expedition rufen","tr":"Şimdi bir Kule seferi çağır"},
+ "ai_tower_now_done": {"en":"Requested: the core calls a raid on its next check (within a minute) if none is under way.","pl":"Zlecone: rdzeń zwoła wyprawę przy najbliższym sprawdzeniu (do minuty), jeśli żadna nie trwa.","de":"Angefordert: der Kern ruft beim nächsten Check (binnen einer Minute) eine Expedition, wenn keine läuft.","tr":"İstendi: hiçbiri sürmüyorsa çekirdek bir sonraki kontrolde (bir dakika içinde) bir sefer çağırır."},
+ "gl_tower":     {"en":"in the Demon Tower","pl":"w Wieży Demonów","de":"im Dämonenturm","tr":"Şeytan Kulesi'nde"},
+ "ai_ishop":     {"en":"Bots buy in the ItemShop","pl":"Boty kupują w ItemShopie","de":"Bots kaufen im ItemShop","tr":"Botlar ItemShop'tan alır"},
+ "ai_ishop_help":{"en":"A bot cashes the Kupon SM vouchers it finds (Metin stones and bosses drop them, M2_DRAGON_COIN_*_PERMILLE) into its account's Dragon Coins and buys, at most once an hour, only what its own rules would use: a Kamień Duchowy for a Grand Master skill, a change stone for a worn weapon still worth rerolling, with Dragon Marks a Blessing Scroll or the Dragon God's attack potions, and one bot in four a hairstyle, once. No VIP items and no pass: every bot already holds the premium subscription. Off: the vouchers stay in the bags.",
+                  "pl":"Bot wymienia znalezione Kupony SM (dropią z metinów i bossów, M2_DRAGON_COIN_*_PERMILLE) na Smocze Monety swojego konta i kupuje, najwyżej raz na godzinę, tylko to, z czego jego własne reguły korzystają: Kamień Duchowy do umiejętności Wielkiego Mistrza, kamień zmiany bonusów do noszonej broni wartej jeszcze losowania, za Smocze Znaki Zwój Błogosławieństwa albo mikstury ataku Boga Smoków, a jeden bot na czterech fryzurę, raz. Bez przedmiotów VIP i bez przepustki: każdy bot ma już subskrypcję premium. Wyłączone: kupony zostają w torbach.",
+                  "de":"Ein Bot löst die gefundenen Kupon-SM-Gutscheine (Metinsteine und Bosse lassen sie fallen, M2_DRAGON_COIN_*_PERMILLE) in Drachenmünzen seines Kontos ein und kauft höchstens einmal pro Stunde nur, was seine eigenen Regeln nutzen: einen Kamień Duchowy für eine Großmeister-Fertigkeit, einen Bonus-Wechselstein für die getragene Waffe, wenn sie noch neu gewürfelt würde, mit Drachenmarken eine Segensrolle oder die Angriffstränke des Drachengottes, und jeder vierte Bot einmal eine Frisur. Keine VIP-Gegenstände und kein Pass: jeder Bot hat das Premium-Abo bereits. Aus: die Gutscheine bleiben im Inventar.",
+                  "tr":"Bot bulduğu Kupon SM kuponlarını (Metin taşları ve boss'lar düşürür, M2_DRAGON_COIN_*_PERMILLE) hesabının Ejderha Parasına çevirir ve saatte en fazla bir kez, yalnızca kendi kurallarının kullanacağı şeyi alır: Büyük Usta becerisi için Kamień Duchowy, hâlâ yeniden atılmaya değer takılı silah için bonus değiştirme taşı, Ejderha İşaretleriyle Kutsama Parşömeni ya da Ejderha Tanrısı saldırı iksirleri ve dört bottan biri bir kez bir saç modeli. VIP eşya ve geçiş kartı yok: her bot zaten premium aboneliğe sahip. Kapalı: kuponlar çantada kalır."},
+ "ai_ishop_on":  {"en":"Enabled","pl":"Włączone","de":"Eingeschaltet","tr":"Açık"},
+ "ai_experimental": {"en":"experimental","pl":"eksperymentalne","de":"experimentell","tr":"deneysel"},
  "ai_scrap":     {"en":"Scrap keepers","pl":"Boty złomiarze","de":"Schrotthändler-Bots","tr":"Hurdacı botlar"},
  "ai_scrap_help":{"en":"The share of stall keepers that put their low refines (+0 to +3) on the counter, cheaply, instead of vendoring them - fodder for burning at the blacksmith, the way the hard servers play. Off by default.",
                   "pl":"Udział straganiarzy, którzy wystawiają na ladę swoje słabe ulepszenia (+0 do +3) za grosze zamiast sprzedawać je NPC - złom do palenia u kowala, jak na serwerach hard. Domyślnie wyłączone.",
@@ -3017,11 +3362,94 @@ T.update({
                  "de":"Anteil der Bots, die einen Bot eines anderen Königreichs angreifen.","tr":"Başka krallıktan bir botla düello başlatacak botların oranı."},
  "ai_kpvp_off":  {"en":"peace","pl":"pokój","de":"Frieden","tr":"barış"},
  "ai_kpvp_all":  {"en":"every bot","pl":"każdy bot","de":"jeder Bot","tr":"her bot"},
+ "ai_scroll":    {"en":"Blessing and Dragon God Scrolls","pl":"Zwoje Błogosławieństwa i Boga Smoków","de":"Segens- und Drachengott-Schriftrollen","tr":"Kutsama ve Ejderha Tanrısı parşömenleri"},
+ "ai_scroll_help":{"en":"The lowest plus a bot upgrades to under a Blessing Scroll or a Dragon God Scroll. At +7 a scroll goes only on the upgrades to +7, +8 and +9, and every lower one is done at the blacksmith without a scroll, like a player who has none - so the item can burn. At +1 nothing is restricted and the bots use scrolls as before: from +7, and earlier on a worn item that could burn and on an item with valuable bonuses. Applies within five seconds.",
+                  "pl":"Najniższy plus, na jaki bot ulepsza pod Zwojem Błogosławieństwa albo Zwojem Boga Smoków. Przy +7 zwój idzie tylko na ulepszenia na +7, +8 i +9, a każde niższe bot robi u kowala bez zwoju, jak gracz, który zwojów nie ma - więc przedmiot może spłonąć. Przy +1 nie ma ograniczenia i boty używają zwojów tak jak dotąd: od +7, a wcześniej na założonym przedmiocie, który mógłby spłonąć, i na przedmiocie z cennymi bonusami. Działa w pięć sekund.",
+                  "de":"Das niedrigste Plus, auf das ein Bot unter einer Segens- oder Drachengott-Schriftrolle verbessert. Bei +7 geht eine Schriftrolle nur auf die Verbesserungen auf +7, +8 und +9; jede niedrigere macht der Bot beim Schmied ohne Schriftrolle, wie ein Spieler ohne Schriftrollen - der Gegenstand kann also verbrennen. Bei +1 gibt es keine Einschränkung. Wirkt innerhalb von fünf Sekunden.",
+                  "tr":"Botun Kutsama veya Ejderha Tanrısı parşömeniyle yükselttiği en düşük artı. +7'de parşömen yalnızca +7, +8 ve +9 yükseltmelerinde kullanılır; daha düşük her yükseltmeyi bot demircide parşömensiz yapar, parşömeni olmayan bir oyuncu gibi - yani eşya yanabilir. +1'de kısıtlama yoktur. Beş saniye içinde uygulanır."},
+ "ai_scroll_off":{"en":"no restriction","pl":"bez ograniczenia","de":"keine Einschränkung","tr":"kısıtlama yok"},
+ "ai_scroll_top":{"en":"only the upgrade to +9","pl":"tylko ulepszenie na +9","de":"nur die Verbesserung auf +9","tr":"yalnızca +9 yükseltmesi"},
  "ai_chest":     {"en":"Moonlight Treasure Chests","pl":"Szkatułki Księżycowe","de":"Mondschein-Schatztruhen","tr":"Ay Işığı Sandıkları"},
  "ai_chest_help":{"en":"How often a chest drops, in thousandths: per monster kill, and per broken Metin stone. The game default is 10‰ (1%) and 300‰ (30%); more chests mean more bonus scrolls, speed potions and Blessing Scrolls for the bots. Applies within five seconds, to bots and players alike.",
                   "pl":"Jak często wypada szkatułka, w promilach: z zabitego potwora i z rozbitego Metina. Domyślnie w grze 10‰ (1%) i 300‰ (30%); więcej szkatułek to więcej zwojów bonusów, mikstur szybkości i Zwojów Błogosławieństwa u botów. Działa w pięć sekund, dla botów i graczy tak samo.",
                   "de":"Wie oft eine Truhe fällt, in Promille: pro getötetem Monster und pro zerstörtem Metin. Spielstandard 10‰ (1%) und 300‰ (30%); mehr Truhen heißt mehr Bonusrollen, Tempotränke und Segensrollen bei den Bots. Gilt binnen fünf Sekunden, für Bots wie Spieler.",
                   "tr":"Sandığın ne sıklıkla düştüğü, binde olarak: öldürülen canavar başına ve kırılan Metin başına. Oyun varsayılanı 10‰ (%1) ve 300‰ (%30); daha çok sandık, botlarda daha çok bonus parşömeni, hız iksiri ve Kutsama Parşömeni demek. Beş saniye içinde, bot ve oyuncu için aynı şekilde uygulanır."},
+ "ev_nav":       {"en":"\U0001F389 Events","pl":"\U0001F389 Eventy","de":"\U0001F389 Events","tr":"\U0001F389 Etkinlikler"},
+ "ev_open":      {"en":"\U0001F389 Open events","pl":"\U0001F389 Otw\u00f3rz eventy","de":"\U0001F389 Events \u00f6ffnen","tr":"\U0001F389 Etkinlikleri a\u00e7"},
+ "gl_nav":       {"en":"\U0001F6E1 Guilds","pl":"\U0001F6E1 Gildie","de":"\U0001F6E1 Gilden","tr":"\U0001F6E1 Loncalar"},
+ "gl_open":      {"en":"\U0001F6E1 Open guilds","pl":"\U0001F6E1 Otwórz gildie","de":"\U0001F6E1 Gilden öffnen","tr":"\U0001F6E1 Loncaları aç"},
+ "gl_dash_hint": {"en":"The bot guilds by tier: elite, strong, medium and ordinary, with their level, members, ladder and the war they are in.","pl":"Gildie botów wg klasy: elitarne, silne, średnie i zwykłe, z poziomem, członkami, rankingiem i toczoną wojną.","de":"Die Bot-Gilden nach Stufe: Elite, stark, mittel und gewöhnlich, mit Level, Mitgliedern, Rangliste und laufendem Krieg.","tr":"Bot loncaları kademeye göre: elit, güçlü, orta ve sıradan; seviye, üyeler, sıralama ve süren savaşla."},
+ "gl_intro":     {"en":"A bot guild has a tier. Every bot's strength is one number (level, weapon, skills, horse, armour); every ten minutes each kingdom's bots are cut into percentiles, and a guild is founded at the tier its founder's percentile puts it in: the top 3% found an elite guild, the top 15% a strong one, the top half a medium one, the rest an ordinary one. A master recruits only above its tier's floor, strongest first; a member that outgrows its guild leaves for a better one. Members offer the guild a share of their experience every hour, so a guild levels and its master spends the skill points.",
+                  "pl":"Gildia botów ma klasę. Siła każdego bota to jedna liczba (poziom, broń, umiejętności, koń, zbroja); co dziesięć minut boty każdego królestwa dzielone są na percentyle, a gildia powstaje w klasie, do której trafia percentyl założyciela: górne 3% zakłada gildię elitarną, górne 15% silną, górna połowa średnią, reszta zwykłą. Mistrz rekrutuje tylko powyżej progu swojej klasy, od najsilniejszych; członek, który przerósł gildię, odchodzi do lepszej. Członkowie co godzinę oddają gildii część zdobytego expa, więc gildia wbija poziomy, a mistrz wydaje punkty umiejętności.",
+                  "de":"Eine Bot-Gilde hat eine Stufe. Die Stärke jedes Bots ist eine Zahl (Level, Waffe, Fertigkeiten, Pferd, Rüstung); alle zehn Minuten werden die Bots jedes Königreichs in Perzentile geteilt, und eine Gilde wird in der Stufe gegründet, in die das Perzentil ihres Gründers fällt: die oberen 3% gründen eine Elite-Gilde, die oberen 15% eine starke, die obere Hälfte eine mittlere, der Rest eine gewöhnliche. Ein Meister rekrutiert nur über der Schwelle seiner Stufe, die Stärksten zuerst; ein Mitglied, das seiner Gilde entwachsen ist, wechselt in eine bessere. Mitglieder geben der Gilde stündlich einen Teil ihrer Erfahrung, so steigt die Gilde auf und der Meister verteilt die Fertigkeitspunkte.",
+                  "tr":"Bir bot loncasının kademesi vardır. Her botun gücü tek bir sayıdır (seviye, silah, beceriler, at, zırh); her on dakikada bir her krallığın botları yüzdelik dilimlere ayrılır ve lonca, kurucusunun dilimine denk gelen kademede kurulur: en üst %3 elit, en üst %15 güçlü, üst yarı orta, geri kalanı sıradan bir lonca kurar. Usta yalnızca kademesinin eşiğinin üzerinden, en güçlülerden başlayarak üye alır; loncasını aşan üye daha iyisine geçer. Üyeler her saat tecrübelerinin bir kısmını loncaya verir, böylece lonca seviye atlar ve usta beceri puanlarını harcar."},
+ "gl_stale":     {"en":"No game core has written a guild status yet (it does so within a minute of starting with this version).","pl":"Żaden rdzeń gry nie zapisał jeszcze statusu gildii (robi to w ciągu minuty od startu z tą wersją).","de":"Noch kein Spielkern hat einen Gildenstatus geschrieben (er tut es binnen einer Minute nach dem Start mit dieser Version).","tr":"Henüz hiçbir oyun çekirdeği lonca durumu yazmadı (bu sürümle başladıktan bir dakika içinde yazar)."},
+ "gl_summary":   {"en":"Bot guilds","pl":"Gildie botów","de":"Bot-Gilden","tr":"Bot loncaları"},
+ "gl_tier_elite":    {"en":"Elite","pl":"Elitarna","de":"Elite","tr":"Elit"},
+ "gl_tier_strong":   {"en":"Strong","pl":"Silna","de":"Stark","tr":"Güçlü"},
+ "gl_tier_medium":   {"en":"Medium","pl":"Średnia","de":"Mittel","tr":"Orta"},
+ "gl_tier_ordinary": {"en":"Ordinary","pl":"Zwykła","de":"Gewöhnlich","tr":"Sıradan"},
+ "gl_empire_shinsoo":{"en":"Shinsoo","pl":"Shinsoo","de":"Shinsoo","tr":"Shinsoo"},
+ "gl_empire_chunjo": {"en":"Chunjo","pl":"Chunjo","de":"Chunjo","tr":"Chunjo"},
+ "gl_empire_jinno":  {"en":"Jinno","pl":"Jinno","de":"Jinno","tr":"Jinno"},
+ "gl_empire_unknown":{"en":"?","pl":"?","de":"?","tr":"?"},
+ "gl_col_name":  {"en":"Guild","pl":"Gildia","de":"Gilde","tr":"Lonca"},
+ "gl_col_kingdom":{"en":"Kingdom","pl":"Królestwo","de":"Königreich","tr":"Krallık"},
+ "gl_col_tier":  {"en":"Tier","pl":"Klasa","de":"Stufe","tr":"Kademe"},
+ "gl_col_level": {"en":"Level","pl":"Poziom","de":"Level","tr":"Seviye"},
+ "gl_col_members":{"en":"Members","pl":"Członkowie","de":"Mitglieder","tr":"Üyeler"},
+ "gl_col_online":{"en":"Online","pl":"Online","de":"Online","tr":"Çevrimiçi"},
+ "gl_col_master":{"en":"Master","pl":"Mistrz","de":"Meister","tr":"Usta"},
+ "gl_col_strength":{"en":"Avg. strength","pl":"Śr. siła","de":"Ø Stärke","tr":"Ort. güç"},
+ "gl_col_ladder":{"en":"Ladder","pl":"Ranking","de":"Rangliste","tr":"Sıralama"},
+ "gl_col_record":{"en":"W/D/L","pl":"Z/R/P","de":"S/U/N","tr":"G/B/M"},
+ "gl_col_exp":   {"en":"Exp received","pl":"Otrzymany exp","de":"Erhaltene Erfahrung","tr":"Alınan tecrübe"},
+ "gl_col_war":   {"en":"War","pl":"Wojna","de":"Krieg","tr":"Savaş"},
+ "gl_war_with":  {"en":"vs","pl":"z","de":"gegen","tr":"vs"},
+ "gl_next_war":  {"en":"Next bot guild war","pl":"Następna wojna gildii botów","de":"Nächster Bot-Gildenkrieg","tr":"Sonraki bot lonca savaşı"},
+ "gl_next_war_now": {"en":"under way now (guild map)","pl":"trwa teraz (mapa gildyjna)","de":"läuft jetzt (Gildenkarte)","tr":"şu anda sürüyor (lonca haritası)"},
+ "gl_next_war_off": {"en":"not scheduled","pl":"niezaplanowana","de":"nicht geplant","tr":"planlanmadı"},
+ "gl_next_war_in": {"en":"in about","pl":"za ok.","de":"in etwa","tr":"yaklaşık"},
+ "gl_exp_note":  {"en":"Exp received counts what the bots have offered since the cores started; the guild's own exp column in the game is the same number, kept by the DB.","pl":"„Otrzymany exp” liczy, co boty oddały od startu rdzeni; kolumna expa gildii w grze to ta sama liczba, trzymana przez bazę.","de":"„Erhaltene Erfahrung“ zählt, was die Bots seit dem Start der Kerne gegeben haben; die Erfahrungsspalte der Gilde im Spiel ist dieselbe Zahl, von der Datenbank geführt.","tr":"„Alınan tecrübe“ çekirdekler başladığından beri botların verdiğini sayar; oyundaki lonca tecrübe sütunu veritabanının tuttuğu aynı sayıdır."},
+ "ev_dash_hint": {"en":"Timed windows: Moonlight chests drop only while their event runs; more experience, drop or yang at chosen hours. \u201cActivate now\u201d switches an event on for a number of minutes.","pl":"Okna czasowe: Szkatu\u0142ki Blasku Ksi\u0119\u017cyca dropi\u0105 tylko wtedy, gdy trwa ich event; wi\u0119cej expa, dropu albo yang o wybranych porach. \u201eAktywuj teraz\u201d w\u0142\u0105cza event na podan\u0105 liczb\u0119 minut.","de":"Zeitfenster: Mondschein-Truhen fallen nur w\u00e4hrend ihres Events; mehr Erfahrung, Drop oder Yang zu gew\u00e4hlten Stunden. \u201eJetzt aktivieren\u201c schaltet ein Event f\u00fcr einige Minuten ein.","tr":"Zaman pencereleri: Ay I\u015f\u0131\u011f\u0131 Sand\u0131klar\u0131 yaln\u0131zca etkinlik s\u00fcrerken d\u00fc\u015fer; se\u00e7ilen saatlerde daha fazla tecr\u00fcbe, drop veya yang. \u201c\u015eimdi etkinle\u015ftir\u201d bir etkinli\u011fi belirli dakika a\u00e7ar."},
+ "ev_intro":     {"en":"A row is a weekly window: which days, from what hour to what hour, and for a rate how many percent over the server's own rates (50 = +50%). The game core reads this within five seconds; nothing restarts. A window past midnight (22:00-02:00) runs into the next day.","pl":"Wiersz to okno tygodniowe: w jakie dni, od kt\u00f3rej do kt\u00f3rej, a dla rat o ile procent ponad ustawione raty serwera (50 = +50%). Rdze\u0144 gry odczytuje to w pi\u0119\u0107 sekund; nic si\u0119 nie restartuje. Okno przez p\u00f3\u0142noc (22:00-02:00) trwa do nast\u0119pnego dnia.","de":"Eine Zeile ist ein w\u00f6chentliches Fenster: welche Tage, von wann bis wann, und bei einer Rate wie viel Prozent \u00fcber den Serverraten (50 = +50%). Der Spielkern liest das binnen f\u00fcnf Sekunden; nichts startet neu. Ein Fenster \u00fcber Mitternacht (22:00-02:00) l\u00e4uft in den n\u00e4chsten Tag.","tr":"Bir sat\u0131r haftal\u0131k bir penceredir: hangi g\u00fcnler, saat ka\u00e7tan ka\u00e7a ve oran i\u00e7in sunucu oranlar\u0131n\u0131n y\u00fczde ka\u00e7 \u00fcst\u00fc (50 = +%50). Oyun \u00e7ekirde\u011fi bunu be\u015f saniyede okur; hi\u00e7bir \u015fey yeniden ba\u015flamaz. Gece yar\u0131s\u0131n\u0131 ge\u00e7en pencere (22:00-02:00) ertesi g\u00fcne sarkar."},
+ "ev_chest_note":{"en":"Once a single chest window is in the schedule, the chests drop only inside the windows; the two sliders on the bot behaviour page say how often they drop then.","pl":"Gdy w harmonogramie jest cho\u0107 jedno okno szkatu\u0142ek, poza oknami szkatu\u0142ki nie dropi\u0105 wcale; dwa suwaki na stronie zachowania bot\u00f3w m\u00f3wi\u0105, jak cz\u0119sto dropi\u0105 w oknie.","de":"Sobald ein Truhenfenster im Plan steht, fallen die Truhen nur innerhalb der Fenster; die zwei Regler auf der Seite Bot-Verhalten sagen, wie oft sie dann fallen.","tr":"Planda tek bir sand\u0131k penceresi bile varsa sand\u0131klar yaln\u0131zca pencereler i\u00e7inde d\u00fc\u015fer; bot davran\u0131\u015f\u0131 sayfas\u0131ndaki iki kayd\u0131r\u0131c\u0131 o s\u0131rada ne s\u0131kl\u0131kta d\u00fc\u015ft\u00fc\u011f\u00fcn\u00fc s\u00f6yler."},
+ "ev_notice_note":{"en":"The chat gets a notice when an event starts, every fifteen minutes while it runs, and when it ends.","pl":"Na czacie pojawia si\u0119 og\u0142oszenie na pocz\u0105tku eventu, co pi\u0119tna\u015bcie minut w jego trakcie i na ko\u0144cu.","de":"Der Chat bekommt eine Meldung zum Start eines Events, alle f\u00fcnfzehn Minuten w\u00e4hrenddessen und zum Ende.","tr":"Etkinlik ba\u015flad\u0131\u011f\u0131nda, s\u00fcrerken her on be\u015f dakikada ve bitti\u011finde sohbete duyuru d\u00fc\u015fer."},
+ "ev_status_title":{"en":"Right now","pl":"Teraz","de":"Gerade jetzt","tr":"\u015eu anda"},
+ "ev_status_stale":{"en":"The game core has not written an event status yet (it does so within a minute of starting with this version).","pl":"Rdze\u0144 gry nie zapisa\u0142 jeszcze statusu event\u00f3w (robi to w ci\u0105gu minuty od startu z t\u0105 wersj\u0105).","de":"Der Spielkern hat noch keinen Event-Status geschrieben (er tut es binnen einer Minute nach dem Start mit dieser Version).","tr":"Oyun \u00e7ekirde\u011fi hen\u00fcz etkinlik durumu yazmad\u0131 (bu s\u00fcr\u00fcmle ba\u015flad\u0131ktan bir dakika i\u00e7inde yazar)."},
+ "ev_active":    {"en":"Active until","pl":"Aktywny do","de":"Aktiv bis","tr":"\u015eu saate kadar aktif:"},
+ "ev_next":      {"en":"Next","pl":"Nast\u0119pny","de":"N\u00e4chstes","tr":"Sonraki"},
+ "ev_inactive":  {"en":"Not running","pl":"Nieaktywny","de":"L\u00e4uft nicht","tr":"\u00c7al\u0131\u015fm\u0131yor"},
+ "ev_none":      {"en":"No window scheduled","pl":"Brak zaplanowanych okien","de":"Kein Fenster geplant","tr":"Planlanm\u0131\u015f pencere yok"},
+ "ev_kind_chest":{"en":"Moonlight chests","pl":"Szkatu\u0142ki Blasku Ksi\u0119\u017cyca","de":"Mondschein-Truhen","tr":"Ay I\u015f\u0131\u011f\u0131 Sand\u0131klar\u0131"},
+ "ev_kind_exp":  {"en":"Experience","pl":"Do\u015bwiadczenie","de":"Erfahrung","tr":"Tecr\u00fcbe"},
+ "ev_kind_drop": {"en":"Item drop","pl":"Drop przedmiot\u00f3w","de":"Item-Drop","tr":"E\u015fya d\u00fc\u015fmesi"},
+ "ev_kind_yang": {"en":"Yang","pl":"Yang","de":"Yang","tr":"Yang"},
+ "ev_schedule":  {"en":"Schedule","pl":"Harmonogram","de":"Zeitplan","tr":"Zaman \u00e7izelgesi"},
+ "ev_col_kind":  {"en":"Event","pl":"Event","de":"Event","tr":"Etkinlik"},
+ "ev_col_days":  {"en":"Days","pl":"Dni","de":"Tage","tr":"G\u00fcnler"},
+ "ev_col_from":  {"en":"From","pl":"Od","de":"Von","tr":"Ba\u015flang\u0131\u00e7"},
+ "ev_col_to":    {"en":"To","pl":"Do","de":"Bis","tr":"Biti\u015f"},
+ "ev_col_value": {"en":"+% (rates)","pl":"+% (raty)","de":"+% (Raten)","tr":"+% (oranlar)"},
+ "ev_col_on":    {"en":"On","pl":"W\u0142.","de":"An","tr":"A\u00e7\u0131k"},
+ "ev_col_del":   {"en":"Delete","pl":"Usu\u0144","de":"L\u00f6schen","tr":"Sil"},
+ "ev_days":      {"en":"Mo,Tu,We,Th,Fr,Sa,Su","pl":"Pn,Wt,\u015ar,Cz,Pt,Sb,Nd","de":"Mo,Di,Mi,Do,Fr,Sa,So","tr":"Pt,Sa,\u00c7a,Pe,Cu,Ct,Pz"},
+ "ev_save":      {"en":"Save the schedule","pl":"Zapisz harmonogram","de":"Zeitplan speichern","tr":"Zaman \u00e7izelgesini kaydet"},
+ "ev_saved":     {"en":"Schedule saved; the game core reads it within five seconds.","pl":"Harmonogram zapisany; rdze\u0144 gry odczyta go w pi\u0119\u0107 sekund.","de":"Zeitplan gespeichert; der Spielkern liest ihn binnen f\u00fcnf Sekunden.","tr":"Zaman \u00e7izelgesi kaydedildi; oyun \u00e7ekirde\u011fi be\u015f saniyede okur."},
+ "ev_failed":    {"en":"Could not write the events file.","pl":"Nie uda\u0142o si\u0119 zapisa\u0107 pliku event\u00f3w.","de":"Die Event-Datei konnte nicht geschrieben werden.","tr":"Etkinlik dosyas\u0131 yaz\u0131lamad\u0131."},
+ "ev_bad_row":   {"en":"Row %d: the hours must be HH:MM (the start before 24:00) and the value 0-1000.","pl":"Wiersz %d: godziny musz\u0105 by\u0107 HH:MM (pocz\u0105tek przed 24:00), a warto\u015b\u0107 0-1000.","de":"Zeile %d: die Stunden m\u00fcssen HH:MM sein (Beginn vor 24:00), der Wert 0-1000.","tr":"Sat\u0131r %d: saatler SS:DD olmal\u0131 (ba\u015flang\u0131\u00e7 24:00 \u00f6ncesi), de\u011fer 0-1000."},
+ "ev_value_help":{"en":"The value is a percentage over the server's rates (50 = +50% experience); the chest rows ignore it. Untick every day to keep a row without running it.","pl":"Warto\u015b\u0107 to procent ponad raty serwera (50 = +50% expa); wiersze szkatu\u0142ek j\u0105 ignoruj\u0105. Odznacz wszystkie dni, by zachowa\u0107 wiersz bez uruchamiania.","de":"Der Wert ist ein Prozentsatz \u00fcber den Serverraten (50 = +50% Erfahrung); Truhenzeilen ignorieren ihn. Alle Tage abw\u00e4hlen, um eine Zeile zu behalten, ohne sie laufen zu lassen.","tr":"De\u011fer, sunucu oranlar\u0131n\u0131n \u00fcst\u00fcndeki y\u00fczdedir (50 = +%50 tecr\u00fcbe); sand\u0131k sat\u0131rlar\u0131 bunu yok sayar. Bir sat\u0131r\u0131 \u00e7al\u0131\u015ft\u0131rmadan saklamak i\u00e7in t\u00fcm g\u00fcnlerin i\u015faretini kald\u0131r\u0131n."},
+ "ev_now_minutes":{"en":"for minutes","pl":"na minut","de":"f\u00fcr Minuten","tr":"dakika boyunca"},
+ "ev_now_value": {"en":"+%","pl":"+%","de":"+%","tr":"+%"},
+ "ev_now_go":    {"en":"Activate now","pl":"Aktywuj teraz","de":"Jetzt aktivieren","tr":"\u015eimdi etkinle\u015ftir"},
+ "ev_now_started":{"en":"Event switched on for %d minutes; the chat is told within seconds.","pl":"Event w\u0142\u0105czony na %d minut; czat dowie si\u0119 w kilka sekund.","de":"Event f\u00fcr %d Minuten eingeschaltet; der Chat erf\u00e4hrt es binnen Sekunden.","tr":"Etkinlik %d dakikal\u0131\u011f\u0131na a\u00e7\u0131ld\u0131; sohbet saniyeler i\u00e7inde \u00f6\u011frenir."},
+ "ev_stop":      {"en":"End now","pl":"Zako\u0144cz","de":"Jetzt beenden","tr":"\u015eimdi bitir"},
+ "ev_stopped":   {"en":"The event switched on by hand is over.","pl":"Event w\u0142\u0105czony r\u0119cznie zako\u0144czony.","de":"Das von Hand eingeschaltete Event ist beendet.","tr":"Elle a\u00e7\u0131lan etkinlik bitti."},
+ "ai_chest_off":  {"en":"Turn the Moonlight chest drop off","pl":"Wyłącz drop Szkatułek Blasku Księżyca","de":"Mondschein-Truhen nicht fallen lassen","tr":"Ay Işığı Sandığı düşmesini kapat"},
+ "ai_chest_off_help":{"en":"Ticked and saved, no chest drops from monsters or Metin stones (both figures go to 0‰); the sliders keep what you set and come back when you untick. Applies within five seconds.",
+                  "pl":"Zaznaczone i zapisane: żadna szkatułka nie wypada z potworów ani z Metinów (obie wartości idą na 0‰); suwaki pamiętają Twoje ustawienie i wracają po odznaczeniu. Działa w pięć sekund.",
+                  "de":"Angehakt und gespeichert fällt keine Truhe mehr von Monstern oder Metins (beide Werte auf 0‰); die Regler behalten deine Werte und kommen nach dem Abhaken zurück. Gilt binnen fünf Sekunden.",
+                  "tr":"İşaretleyip kaydedince canavarlardan ve Metinlerden sandık düşmez (iki değer de 0‰ olur); kaydırıcılar ayarını hatırlar ve işareti kaldırınca geri gelir. Beş saniye içinde uygulanır."},
  "ai_chest_kill": {"en":"per monster kill","pl":"z zabitego potwora","de":"pro getötetem Monster","tr":"öldürülen canavar başına"},
  "ai_chest_stone":{"en":"per broken Metin stone","pl":"z rozbitego Metina","de":"pro zerstörtem Metin","tr":"kırılan Metin başına"},
  "ai_chest_note": {"en":"Saving writes both values; until then the game keeps what .env says.",
@@ -3389,6 +3817,12 @@ WARP_LOC = [  # (emoji, {lang:name}, coords)
   ("🏮", {"en":"Chunjo City","pl":"Miasto Chunjo","de":"Chunjo-Stadt","tr":"Chunjo Şehri"}, "65900 155600"),
   ("⛩️", {"en":"Jinno City","pl":"Miasto Jinno","de":"Jinno-Stadt","tr":"Jinno Şehri"}, "963500 279700"),
   ("🏘️", {"en":"Bokjung (M2)","pl":"Bokjung (M2)","de":"Bokjung (M2)","tr":"Bokjung (M2)"}, "145500 240000"),
+  # The other two second villages, at their market pitch (GetTownPitch in
+  # playerbot_empire_rules.h: standable ground inside the safe zone, the way
+  # Bokjung's row above is Bokjung's pitch). Only Chunjo's was listed, so a
+  # Shinsoo or Jinno M2 could not be reached from here (Pabloo, 14 September).
+  ("🏘️", {"en":"Jayang (M2)","pl":"Jayang (M2)","de":"Jayang (M2)","tr":"Jayang (M2)"}, "353987 880012"),
+  ("🏘️", {"en":"Bakra (M2)","pl":"Bakra (M2)","de":"Bakra (M2)","tr":"Bakra (M2)"}, "865500 244975"),
   ("⚔️", {"en":"Orc Valley","pl":"Dolina Orków","de":"Orktal","tr":"Ork Vadisi"}, "270400 739900"),
   ("🏜️", {"en":"Yongbi Desert","pl":"Pustynia Yongbi","de":"Yongbi-Wüste","tr":"Yongbi Çölü"}, "221900 502700"),
   ("❄️", {"en":"Mount Sohan","pl":"Góra Sohan","de":"Sohan-Berg","tr":"Sohan Dağı"}, "375200 174900"),
@@ -4447,6 +4881,16 @@ TPL_DASH = BASE.replace("__BODY__", """
 <a class="btn" href="{{url_for('ai_weights')}}">{{t('ai_open')}}</a>
 </div>
 <div class="card">
+<h3 class="help">{{t('ev_nav')}}</h3>
+<p class="muted">{{t('ev_dash_hint')}}</p>
+<a class="btn" href="{{url_for('events_page')}}">{{t('ev_open')}}</a>
+</div>
+<div class="card">
+<h3 class="help">{{t('gl_nav')}}</h3>
+<p class="muted">{{t('gl_dash_hint')}}</p>
+<a class="btn" href="{{url_for('guilds_page')}}">{{t('gl_open')}}</a>
+</div>
+<div class="card">
 <h3 class="help" title="{{t('tip_reset')}}">🔗 {{t('reset_title')}}</h3>
 <p class="muted">{{t('reset_hint')}}</p>
 <form method="post" action="{{url_for('admin_resetlink')}}">
@@ -4775,12 +5219,127 @@ TPL_SEASON = BASE.replace("__BODY__", """
 # that says what it actually changes -- an unlabelled slider called "BIOLOG" is
 # a number, not a control. No %-formatting anywhere in here: BASE is full of
 # CSS percentages and would eat it.
+TPL_EVENTS = BASE.replace("__BODY__", """
+<p><a href="{{url_for('dash')}}">{{t('back_players')}}</a></p>
+<div class="card">
+<h3>{{t('ev_nav')}}</h3>
+<p class="muted">{{t('ev_intro')}}</p>
+<p class="muted">{{t('ev_chest_note')}}</p>
+<p class="muted">{{t('ev_notice_note')}}</p>
+</div>
+
+<div class="card">
+<h3>{{t('ev_status_title')}}</h3>
+{% if not status %}<p class="muted">{{t('ev_status_stale')}}</p>{% endif %}
+<table>
+{% for k in kinds %}{% set s = status.get(k) %}
+<tr>
+<td><b>{{t('ev_kind_' + k)}}</b></td>
+<td>
+{% if s and s.active %}<span class="badge">{{t('ev_active')}} {{s.until_text}}{% if s.value and k != 'chest' %} (+{{s.value}}%){% endif %}</span>
+{% elif s and s.next_start %}{{t('ev_next')}}: {{s.next_start_text}}{% if s.next_value and k != 'chest' %} (+{{s.next_value}}%){% endif %}
+{% elif s and s.scheduled %}{{t('ev_inactive')}}
+{% elif s %}{{t('ev_none')}}
+{% else %}-{% endif %}
+</td>
+<td>
+<form method="post" style="display:inline">
+<input type="hidden" name="_csrf" value="{{csrf_token}}">
+<input type="hidden" name="action" value="now">
+<input type="hidden" name="kind" value="{{k}}">
+{{t('ev_now_minutes')}}
+<select name="minutes">{% for m in minutes %}<option value="{{m}}" {% if m == 60 %}selected{% endif %}>{{m}}</option>{% endfor %}</select>
+{% if k != 'chest' %}{{t('ev_now_value')}} <input type="number" name="value" min="1" max="1000" value="50" style="width:70px">{% endif %}
+<button class="btn" type="submit">{{t('ev_now_go')}}</button>
+</form>
+{% if nows.get(k) and nows[k].until > now_epoch %}
+<form method="post" style="display:inline">
+<input type="hidden" name="_csrf" value="{{csrf_token}}">
+<input type="hidden" name="action" value="stop">
+<input type="hidden" name="kind" value="{{k}}">
+<button class="btn" type="submit">{{t('ev_stop')}}</button>
+</form>
+{% endif %}
+</td>
+</tr>
+{% endfor %}
+</table>
+</div>
+
+<div class="card">
+<h3>{{t('ev_schedule')}}</h3>
+<p class="muted">{{t('ev_value_help')}}</p>
+<form method="post">
+<input type="hidden" name="_csrf" value="{{csrf_token}}">
+<input type="hidden" name="action" value="save">
+<table>
+<tr><th>{{t('ev_col_kind')}}</th><th>{{t('ev_col_days')}}</th><th>{{t('ev_col_from')}}</th><th>{{t('ev_col_to')}}</th><th>{{t('ev_col_value')}}</th><th>{{t('ev_col_on')}}</th><th>{{t('ev_col_del')}}</th></tr>
+{% for r in rows %}{% set i = loop.index0 %}
+<tr>
+<td><select name="r{{i}}_kind"><option value="">-</option>{% for k in kinds %}<option value="{{k}}" {% if r.kind == k %}selected{% endif %}>{{t('ev_kind_' + k)}}</option>{% endfor %}</select></td>
+<td>{% for d in range(1, 8) %}<label style="margin-right:6px"><input type="checkbox" name="r{{i}}_d{{d}}" value="1" {% if d in r.days %}checked{% endif %}>{{day_names[d - 1]}}</label>{% endfor %}</td>
+<td><input type="text" name="r{{i}}_start" value="{{r.start}}" size="5" placeholder="20:00"></td>
+<td><input type="text" name="r{{i}}_end" value="{{r.end}}" size="5" placeholder="21:00"></td>
+<td><input type="number" name="r{{i}}_value" value="{{r.value}}" min="0" max="1000" style="width:70px"></td>
+<td><input type="checkbox" name="r{{i}}_on" value="1" {% if r.on %}checked{% endif %}></td>
+<td>{% if r.kind %}<input type="checkbox" name="r{{i}}_del" value="1">{% endif %}</td>
+</tr>
+{% endfor %}
+</table>
+<p><button class="btn" type="submit">{{t('ev_save')}}</button></p>
+</form>
+</div>
+""")
+
+TPL_GUILDS = BASE.replace("__BODY__", """
+<p><a href="{{url_for('dash')}}">{{t('back_players')}}</a></p>
+<div class="card">
+<h3>{{t('gl_nav')}}</h3>
+<p class="muted">{{t('gl_intro')}}</p>
+<p class="muted">{{t('gl_exp_note')}}</p>
+</div>
+
+<div class="card">
+<h3>{{t('gl_summary')}}{% if guilds %}: {{guilds|length}}
+  {% for key in tier_keys %}{% set n = guilds|selectattr('tier_key', 'equalto', key)|list|length %}{% if n %}<span class="badge">{{t(key)}}: {{n}}</span> {% endif %}{% endfor %}{% endif %}</h3>
+{% if not guilds %}<p class="muted">{{t('gl_stale')}}</p>{% else %}
+{% if next_wars %}<p>\u2694 {{t('gl_next_war')}}: {% for key, s in next_wars %}<b>{{t(key)}}</b>: {% if s == 0 %}{{t('gl_next_war_now')}}{% elif s < 0 %}{{t('gl_next_war_off')}}{% else %}{{t('gl_next_war_in')}} {{(s // 60) + 1}} min{% endif %}{% if not loop.last %}, {% endif %}{% endfor %}</p>{% endif %}
+<div style="overflow-x:auto">
+<table>
+<tr><th>{{t('gl_col_name')}}</th><th>{{t('gl_col_kingdom')}}</th><th>{{t('gl_col_tier')}}</th>
+    <th>{{t('gl_col_level')}}</th><th>{{t('gl_col_members')}}</th><th>{{t('gl_col_online')}}</th>
+    <th>{{t('gl_col_master')}}</th><th>{{t('gl_col_strength')}}</th><th>{{t('gl_col_ladder')}}</th>
+    <th>{{t('gl_col_record')}}</th><th>{{t('gl_col_exp')}}</th><th>{{t('gl_col_war')}}</th></tr>
+{% for g in guilds %}
+<tr>
+  <td><b>{{g.name}}</b></td>
+  <td>{{t(g.empire_key)}}</td>
+  <td>{{t(g.tier_key)}}</td>
+  <td>{{g.level}}</td>
+  <td>{{g.members}}</td>
+  <td>{{g.online}}</td>
+  <td>{{g.master}}</td>
+  <td>{{g.avg_strength}}</td>
+  <td>{{g.ladder}}</td>
+  <td>{{g.wins}}/{{g.draws}}/{{g.losses}}</td>
+  <td>{{g.exp_offered}}</td>
+  <td>{% if g.war_with %}\u2694 {{t('gl_war_with')}} <b>{{g.war_with}}</b> {{g.war_score}}:{{g.war_enemy_score}}{% endif %}{% if g.tower_raid %} \u26e9 {{t('gl_tower')}}{% endif %}</td>
+</tr>
+{% endfor %}
+</table>
+</div>
+{% endif %}
+</div>
+""")
+
 TPL_AI = BASE.replace("__BODY__", """
 <p><a href="{{url_for('dash')}}">{{t('back_players')}}</a></p>
 <div class="card">
 <h3>{{t('ai_nav')}}</h3>
 <p class="muted">{{t('ai_intro')}}</p>
-<p><a class="btn" href="{{url_for('ai_item_policy')}}">{{t('ai_items_open')}}</a></p>
+<p><a class="btn" href="{{url_for('ai_item_policy')}}">{{t('ai_items_open')}}</a>
+   <a class="btn" href="{{url_for('events_page')}}">{{t('ev_open')}}</a>
+   <a class="btn" href="{{url_for('guilds_page')}}">{{t('gl_open')}}</a></p>
 </div>
 
 <div class="card">
@@ -4800,6 +5359,27 @@ TPL_AI = BASE.replace("__BODY__", """
   <h3 style="margin:0 0 2px">🌙 {{t('ai_night')}}</h3>
   <p class="muted" style="margin:0 0 6px">{{t('ai_night_help')}}</p>
   <label><input type="checkbox" name="NIGHT" value="1" {% if cur.get('NIGHT', 1) %}checked{% endif %}> {{t('ai_night_on')}}</label>
+</div>
+<div style="margin-bottom:18px">
+  <h3 style="margin:0 0 2px">🧑‍💻 {{t('ai_life')}} <span class="badge">{{t('ai_experimental')}}</span></h3>
+  <p class="muted" style="margin:0 0 6px">{{t('ai_life_help')}}</p>
+  <label><input type="checkbox" name="LIFE" value="1" {% if cur.get('LIFE', 0) %}checked{% endif %}> {{t('ai_life_on')}}</label>
+</div>
+<div style="margin-bottom:18px">
+  <h3 style="margin:0 0 2px">🛡 {{t('ai_wars')}}</h3>
+  <p class="muted" style="margin:0 0 6px">{{t('ai_wars_help')}}</p>
+  <label><input type="checkbox" name="WARS" value="1" {% if cur.get('WARS', 1) %}checked{% endif %}> {{t('ai_wars_on')}}</label>
+</div>
+<div style="margin-bottom:18px">
+  <h3 style="margin:0 0 2px">⛩ {{t('ai_tower')}}</h3>
+  <p class="muted" style="margin:0 0 6px">{{t('ai_tower_help')}}</p>
+  <label><input type="checkbox" name="TOWER" value="1" {% if cur.get('TOWER', 1) %}checked{% endif %}> {{t('ai_tower_on')}}</label>
+  <div style="margin-top:6px"><button type="submit" formaction="{{url_for('ai_tower_now')}}" formmethod="post">{{t('ai_tower_now')}}</button></div>
+</div>
+<div style="margin-bottom:18px">
+  <h3 style="margin:0 0 2px">🛒 {{t('ai_ishop')}}</h3>
+  <p class="muted" style="margin:0 0 6px">{{t('ai_ishop_help')}}</p>
+  <label><input type="checkbox" name="ISHOP" value="1" {% if cur.get('ISHOP', 1) %}checked{% endif %}> {{t('ai_ishop_on')}}</label>
 </div>
 <div style="margin-bottom:18px">
   <h3 style="margin:0 0 2px">♻️ {{t('ai_scrap')}}
@@ -4832,8 +5412,22 @@ TPL_AI = BASE.replace("__BODY__", """
   </div>
 </div>
 <div style="margin-bottom:18px">
+  <h3 style="margin:0 0 2px">📜 {{t('ai_scroll')}}
+      <span class="badge" id="v_SCROLL_FROM">+{{cur.get('SCROLL_FROM', 1)}}</span></h3>
+  <p class="muted" style="margin:0 0 6px">{{t('ai_scroll_help')}}</p>
+  <input type="range" name="SCROLL_FROM" id="s_SCROLL_FROM" min="1" max="9" step="1" value="{{cur.get('SCROLL_FROM', 1)}}" style="width:100%"
+         oninput="document.getElementById('v_SCROLL_FROM').textContent='+'+this.value">
+  <div class="muted" style="display:flex;justify-content:space-between;font-size:12px">
+    <span>+1 — {{t('ai_scroll_off')}}</span><span>+9 — {{t('ai_scroll_top')}}</span>
+  </div>
+</div>
+<div style="margin-bottom:18px">
   <h3 style="margin:0 0 2px">🎁 {{t('ai_chest')}}</h3>
   <p class="muted" style="margin:0 0 6px">{{t('ai_chest_help')}}</p>
+  <label style="display:block;margin:6px 0 8px;font-weight:bold">
+    <input type="checkbox" name="CHEST_OFF" value="1" {% if chest_off %}checked{% endif %}> {{t('ai_chest_off')}}
+  </label>
+  <div class="muted" style="font-size:12px;margin-bottom:6px">{{t('ai_chest_off_help')}}</div>
   {% set chest = cur.get('CHEST') if cur.get('CHEST') is not none else 10 %}
   {% set stone = cur.get('CHEST_STONE') if cur.get('CHEST_STONE') is not none else 300 %}
   <div style="margin:6px 0 2px">{{t('ai_chest_kill')}} <span class="badge" id="v_CHEST">{{chest}}‰</span></div>
@@ -4908,8 +5502,9 @@ MAP_I18N = {
   "event_log":"Dziennik zdarzeń bota (logi na żywo)","track_live":"Śledź na żywo","copy_logs":"Kopiuj logi","loading_logs":"Ładowanie logów postaci","no_logs":"Brak najświeższych wpisów w logach dla tej postaci.",
   "log_error":"Błąd odczytu logów","network_error":"Błąd sieci","teleporting":"Teleportowanie Twojej postaci w grze...","teleported":"Przeteleportowano {name} do bota w grze!","you":"Cię","failure":"Niepowodzenie",
   "copied":"Skopiowano","paste":"wklej w grze [Enter] → Ctrl+V → [Enter]","solo_exp":"Solo — zdobywanie doświadczenia","party_exp":"[PT] Zdobywanie doświadczenia w grupie","metin_hunt":"Polowanie na Metiny",
-  "character_missing":"Postać nie znaleziona","bio_not_started":"Pierwsza misja jeszcze nierozpoczęta","bio_completed":"Ukończono: {name}","bio_next":"Następna misja od Lv {level}: {name}",
-  "bio_all":"Wszystkie podstawowe misje ukończone","bio_complete":"komplet","bio_in_progress":"w toku"
+  "character_missing":"Postać nie znaleziona","bio_next":"Następna misja od Lv {level}: {name}","bio_key":"{name}{sep}{have}/{need}, czeka na: {key}",
+  "bio_all":"Wszystkie podstawowe misje ukończone","bio_complete":"komplet","bio_done":"ukończone","bio_skipped":"za niskie dla bota, pominięte: {n}",
+  "bio_rank_now":"{done}/{total} ukończone • teraz: {stage}","bio_rank_next":"{done}/{total} ukończone • {stage}"
  },
  "en": {
   "title":"Live world map — Chunjo","live":"LIVE (1.5 s)","subtitle":"Interactive real-time view of bot positions and progression",
@@ -4928,8 +5523,9 @@ MAP_I18N = {
   "event_log":"Bot event log (live)","track_live":"Track live","copy_logs":"Copy logs","loading_logs":"Loading logs for","no_logs":"No recent log entries for this character.",
   "log_error":"Log read error","network_error":"Network error","teleporting":"Teleporting your in-game character...","teleported":"Teleported {name} to the bot in game!","you":"you","failure":"Failure",
   "copied":"Copied","paste":"paste in game [Enter] → Ctrl+V → [Enter]","solo_exp":"Solo levelling","party_exp":"[PT] Party levelling","metin_hunt":"Hunting Metins",
-  "character_missing":"Character not found","bio_not_started":"The first mission has not started yet","bio_completed":"Completed: {name}","bio_next":"Next mission at Lv {level}: {name}",
-  "bio_all":"All basic missions completed","bio_complete":"complete","bio_in_progress":"in progress"
+  "character_missing":"Character not found","bio_next":"Next mission at Lv {level}: {name}","bio_key":"{name}{sep}{have}/{need}, waiting for: {key}",
+  "bio_all":"All basic missions completed","bio_complete":"complete","bio_done":"done","bio_skipped":"outgrown, skipped: {n}",
+  "bio_rank_now":"{done}/{total} done • now: {stage}","bio_rank_next":"{done}/{total} done • {stage}"
  }
 }
 
@@ -4958,6 +5554,86 @@ def localized_job_name(job, language=None):
 def localized_biologist_name(quest_name, polish_name, language=None):
     language = language or (lang() if has_request_context() else "en")
     return polish_name if language == "pl" else BIOLOGIST_NAMES_EN.get(quest_name, polish_name)
+
+
+def biologist_progress(level, quest_flags, held, map_index, language=None):
+    """The Biologist as the core plays it for one bot: (completed, stage, skipped).
+
+    The card and the ranking both ask this, so they cannot disagree. The row is
+    the one GetActivePlayerBotBiologistMission picks (playerbot_missions.h): a row
+    whose specimens the bot carries, then one whose monster stands on its map,
+    then the first it has not outgrown, then the highest one left. The ranking
+    used to name the row at the position of the count instead, which is the last
+    row finished only when rows are finished in order, and they are not.
+
+    ``quest_flags`` maps (quest, flag) to its value, ``held`` a vnum to what the
+    bag holds, ``map_index`` is the live map or None. ``stage`` is None when every
+    row is done, ("next", level, name) while the next row waits for a level, and
+    ("row", name, accepted, needed, key_name) otherwise, key_name set when the row
+    waits for its key alone. ``skipped`` counts the open rows the bot has outgrown
+    and is not on - how a bot of seventy reads 1/9 beside the Demon Souvenir."""
+    level = int(level or 1)
+    completed = 0
+    carrying = here = first = last = upcoming = None
+    outgrown_rows = []
+    for index, (quest_name, required_level, _, required_count) in enumerate(BIOLOGIST_REACHABLE):
+        status = quest_flags.get((quest_name, "__status"))
+        if status == BIOLOGIST_COMPLETE_STATE:
+            completed += 1
+            continue
+        if level < required_level:
+            if upcoming is None:
+                upcoming = index
+            continue
+        previous = BIOLOGIST_CHAIN_PREVIOUS.get(quest_name)
+        if previous and quest_flags.get((previous, "__status")) != BIOLOGIST_COMPLETE_STATE:
+            continue
+        last = index
+        # 2.0.60: no row is "too low" - the core does them in order at any
+        # level, so nothing is skipped and nothing is reported as skipped.
+        outgrown = False
+        if first is None:
+            first = index
+        key_phase = quest_name in BIOLOGIST_KEY_VNUMS and status == BIOLOGIST_KEY_ITEM_STATE
+        wanted = BIOLOGIST_KEY_VNUMS[quest_name] if key_phase else BIOLOGIST_ITEM_VNUMS.get(quest_name, 0)
+        carried = held.get(wanted, 0)
+        if carrying is None and carried > 0 and (
+                not outgrown or carried >= (1 if key_phase else required_count)
+                or required_level >= BIOLOGIST_COLLECT_QUEST_LEVEL):
+            carrying = index
+        if (here is None and not outgrown and map_index is not None and
+                int(map_index) in BIOLOGIST_MOB_MAPS.get(quest_name, BIOLOGIST_VILLAGE_MAPS)):
+            here = index
+    pick = next((i for i in (carrying, here, first, last) if i is not None), None)
+    skipped = sum(1 for index in outgrown_rows if index != pick)
+    if pick is None:
+        if upcoming is None:
+            return completed, None, skipped
+        quest_name, required_level, polish_name, _ = BIOLOGIST_REACHABLE[upcoming]
+        return (completed, ("next", required_level,
+                            localized_biologist_name(quest_name, polish_name, language)), skipped)
+    quest_name, _, polish_name, required_count = BIOLOGIST_REACHABLE[pick]
+    key_name = None
+    if (quest_name in BIOLOGIST_KEY_VNUMS and
+            quest_flags.get((quest_name, "__status")) == BIOLOGIST_KEY_ITEM_STATE):
+        key_name = localized_item_name(BIOLOGIST_KEY_VNUMS[quest_name], language)
+    stage = ("row", localized_biologist_name(quest_name, polish_name, language),
+             quest_flags.get((quest_name, "collect_count"), 0), required_count, key_name)
+    return completed, stage, skipped
+
+
+def biologist_stage_text(stage, messages, separator):
+    """A stage from biologist_progress in words; ``separator`` stands between the
+    name and the count - ": " on the card, a space in the ranking."""
+    if stage is None:
+        return messages["bio_all"]
+    if stage[0] == "next":
+        return messages["bio_next"].format(level=stage[1], name=stage[2])
+    _, name, accepted, needed, key_name = stage
+    if key_name:
+        return messages["bio_key"].format(name=name, sep=separator, have=accepted,
+                                          need=needed, key=key_name)
+    return "%s%s%d/%d" % (name, separator, accepted, needed)
 
 
 TPL_LIVE_MAP = BASE.replace("__BODY__", """
@@ -6546,7 +7222,7 @@ function openBotModal(pid) {
               '<div style="grid-column:1 / -1"><b>' + I18N.current_goal + ':</b> <span style="color:#60a5fa;font-weight:700">' + escapeHtml(p.goal) + '</span></div>' +
               '<div style="grid-column:1 / -1"><b>' + I18N.action + ':</b> <span style="color:#ffd700">' + escapeHtml(p.action) + '</span></div>' +
               '<div><b>' + I18N.horse + ':</b> <span style="color:#c084fc;font-weight:700">Lv ' + (p.horse_level || 0) + '</span></div>' +
-              '<div><b>' + I18N.biologist + ':</b> <span style="color:#4ade80;font-weight:700">' + (p.biologist_completed || 0) + '/' + (p.biologist_total || 7) + '</span></div>' +
+              '<div><b>' + I18N.biologist + ':</b> <span style="color:#4ade80;font-weight:700">' + (p.biologist_completed || 0) + '/' + (p.biologist_total || 7) + (I18N.bio_done ? ' ' + I18N.bio_done : '') + '</span></div>' +
               '<div style="grid-column:1 / -1"><b>' + I18N.bio_stage + ':</b> <span style="color:#86efac">' + (p.biologist_label || I18N.no_data) + '</span></div>' +
               // Only when there is a hunt to report. On the mt2009 line
               // levelup.quest ships in quest/_unused, so hunting_progress_label
@@ -7025,6 +7701,12 @@ def api_admin_warp_me():
             with db() as c, c.cursor() as cur:
                 cur.execute("DELETE FROM player.web_admin_queue WHERE status='pending' AND id IN ({})".format(
                     ",".join(["%s"] * len(rows))), tuple(rows.keys()))
+            # Written down every time. The button moves whichever human character
+            # is in the game, wherever its player happens to be looking, and "I
+            # stood AFK and was suddenly in the Demon Tower" (sizowski, 14
+            # September) could not be told apart from a click without a line.
+            app.logger.warning("teleport me (auto): tried=%s moved=%s status=%s to=(%d, %d)",
+                               ",".join(names), moved, st, target_x, target_y)
             if moved is None:
                 return jsonify({"ok": False, "status": "player_offline", "error": "player_offline",
                                 "tried": names, "x": target_x, "y": target_y})
@@ -7035,6 +7717,7 @@ def api_admin_warp_me():
             # A WARP nobody answered must not wait for the next login.
             with db() as c, c.cursor() as cur:
                 cur.execute("DELETE FROM player.web_admin_queue WHERE id=%s AND status='pending'", (qid,))
+        app.logger.warning("teleport me: %s status=%s to=(%d, %d)", gm_name, st, target_x, target_y)
         return jsonify({"ok": st == "done", "status": st, "name": gm_name, "x": target_x, "y": target_y})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
@@ -7084,6 +7767,82 @@ GEAR_HISTORY_HOWS = {
     "EXCHANGE_GIVE":         ("gift_out",    {"pl": "Oddane w wymianie",  "en": "Given in a trade"}),
 }
 
+# The way a refine was made, from log.refinelog, which the engine writes beside
+# each REFINE row of log.log: POWER for a blacksmith, GUILD for a guild's,
+# DEVILTOWER for the Demon Tower smith and SCROLL:<vnum> for a scroll (the last
+# two since playerbotify's apply_refine_log_way; before that either smith said
+# POWER and every scroll SCROLL, or nothing when the SET column dropped its
+# name). Tieru, 15.09: "w nawiasie pisz (Kowal, Zwoj Blogoslawienstwa, ...)".
+REFINE_WAY_LABELS = {
+    "POWER":      {"pl": "Kowal",                 "en": "Blacksmith"},
+    "GUILD":      {"pl": "Kowal gildii",          "en": "Guild blacksmith"},
+    "DEVILTOWER": {"pl": "Kowal w Wieży Demonów", "en": "Demon Tower blacksmith"},
+    "SCROLL":     {"pl": "zwój",                  "en": "scroll"},
+    # The names r40250's DoRefineWithScroll writes into the same column.
+    "HYUNIRON":      {"pl": "Magiczny Kamień",    "en": "Magic Stone"},
+    "GOD_SCROLL":    {"pl": "Zwój Boga Smoków",   "en": "Dragon God scroll"},
+    "MUSIN_SCROLL":  {"pl": "Zwój Boga Wojny",    "en": "War God scroll"},
+    "YAGONG_SCROLL": {"pl": "Podręcznik Kowala",  "en": "Blacksmith's handbook"},
+    "SOCKET":        {"pl": "gniazdo",            "en": "socket"},
+}
+REFINE_HOWS = ("REFINE SUCCESS", "REFINE FAIL", "REMOVE (REFINE FAIL)")
+
+
+def refine_way_label(way, language):
+    lang_key = "pl" if language == "pl" else "en"
+    kind, _, vnum = (way or "").strip().partition(":")
+    if vnum.isdigit():
+        name = localized_item_name(int(vnum), language)
+        if name:
+            return name
+    labels = REFINE_WAY_LABELS.get(kind or "SCROLL")
+    if not labels:
+        return kind
+    return labels.get(lang_key, labels["en"])
+
+
+def match_refine_ways(cur, pid, rows):
+    """{index into rows: log.refinelog setType} for the refine rows of log.log.
+
+    A refinelog row belongs to a log row of the same character written within
+    two seconds with the same outcome; among several, the one whose grade is
+    the grade the attempt started from (a success's result is one above it, a
+    scroll's downgrade one below it, a burned piece is it). Anything the query
+    cannot answer - an old world without the table, say - leaves no way."""
+    import datetime as _dt
+    refines = [(i, r) for i, r in enumerate(rows)
+               if log_text(r.get("how")) in REFINE_HOWS and hasattr(r.get("time"), "strftime")]
+    if not refines:
+        return {}
+    slack = _dt.timedelta(seconds=3)
+    try:
+        cur.execute(
+            "SELECT time, is_success, step, setType FROM log.refinelog "
+            "WHERE pid = %s AND time BETWEEN %s AND %s",
+            (pid, min(r["time"] for _, r in refines) - slack, max(r["time"] for _, r in refines) + slack),
+        )
+        candidates = [w for w in cur.fetchall() if hasattr(w.get("time"), "strftime")]
+    except Exception:
+        return {}
+    ways = {}
+    for i, r in refines:
+        how = log_text(r.get("how"))
+        grade = int(r.get("vnum") or 0) % 10
+        succeeded = how == "REFINE SUCCESS"
+        start = grade - 1 if succeeded else (grade + 1 if how == "REFINE FAIL" else grade)
+        best, best_score = None, None
+        for w in candidates:
+            seconds = abs((w["time"] - r["time"]).total_seconds())
+            if seconds > 2 or (int(w.get("is_success") or 0) == 1) != succeeded:
+                continue
+            step = log_text(w.get("step")).strip()
+            score = seconds * 10 + (0 if step.isdigit() and int(step) == start else 5)
+            if best_score is None or score < best_score:
+                best, best_score = w, score
+        if best is not None:
+            ways[i] = log_text(best.get("setType"))
+    return ways
+
 
 @app.route("/api/bot_gear_history/<int:pid>")
 def api_bot_gear_history(pid):
@@ -7105,9 +7864,21 @@ def api_bot_gear_history(pid):
                 "ORDER BY time DESC LIMIT %s",
                 tuple([pid] + hows + [limit]),
             )
+            raw = list(cur.fetchall())
+            ways = match_refine_ways(cur, pid, raw)
+            # A scroll that fails hands the piece back a grade down, and the
+            # engine removes the old piece under the same reason as a burn: a
+            # REFINE FAIL row one grade lower beside it is the whole story, and
+            # "Spalone" over a sword that is now +2 was not true.
+            downgrades = [(r["time"], int(r.get("vnum") or 0)) for r in raw
+                          if log_text(r.get("how")) == "REFINE FAIL" and hasattr(r.get("time"), "strftime")]
             rows = []
-            for r in cur.fetchall():
+            for index, r in enumerate(raw):
                 how = log_text(r.get("how"))
+                if how == "REMOVE (REFINE FAIL)" and hasattr(r.get("time"), "strftime") and any(
+                        abs((t - r["time"]).total_seconds()) <= 2 and v == int(r.get("vnum") or 0) - 1
+                        for t, v in downgrades):
+                    continue
                 kind, labels = GEAR_HISTORY_HOWS.get(how, ("other", {"pl": how, "en": how}))
                 vnum = int(r.get("vnum") or 0)
                 item = localized_item_name(vnum, language) if vnum else ""
@@ -7128,8 +7899,9 @@ def api_bot_gear_history(pid):
                         detail = ("instead of " if lang_key == "en" else "zamiast ") + localized_item_name(int(parts[3]), language)
                 elif how.startswith("REFINE") or how.startswith("REMOVE"):
                     # The engine's hint is the item's own name with its grade,
-                    # which the item column already shows.
-                    detail = ""
+                    # which the item column already shows; how the refine was
+                    # made comes from log.refinelog.
+                    detail = "(" + refine_way_label(ways[index], language) + ")" if index in ways else ""
                 elif how in ("SAFEBOX PUT", "SAFEBOX GET"):
                     parts = hint.rsplit(" ", 1)
                     if len(parts) == 2 and parts[1].isdigit() and int(parts[1]) > 1:
@@ -11071,46 +11843,21 @@ def api_bot_inventory(pid):
                 (row["szName"], row["szState"]): int(row.get("lValue") or 0)
                 for row in quest_rows
             }
-            # What the bot carries of each specimen: the one thing that lets an
-            # outgrown row still be the right answer.
-            vnum_list = tuple(BIOLOGIST_ITEM_VNUMS.values())
+            # What the bag holds of each specimen and key: CountSpecifyItem, which
+            # is what the core asks when it chooses the row, counts nothing else.
+            vnum_list = tuple(BIOLOGIST_ITEM_VNUMS.values()) + tuple(BIOLOGIST_KEY_VNUMS.values())
             cur.execute(
                 "SELECT vnum, COALESCE(SUM(count),0) AS n FROM player.item "
-                "WHERE owner_id = %s AND vnum IN ({}) GROUP BY vnum".format(
+                "WHERE owner_id = %s AND window = 'INVENTORY' AND vnum IN ({}) GROUP BY vnum".format(
                     ",".join(["%s"] * len(vnum_list))),
                 (pid,) + vnum_list)
             held = {int(r["vnum"]): int(r.get("n") or 0) for r in cur.fetchall()}
-            bot_level = int(player.get("level") or 1)
-            completed = 0
-            biologist_label = messages["bio_not_started"]
-            chosen = None
-            fallback = None
-            for quest_name, required_level, item_name, required_count in BIOLOGIST_REACHABLE:
-                item_name = localized_biologist_name(quest_name, item_name, language)
-                if quest_flags.get((quest_name, "__status")) == BIOLOGIST_COMPLETE_STATE:
-                    completed += 1
-                    biologist_label = messages["bio_completed"].format(name=item_name)
-                    continue
-                if bot_level < required_level:
-                    if chosen is None and fallback is None:
-                        chosen = ("next", quest_name, required_level, item_name, required_count)
-                    break
-                outgrown = bot_level > required_level + BIOLOGIST_OUTGROWN_LEVELS
-                carries_all = held.get(BIOLOGIST_ITEM_VNUMS.get(quest_name, 0), 0) >= required_count
-                # The highest row left is what the game falls back to when
-                # every row still open has been outgrown.
-                fallback = ("row", quest_name, required_level, item_name, required_count)
-                if chosen is None and (not outgrown or carries_all):
-                    chosen = fallback
-            if chosen is None:
-                chosen = fallback
-            if chosen is None:
-                biologist_label = messages["bio_all"]
-            elif chosen[0] == "next":
-                biologist_label = messages["bio_next"].format(level=chosen[2], name=chosen[3])
-            else:
-                accepted = quest_flags.get((chosen[1], "collect_count"), 0)
-                biologist_label = "%s: %d/%d" % (chosen[3], accepted, chosen[4])
+            completed, stage, skipped = biologist_progress(
+                player.get("level"), quest_flags, held,
+                live.get("map_index") if live else None, language)
+            biologist_label = biologist_stage_text(stage, messages, ": ")
+            if skipped:
+                biologist_label += " • " + messages["bio_skipped"].format(n=skipped)
             player["biologist_completed"] = completed
             # How many rows there are, so the card does not carry the number in
             # its own markup. It said "/7" outright, and a chain that grew a row
@@ -11446,6 +12193,30 @@ def api_bot_rankings():
                 """), (rank_limit,))
 
             rows = cur.fetchall()
+            # The Biologist's ranking names the row each bot is on, as the card
+            # does, so it reads the same quest flags and bag for the whole page.
+            bio_flags, bio_bags, bio_live = {}, {}, {}
+            if rtype == "biologist" and rows:
+                bio_ids = tuple(int(r["id"]) for r in rows)
+                id_marks = ",".join(["%s"] * len(bio_ids))
+                bio_names = tuple(m[0] for m in BIOLOGIST_MISSIONS)
+                cur.execute(
+                    "SELECT dwPID, szName, szState, lValue FROM player.quest "
+                    "WHERE dwPID IN ({}) AND szName IN ({})".format(
+                        id_marks, ",".join(["%s"] * len(bio_names))),
+                    bio_ids + bio_names)
+                for q in cur.fetchall():
+                    bio_flags.setdefault(int(q["dwPID"]), {})[(q["szName"], q["szState"])] = (
+                        int(q.get("lValue") or 0))
+                bio_vnums = tuple(BIOLOGIST_ITEM_VNUMS.values()) + tuple(BIOLOGIST_KEY_VNUMS.values())
+                cur.execute(
+                    "SELECT owner_id, vnum, COALESCE(SUM(count),0) AS n FROM player.item "
+                    "WHERE owner_id IN ({}) AND window = 'INVENTORY' AND vnum IN ({}) "
+                    "GROUP BY owner_id, vnum".format(id_marks, ",".join(["%s"] * len(bio_vnums))),
+                    bio_ids + bio_vnums)
+                for it in cur.fetchall():
+                    bio_bags.setdefault(int(it["owner_id"]), {})[int(it["vnum"])] = int(it.get("n") or 0)
+                bio_live = read_playerbot_live_status()
             # One lookup for the whole page instead of a column in each of the
             # dozen ranking queries, which is also the only way it stays right
             # when a new ranking is added.
@@ -11508,17 +12279,26 @@ def api_bot_rankings():
                          41: "j1", 43: "j2", 44: "j3"}.get(stall_map_index, ""), "")
 
                 bio_completed = max(0, min(len(BIOLOGIST_REACHABLE), int(r.get("biologist_completed") or 0)))
-                if bio_completed >= len(BIOLOGIST_REACHABLE):
-                    bio_label = "%d/%d • %s" % (
-                        bio_completed, len(BIOLOGIST_REACHABLE), messages["bio_complete"])
-                elif bio_completed > 0:
-                    mission = BIOLOGIST_REACHABLE[bio_completed - 1]
-                    bio_label = "%d/%d • %s" % (
-                        bio_completed, len(BIOLOGIST_REACHABLE),
-                        localized_biologist_name(mission[0], mission[2], language))
-                else:
-                    bio_label = "0/%d • %s" % (
-                        len(BIOLOGIST_REACHABLE), messages["bio_in_progress"])
+                bio_label = ""
+                if rtype == "biologist":
+                    # The count, then the row the bot is on now. The label used to
+                    # name the row at the position of the count: "6/9 • Grzyb Tue"
+                    # for bots whose six herbs were done and whose Orc Tooth stood
+                    # at 1/10, and "5/9 • Bez" for bots whose fifth finished row was
+                    # the Demon Souvenir - an outgrown row is stepped over, so rows
+                    # are not finished in order.
+                    entry = bio_live.get(int(r["id"])) or {}
+                    bio_completed, stage, _ = biologist_progress(
+                        r.get("level"), bio_flags.get(int(r["id"]), {}),
+                        bio_bags.get(int(r["id"]), {}), entry.get("map_index"), language)
+                    if stage is None:
+                        bio_label = "%d/%d • %s" % (
+                            bio_completed, len(BIOLOGIST_REACHABLE), messages["bio_complete"])
+                    else:
+                        template = "bio_rank_next" if stage[0] == "next" else "bio_rank_now"
+                        bio_label = messages[template].format(
+                            done=bio_completed, total=len(BIOLOGIST_REACHABLE),
+                            stage=biologist_stage_text(stage, messages, " "))
                 hunting_complete = max(0, int(r.get("hunting_complete") or 0))
                 hunting_current = max(0, int(r.get("hunting_current") or 0))
                 hunting_remain = max(0, int(r.get("hunting_remain") or 0))
@@ -11656,6 +12436,105 @@ def rates():
                                   state_msg=t("rates_st_" + st) if st in RATE_STATES else "")
 
 
+
+@app.route("/guilds")
+@login_required
+def guilds_page():
+    """The bot guilds: tier, level, members, ladder, the war under way. Read
+    from the cores' playerbot_guild_status.tsv; nothing is written."""
+    guilds = read_guild_status()
+    # Per kingdom: seconds until its next bot war (0 = under way), so a
+    # player who wants to watch one knows when and where to be.
+    next_wars = {}
+    for g in guilds:
+        nw = g.get("next_war_in_s")
+        if nw is None:
+            continue
+        cur = next_wars.get(g["empire"])
+        if cur is None or (nw >= 0 and (cur < 0 or nw < cur)):
+            next_wars[g["empire"]] = nw
+    next_war_rows = [(GUILD_EMPIRE_KEYS.get(e, "gl_empire_unknown"), s) for e, s in sorted(next_wars.items())]
+    return render_template_string(TPL_GUILDS, guilds=guilds, tier_keys=GUILD_TIER_KEYS,
+                                  next_wars=next_war_rows)
+
+
+@app.route("/events", methods=["GET", "POST"])
+@login_required
+def events_page():
+    """Timed events: chest windows, rate windows, and "activate now".
+
+    The page only writes the file; the game core reads it within five seconds,
+    gates the chest odds, moves the rate flags from ONE core and speaks on the
+    chat (playerbot_events.h). Nothing restarts.
+    """
+    rows, nows = read_events()
+    if request.method == "POST":
+        # (the global before_request hook has already checked the CSRF token)
+        action = request.form.get("action", "")
+        if action == "save":
+            new_rows = []
+            for i in range(0, 64):
+                kind = request.form.get("r%d_kind" % i)
+                if kind is None:
+                    break
+                if kind not in EVENT_KINDS or request.form.get("r%d_del" % i):
+                    continue
+                start = event_hhmm(request.form.get("r%d_start" % i))
+                end = event_hhmm(request.form.get("r%d_end" % i))
+                try:
+                    value = max(0, min(1000, int(request.form.get("r%d_value" % i) or 0)))
+                except ValueError:
+                    value = -1
+                if not start or not end or start == "24:00" or value < 0:
+                    flash(t("ev_bad_row") % (i + 1), "error")
+                    return redirect(url_for("events_page"))
+                days = [d for d in range(1, 8) if request.form.get("r%d_d%d" % (i, d))]
+                new_rows.append({"kind": kind, "days": days, "start": start, "end": end,
+                                 "value": 0 if kind == "chest" else value,
+                                 "on": bool(request.form.get("r%d_on" % i))})
+            try:
+                write_events(new_rows, nows)
+            except OSError:
+                flash(t("ev_failed"), "error")
+                return redirect(url_for("events_page"))
+            flash(t("ev_saved"))
+            return redirect(url_for("events_page"))
+        kind = request.form.get("kind", "")
+        if kind not in EVENT_KINDS:
+            return redirect(url_for("events_page"))
+        if action == "now":
+            try:
+                minutes = max(5, min(1440, int(request.form.get("minutes") or 60)))
+                value = max(1, min(1000, int(request.form.get("value") or 50)))
+            except ValueError:
+                minutes, value = 60, 50
+            nows[kind] = {"until": int(time.time()) + minutes * 60,
+                          "value": 0 if kind == "chest" else value}
+            try:
+                write_events(rows, nows)
+            except OSError:
+                flash(t("ev_failed"), "error")
+                return redirect(url_for("events_page"))
+            flash(t("ev_now_started") % minutes)
+            return redirect(url_for("events_page"))
+        if action == "stop":
+            nows.pop(kind, None)
+            try:
+                write_events(rows, nows)
+            except OSError:
+                flash(t("ev_failed"), "error")
+                return redirect(url_for("events_page"))
+            flash(t("ev_stopped"))
+            return redirect(url_for("events_page"))
+        return redirect(url_for("events_page"))
+
+    # Two empty rows after the saved ones: a new window needs no script.
+    shown = list(rows) + [{"kind": "", "days": list(range(1, 8)), "start": "20:00",
+                           "end": "21:00", "value": 50, "on": True} for _ in range(2)]
+    return render_template_string(TPL_EVENTS, rows=shown, nows=nows, kinds=EVENT_KINDS,
+                                  status=read_events_status(), minutes=EVENT_NOW_MINUTES,
+                                  day_names=t("ev_days").split(","), now_epoch=int(time.time()))
+
 @app.route("/ai", methods=["GET", "POST"])
 @login_required
 def ai_weights():
@@ -11680,6 +12559,10 @@ def ai_weights():
         vals["CHAT"] = 1 if request.form.get("CHAT") else 0
         vals["BOOKS"] = 1 if request.form.get("BOOKS") else 0
         vals["NIGHT"] = 1 if request.form.get("NIGHT") else 0
+        vals["LIFE"] = 1 if request.form.get("LIFE") else 0
+        vals["WARS"] = 1 if request.form.get("WARS") else 0
+        vals["TOWER"] = 1 if request.form.get("TOWER") else 0
+        vals["ISHOP"] = 1 if request.form.get("ISHOP") else 0
         try:
             vals["SCRAP"] = max(0, min(100, int(request.form.get("SCRAP", 0))))
         except (TypeError, ValueError):
@@ -11692,11 +12575,25 @@ def ai_weights():
             vals["KINGDOMPVP"] = max(0, min(100, int(request.form.get("KINGDOMPVP", 0))))
         except (TypeError, ValueError):
             vals["KINGDOMPVP"] = 0
+        try:
+            vals["SCROLL_FROM"] = max(1, min(9, int(request.form.get("SCROLL_FROM", 1))))
+        except (TypeError, ValueError):
+            vals["SCROLL_FROM"] = 1
         for key in ("CHEST", "CHEST_STONE"):
             try:
                 vals[key] = max(0, min(1000, int(request.form.get(key))))
             except (TypeError, ValueError):
                 vals[key] = None
+        # The chest switch: off writes zero for both figures and keeps the
+        # sliders' values for the day it is switched back on.
+        chest_off = bool(request.form.get("CHEST_OFF"))
+        try:
+            write_chest_switch(chest_off, vals.get("CHEST"), vals.get("CHEST_STONE"))
+        except OSError:
+            pass
+        if chest_off:
+            vals["CHEST"] = 0
+            vals["CHEST_STONE"] = 0
         try:
             write_ai_weights(vals)
         except OSError:
@@ -11709,9 +12606,33 @@ def ai_weights():
     # line (levelup.quest ships in quest/_unused - see playerbot_missions.h), so
     # the slider would do nothing there. LEVEL is the leveling control on 2.x.
     keys = [k for k in AI_WEIGHT_KEYS if not (ENGINE_MT2009 and k[0] == "HUNTING")]
-    return render_template_string(TPL_AI, cur=read_ai_weights(),
+    cur = read_ai_weights()
+    chest_off, chest_kill, chest_stone = read_chest_switch()
+    if chest_off:
+        # The sliders show what the operator had set, not the zeros the
+        # switch wrote, so switching back on restores them.
+        cur["CHEST"] = chest_kill
+        cur["CHEST_STONE"] = chest_stone
+    return render_template_string(TPL_AI, cur=cur, chest_off=chest_off,
                                   keys=keys, wmin=AI_W_MIN,
                                   wmax=AI_W_MAX, wneutral=AI_W_NEUTRAL)
+
+
+@app.route("/ai/tower_now", methods=["POST"])
+@login_required
+def ai_tower_now():
+    """"Now" for the bot guilds' Demon Tower: the core watches this file's
+    mtime (PLAYERBOT_TOWER_NOW_PATH in playerbot_types.h) and calls a raid on
+    its next check when none is under way."""
+    path = os.path.join(AI_SPOOL, "playerbot_tower_now")
+    try:
+        with open(path, "a", encoding="utf-8"):
+            pass
+        os.utime(path, None)
+        flash(t("ai_tower_now_done"))
+    except OSError as e:
+        flash("%s: %s" % (t("ai_tower_now"), e))
+    return redirect(url_for("ai_weights"))
 
 
 @app.route("/ai/items", methods=["GET", "POST"])

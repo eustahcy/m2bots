@@ -4,6 +4,7 @@
 #include "playerbot_world_rules.h"
 #include "playerbot_human_timing.h"
 #include "playerbot_gear_urgency.h"
+#include "playerbot_event_rules.h"
 
 #include "char.h"
 #include "skill.h"
@@ -75,8 +76,11 @@ extern void SendShout(const char* szText, BYTE bEmpire);
 #include "pvp.h"
 #include "playerbot_types.h"
 #include "playerbot_price_tables.h"
+#include "playerbot_item_tiers.h"
+#include "playerbot_weapon_atlas.h"
 #include "playerbot_log.h"
 #include "playerbot_config.h"
+#include "playerbot_events.h"
 #include "playerbot_swing_timing.h"
 #include "playerbot_navigation.h"
 #include "playerbot_world_memory.h"
@@ -87,6 +91,7 @@ extern void SendShout(const char* szText, BYTE bEmpire);
 #include "playerbot_consumables.h"
 #include "playerbot_activities.h"
 #include "playerbot_mining.h"
+#include "playerbot_unique_slots.h"
 #include "playerbot_missions.h"
 #include "playerbot_skills.h"
 #include "playerbot_combat.h"
@@ -95,9 +100,16 @@ extern void SendShout(const char* szText, BYTE bEmpire);
 #include "playerbot_travel.h"
 #include "playerbot_planner.h"
 #include "playerbot_guild.h"
-#include "playerbot_shop_signs.h"
+// Iwakura's names for a counter and the rules that pick one - pure, and asked
+// by the town for a stand's name - then, after the town, what a real counter's
+// lines are in their terms: what heads a +7..+9 piece or a soul stone is its
+// asking price.
+#include "playerbot_shop_name_rules.h"
 #include "playerbot_town.h"
+#include "playerbot_shop_signs.h"
 #include "playerbot_offline_shop.h"
+#include "playerbot_itemshop.h"
+#include "playerbot_weapon_goal.h"
 #include "playerbot_market.h"
 #include "playerbot_offline_market.h"
 #include "playerbot_chat_trade.h"
@@ -106,12 +118,29 @@ extern void SendShout(const char* szText, BYTE bEmpire);
 #include "playerbot_wandering.h"
 #include "playerbot_status.h"
 #include "playerbot_targeting.h"
+#include "playerbot_guild_war.h"
+#include "playerbot_demon_tower.h"
 #include "playerbot_lure.h"
 #include "playerbot_admin.h"
 
 namespace
 {
 	LPEVENT s_pkPlayerBotUpdateEvent = NULL;
+
+	// Defined beside the lock itself, further down.
+	BYTE GetPlayerBotExpLockLevel(BYTE personality);
+
+	// A dropper farms one band for good (PLAYERBOT_EXP_LOCK_*), and the lock
+	// stops experience without giving any back: a bot drawn a dropper once it
+	// had already passed that band farmed a table the engine fades to nothing
+	// for it. Such a bot is not drawn one (PLAYERBOT_DROPPER_OUTGROWN_LEVELS),
+	// and ManagePlayerBotExpLock lifts the lock from a bot that is no dropper.
+	bool IsPlayerBotPastDropperBand(LPCHARACTER ch, BYTE personality)
+	{
+		const BYTE lockLevel = GetPlayerBotExpLockLevel(personality);
+		return ch && lockLevel != 0 &&
+				ch->GetLevel() > lockLevel + PLAYERBOT_DROPPER_OUTGROWN_LEVELS;
+	}
 
 	BYTE GetPlayerBotStablePersonality(LPCHARACTER ch, BYTE role)
 	{
@@ -120,7 +149,8 @@ namespace
 		if (role == BOT_ROLE_PARTY_FIGHTER)
 			return BOT_PERSONALITY_TEAM_COMPANION;
 		if (role == BOT_ROLE_METIN_HUNTER)
-			return (PlayerBotNavHash(ch->GetPlayerID() ^ 0x4d444f50U) % 3U) == 0
+			return (PlayerBotNavHash(ch->GetPlayerID() ^ 0x4d444f50U) % 3U) == 0 &&
+					!IsPlayerBotPastDropperBand(ch, BOT_PERSONALITY_METIN_DROPPER)
 					? BOT_PERSONALITY_METIN_DROPPER : BOT_PERSONALITY_METIN_BREAKER;
 
 		// Traders are drawn before the rest: a bot that trades for a living is not
@@ -132,12 +162,16 @@ namespace
 		if ((PlayerBotNavHash(ch->GetPlayerID() ^ 0x44524f50U) %
 				PLAYERBOT_DROPPER_SHARE) == 0)
 		{
+			BYTE dropper = BOT_PERSONALITY_MEDAL_DROPPER;
 			switch (PlayerBotNavHash(ch->GetPlayerID() ^ 0x4b494e44U) % 3U)
 			{
-				case 0: return BOT_PERSONALITY_M3_DROPPER;
-				case 1: return BOT_PERSONALITY_M2_DROPPER;
-				default: return BOT_PERSONALITY_MEDAL_DROPPER;
+				case 0: dropper = BOT_PERSONALITY_M3_DROPPER; break;
+				case 1: dropper = BOT_PERSONALITY_M2_DROPPER; break;
+				default: break;
 			}
+			// Past its band it plays as the adventurer the draw below makes it.
+			if (!IsPlayerBotPastDropperBand(ch, dropper))
+				return dropper;
 		}
 
 		switch (PlayerBotNavHash(ch->GetPlayerID() ^ 0x50524f46U) % 4U)
@@ -266,9 +300,29 @@ namespace
 		if (!party)
 			return false;
 		LPCHARACTER leader = party->GetLeaderCharacter();
-		if (!leader)
+		if (leader)
+			return !leader->GetDesc() || !leader->GetDesc()->IsBot();
+		// No character is not no leader. A player's warp is a logout and a
+		// login, and for those seconds the party holds only the pid - long
+		// enough for the party pass to take a player's party for a bot party
+		// and put the cohort rule to it. The engine's own party lines have a
+		// bot in sizowski's party at 13:42:40, his character logging in again
+		// at 13:42:54 and the bot gone at 13:42:56 (14 September). Every bot
+		// is in the registry, so a leader pid it does not know is a person.
+		const DWORD leaderPid = party->GetLeaderPID();
+		return leaderPid != 0 && !CPlayerBotManager::instance().IsRegisteredBotPID(leaderPid);
+	}
+
+	// On the leader's map and inside the distance the follow pass leaves a bot
+	// at: where a bot keeping a player company stands on purpose.
+	bool IsPlayerBotBesideHumanLeader(LPCHARACTER ch)
+	{
+		if (!ch || !IsPlayerBotHumanLedParty(ch->GetParty()))
 			return false;
-		return !leader->GetDesc() || !leader->GetDesc()->IsBot();
+		LPCHARACTER leader = ch->GetParty()->GetLeaderCharacter();
+		return leader && leader != ch && leader->GetMapIndex() == ch->GetMapIndex() &&
+				DISTANCE_APPROX(ch->GetX() - leader->GetX(), ch->GetY() - leader->GetY()) <=
+						PLAYERBOT_PARTY_FOLLOW_DISTANCE;
 	}
 
 	// Answering a player's invitation.
@@ -317,29 +371,43 @@ namespace
 	// in this engine fades with the level gap, so a dropper that goes on
 	// levelling farms its way out of its own living. The lock is the engine's
 	// AFFECT_EXP_BLOCK, which PointChange checks before it adds any experience,
-	// so nothing else has to know about it - and it is permanent, because the
-	// point is a bot that does the same thing for good.
+	// so nothing else has to know about it. It is meant for good, and it is
+	// lifted only from a bot that should not carry it any more - one of the
+	// operator's medal droppers once that cohort is switched off or given a
+	// higher level (CPlayerBotManager::SpawnMedalDropperCohort), since nothing
+	// else would ever take it off.
 	void ManagePlayerBotExpLock(LPCHARACTER ch, const TPlayerBotAIState& state)
 	{
 		if (!ch)
 			return;
-		const BYTE lockLevel = GetPlayerBotExpLockLevel(state.bPersonality);
-		if (lockLevel == 0 || ch->GetLevel() < lockLevel)
-			return;
+		BYTE lockLevel = GetPlayerBotExpLockLevel(state.bPersonality);
+		// The operator's medal droppers stop where the operator said.
+		if (CPlayerBotManager::instance().IsMedalDropperCohortPID(ch->GetPlayerID()))
+			lockLevel = CPlayerBotManager::instance().GetMedalDropperCohortLevel();
+		const bool shouldLock = lockLevel != 0 && ch->GetLevel() >= lockLevel;
 #if defined(PLAYERBOT_ENGINE_MT2009)
-		if (ch->FindAffect(AFFECT_EXP_BLOCK))
+		const bool locked = ch->FindAffect(AFFECT_EXP_BLOCK) != NULL;
+		if (locked == shouldLock)
 			return;
+		if (!shouldLock)
+		{
+			ch->RemoveAffect(AFFECT_EXP_BLOCK);
+			sys_log(0, "PLAYERBOT_AI: exp lock lifted pid=%u name=%s level=%u lock=%u personality=%u",
+					ch->GetPlayerID(), ch->GetName(), (unsigned)ch->GetLevel(),
+					(unsigned)lockLevel, (unsigned)state.bPersonality);
+			return;
+		}
 		ch->AddAffect(AFFECT_EXP_BLOCK, POINT_NONE, 0, 0, INFINITE_AFFECT_DURATION, 0, true, true);
-		sys_log(0, "PLAYERBOT_AI: exp locked for a dropper pid=%u name=%s level=%u personality=%u",
+		sys_log(0, "PLAYERBOT_AI: exp locked for a dropper pid=%u name=%s level=%u lock=%u personality=%u",
 				ch->GetPlayerID(), ch->GetName(), (unsigned)ch->GetLevel(),
-				(unsigned)state.bPersonality);
+				(unsigned)lockLevel, (unsigned)state.bPersonality);
 #else
 		// r40250 has no AFFECT_EXP_BLOCK at all - PointChange there knows no
 		// such affect, so there is nothing to ask it for and a dropper on that
 		// line goes on levelling as it always did. Freezing it would need an
 		// engine patch of its own, and this feature was asked for on the 2.x
 		// world; the shared overlay simply does nothing here.
-		(void)lockLevel;
+		(void)shouldLock;
 #endif
 	}
 
@@ -398,6 +466,29 @@ namespace
 		}
 	}
 
+	// What a bot holds that is not for fighting, or NULL when it is ready for a
+	// duel. A duel is agreed three seconds after the challenge and fought at the
+	// top of the tick, above the fishing session, so a bot on the bank took one
+	// with its rod out and fought it that way ("bot wzial pvp z innym botem
+	// bedac wyposazonym w wedke", Tieru, 15 September). The same answer is asked
+	// of a bot that would challenge, of the bot it picks, and of both sides of a
+	// duel already under way.
+	const char* GetPlayerBotDuelUnreadiness(LPCHARACTER ch, DWORD dwNow)
+	{
+		if (!ch)
+			return "gone";
+		TPlayerBotAIStateMap::const_iterator it = s_mapPlayerBotAIStates.find(ch->GetPlayerID());
+		const bool fishing = it != s_mapPlayerBotAIStates.end() && it->second.bFishingSession;
+		LPITEM held = ch->GetWear(WEAR_WEAPON);
+		if (fishing || (held && held->GetType() == ITEM_ROD))
+			return "fishing";
+		if (IsPlayerBotMiningNow(ch->GetPlayerID(), dwNow) || (held && held->GetType() == ITEM_PICK))
+			return "mining";
+		if (!held || held->GetType() != ITEM_WEAPON)
+			return "no_weapon";
+		return NULL;
+	}
+
 	// Agreeing to a duel.
 	//
 	// CPVPManager::Insert is a two-sided agreement, so answering a challenge is
@@ -437,6 +528,9 @@ namespace
 		else if (IsPlayerBotSafeZone(ch->GetMapIndex(), ch->GetX(), ch->GetY()) ||
 				IsPlayerBotSafeZone(challenger->GetMapIndex(), challenger->GetX(), challenger->GetY()))
 			refusal = "safe_zone";
+		// Nor one fought with a rod or a pickaxe (GetPlayerBotDuelUnreadiness).
+		else
+			refusal = GetPlayerBotDuelUnreadiness(ch, dwNow);
 		if (refusal)
 		{
 			sys_log(0, "PLAYERBOT_PVP: declined a duel pid=%u name=%s challenger_pid=%u challenger=%s reason=%s level=%u challenger_level=%u",
@@ -445,11 +539,17 @@ namespace
 			// A person is told why; a bot has nobody to read it.
 			if (challenger->GetDesc() && !challenger->GetDesc()->IsBot())
 			{
-				if (refusal[0] == 'l')
+				if (!strcmp(refusal, "level"))
 					challenger->ChatPacket(CHAT_TYPE_INFO, "%s nie przyjmie pojedynku ponizej %d poziomu.",
 							ch->GetName(), (int)PK_PROTECT_LEVEL);
-				else
+				else if (!strcmp(refusal, "safe_zone"))
 					challenger->ChatPacket(CHAT_TYPE_INFO, "%s nie walczy w strefie bezpiecznej.", ch->GetName());
+				else if (!strcmp(refusal, "fishing"))
+					challenger->ChatPacket(CHAT_TYPE_INFO, "%s lowi ryby i nie przyjmie teraz pojedynku.", ch->GetName());
+				else if (!strcmp(refusal, "mining"))
+					challenger->ChatPacket(CHAT_TYPE_INFO, "%s kopie rude i nie przyjmie teraz pojedynku.", ch->GetName());
+				else
+					challenger->ChatPacket(CHAT_TYPE_INFO, "%s nie ma broni w reku i nie przyjmie pojedynku.", ch->GetName());
 			}
 			return;
 		}
@@ -486,6 +586,7 @@ namespace
 		if (playerbot_pvp::GetDuelOpponent(pid, dwNow) == 0)
 		{
 			s_mapPlayerBotDuelRefusedSince.erase(pid);
+			s_mapPlayerBotDuelLogged.erase(pid);
 			return false;
 		}
 		LPCHARACTER foe = FindPlayerBotDuelOpponent(ch, dwNow);
@@ -495,16 +596,38 @@ namespace
 			// over either way, and a duel still remembered is only a potion ban
 			// with nobody to fight. Nothing ended one before this - EndDuel had
 			// no caller, so every duel ran its whole bound.
-			playerbot_pvp::EndDuel(pid);
+			LPCHARACTER fallen = CHARACTER_MANAGER::instance().FindByPID(
+					(DWORD)playerbot_pvp::GetDuelOpponent(pid, dwNow));
+			EndPlayerBotDuel(ch, state, dwNow, fallen && fallen->IsDead() ? "foe_fell" : "foe_gone");
 			s_mapPlayerBotDuelRefusedSince.erase(pid);
 			s_mapPlayerBotDuelLogged.erase(pid);
 			return false;
 		}
+		// A duel under way when the rod came out is ended, not fought with it.
+		if (const char* unready = GetPlayerBotDuelUnreadiness(ch, dwNow))
+		{
+			EndPlayerBotDuel(ch, state, dwNow, unready);
+			s_mapPlayerBotDuelRefusedSince.erase(pid);
+			s_mapPlayerBotDuelLogged.erase(pid);
+			return false;
+		}
+		// What heals by itself is switched off for the fight: the potion ban
+		// alone left an auto potion running inside the engine.
+		SwitchOffPlayerBotAutoPotionsForDuel(ch, dwNow);
 		// The duel ends where the engine says it cannot be fought, not where
 		// PLAYERBOT_PVP_DUEL_ASSUMED runs out. A refusal is normal for the
 		// seconds before the other side agrees; past PLAYERBOT_PVP_REFUSED_GIVE_UP
 		// it is a fight already won (CPVP::Win takes the loser's agreement
 		// back), one under PK_PROTECT_LEVEL, or one standing in a safe zone.
+		// A duel is not fought from a transport saddle. CPVPManager::CanAttack
+		// refuses every blow from a horse under grade two, and the tick's own
+		// dismount waits for a target - which a refused duel never sets - so a
+		// bot that agreed in the saddle stayed there, was refused, and gave the
+		// duel up to PLAYERBOT_PVP_REFUSED_GIVE_UP without a blow. Before 2.0.41
+		// the same blows landed from the saddle anyway ("bocik nawalal hitami z
+		// konia ... a ma zwyklego konia", Drip).
+		if (ch->IsRiding() && !CanPlayerBotEverFightOnHorse(ch))
+			SetPlayerBotRidingForTravel(ch, state, false, dwNow, "duel");
 		const bool bSafe = IsPlayerBotSafeZone(ch->GetMapIndex(), ch->GetX(), ch->GetY()) ||
 				IsPlayerBotSafeZone(foe->GetMapIndex(), foe->GetX(), foe->GetY());
 		if (bSafe || !CanPlayerBotStrikeCharacter(ch, foe))
@@ -514,17 +637,9 @@ namespace
 				s_mapPlayerBotDuelRefusedSince[pid] = dwNow;
 			else if (dwNow - refused->second >= PLAYERBOT_PVP_REFUSED_GIVE_UP)
 			{
-				sys_log(0, "PLAYERBOT_PVP: duel over pid=%u name=%s foe_pid=%u foe=%s reason=%s level=%u foe_level=%u",
-						pid, ch->GetName(), foe->GetPlayerID(), foe->GetName(),
-						bSafe ? "safe_zone" : "engine_refuses",
-						(unsigned int)ch->GetLevel(), (unsigned int)foe->GetLevel());
-				playerbot_pvp::EndDuel(pid);
+				EndPlayerBotDuel(ch, state, dwNow, bSafe ? "safe_zone" : "engine_refuses");
 				s_mapPlayerBotDuelRefusedSince.erase(refused);
 				s_mapPlayerBotDuelLogged.erase(pid);
-				if (ch->GetVictim() == foe)
-					ch->SetVictim(NULL);
-				if (state.dwTargetVID == (DWORD)foe->GetVID())
-					state.dwTargetVID = 0;
 			}
 			return false;
 		}
@@ -549,19 +664,41 @@ namespace
 					distance, ch->GetHP(), ch->GetMaxHP());
 		}
 
+		// The aura goes up before the first blow. The duel claims the tick above
+		// the buff pass, so a warrior fought every duel bare and cut with
+		// Trzystronne Ciecie under no visible aura (Tieru, 15 September).
+		if (distance <= PLAYERBOT_DUEL_BUFF_RANGE && ManagePlayerBotCombatBuffs(ch, state, dwNow, true))
+			return true;
+
 		LPITEM weapon = ch->GetWear(WEAR_WEAPON);
 		const bool isBow = (weapon && weapon->GetType() == ITEM_WEAPON &&
 				weapon->GetSubType() == WEAPON_BOW);
-		const int combatRange = isBow ? 800 : 280;
+		// A blade swings from where it reaches. The hunt's two hundred and
+		// eighty is a monster's size, and two duellists that far apart were
+		// seen waving swords at the air between them. A caster casts from
+		// further off, and a warrior charges the gap between the two.
+		const int combatRange = isBow ? 800 : PLAYERBOT_DUEL_MELEE_RANGE;
+		const bool caster = ch->GetJob() == JOB_SHAMAN ||
+				(ch->GetJob() == JOB_SURA && ch->GetSkillGroup() == 2);
 		if (distance > combatRange)
 		{
+			if (!isBow && caster && distance <= PLAYERBOT_DUEL_CASTER_RANGE &&
+					dwNow >= state.dwNextSkillCastTime)
+			{
+				if (ch->IsStateMove())
+					ch->Stop();
+				if (CastPlayerBotDuelSkill(ch, foe, state, dwNow))
+					return true;
+			}
+			if (!isBow && TryPlayerBotDuelGapCloser(ch, foe, state, dwNow, distance))
+				return true;
 			MovePlayerBot(ch, foe->GetX(), foe->GetY(), dwNow, 4, false, false);
 			return true;
 		}
 		if (ch->IsStateMove())
 			ch->Stop();
 		ch->SetPosition(POS_FIGHTING);
-		if (!ExecutePlayerBotAttackSkill(ch, foe, state, dwNow))
+		if (!CastPlayerBotDuelSkill(ch, foe, state, dwNow))
 			ExecutePlayerBotBasicAttack(ch, foe, state, dwNow);
 		return true;
 	}
@@ -699,7 +836,7 @@ namespace
 			return false;
 		}
 		// A fight or a retreat holds the walk up, and stops its clock.
-		if (state.bTacticalRetreat || FindPlayerBotEngagedTarget(ch))
+		if (state.bTacticalRetreat || FindPlayerBotEngagedTarget(ch, &state, dwNow))
 		{
 			if (spread.dwHeldSince == 0)
 				spread.dwHeldSince = dwNow;
@@ -745,10 +882,12 @@ namespace
 		// maps: a challenge from there is a duel nobody can fight or end.
 		if (ch->GetLevel() < PK_PROTECT_LEVEL)
 			return;
-		// Anything the bot is actually doing outranks picking a fight.
+		// Anything the bot is actually doing outranks picking a fight, and so does
+		// a rod or a pickaxe still in its hands.
 		if (state.bVisitingShop || state.bVisitingBiologist || state.bVisitingStable ||
 				state.bMarketTrip || state.bFishingSession || state.bTacticalRetreat ||
-				state.bRecoveringAfterDeath || ch->GetMyShop())
+				state.bRecoveringAfterDeath || ch->GetMyShop() ||
+				GetPlayerBotDuelUnreadiness(ch, dwNow) != NULL)
 			return;
 		if (ch->GetMaxHP() <= 0 ||
 				(ch->GetHP() * 100) / ch->GetMaxHP() < PLAYERBOT_PVP_MIN_HP_PERCENT)
@@ -780,6 +919,9 @@ namespace
 				if (candidate->GetParty() && candidate->GetParty() == m_me->GetParty())
 					return false;
 				if (playerbot_pvp::IsInDuel(candidate->GetPlayerID(), m_now))
+					return false;
+				// Not a bot on the bank with its rod out, nor one at a vein.
+				if (GetPlayerBotDuelUnreadiness(candidate, m_now) != NULL)
 					return false;
 				if (abs((int)candidate->GetLevel() - (int)m_me->GetLevel()) >
 						PLAYERBOT_PVP_CHALLENGE_LEVEL_DELTA)
@@ -863,7 +1005,8 @@ namespace
 		if (state.bVisitingShop || state.bVisitingBiologist || state.bVisitingStable ||
 				state.bMarketTrip || state.bFishingSession || state.bTacticalRetreat ||
 				state.bRecoveringAfterDeath || ch->GetMyShop() ||
-				IsPlayerBotMiningNow(ch->GetPlayerID(), dwNow))
+				IsPlayerBotMiningNow(ch->GetPlayerID(), dwNow) ||
+				GetPlayerBotDuelUnreadiness(ch, dwNow) != NULL)
 			return;
 		if (ch->GetMaxHP() <= 0 ||
 				(ch->GetHP() * 100) / ch->GetMaxHP() < PLAYERBOT_PVP_MIN_HP_PERCENT)
@@ -895,6 +1038,9 @@ namespace
 				if (candidate->GetParty() && candidate->GetParty() == m_me->GetParty())
 					return false;
 				if (playerbot_pvp::IsInDuel(candidate->GetPlayerID(), m_now))
+					return false;
+				// The same for a quarrel: nobody is set upon with a rod in hand.
+				if (GetPlayerBotDuelUnreadiness(candidate, m_now) != NULL)
 					return false;
 				if (abs((int)candidate->GetLevel() - (int)m_me->GetLevel()) >
 						PLAYERBOT_KINGDOM_PVP_LEVEL_DELTA)
@@ -959,11 +1105,29 @@ namespace
 		LPCHARACTER leader = party->GetLeaderCharacter();
 		if (!leader || leader->IsDead() || leader == ch)
 			return false;
-		// A leader on another map is a leader this bot cannot walk to: the map
-		// change is somebody else's decision and a bot has no client to follow
-		// a warp with.
+		// A leader on another map is followed there. A warp takes a player by
+		// telling the client to reconnect, and a bot has no client, so the move
+		// is the one the AI makes for every map change - TransitionPlayerBotMap,
+		// onto the leader's own spot - once the leader stands on the new map (a
+		// character still warping is on the old one). What stays out of reach:
+		// a map this core does not host, a dungeon instance (no navigation grid
+		// and no way out a bot knows, and the Demon Tower is one), and a spider
+		// map whose desert crossing is already under way, which the transition
+		// would otherwise restart from the desert's doorstep on every retry.
 		if (leader->GetMapIndex() != ch->GetMapIndex())
-			return false;
+		{
+			const long leaderMap = leader->GetMapIndex();
+			if (leaderMap >= PLAYERBOT_INSTANCE_MAP_INDEX_MIN || leader->IsWarping() ||
+					!leader->GetSectree() || !IsPlayerBotMapHostedHere(leaderMap) ||
+					state.lDesertCrossingTo == leaderMap)
+				return false;
+			s_mapPlayerBotFollowNext[ch->GetPlayerID()] = dwNow + PLAYERBOT_PARTY_WARP_FOLLOW_RETRY;
+			if (!TransitionPlayerBotMap(ch, state, leaderMap, leader->GetX(), leader->GetY(),
+					dwNow, "follow_leader"))
+				return false;
+			SetPlayerBotAction(state, BOT_ACTION_TRAVEL, dwNow);
+			return true;
+		}
 		// Fighting something is not standing about.
 		if (ch->GetVictim() && !ch->GetVictim()->IsDead())
 			return false;
@@ -977,6 +1141,95 @@ namespace
 			return false;
 		SetPlayerBotAction(state, BOT_ACTION_TRAVEL, dwNow);
 		return true;
+	}
+
+	// A Shaman in a player's party keeps the player's buffs up, as a Shaman in
+	// a party of people would. CHARACTER::UseSkill hands a buff that is not
+	// SELFONLY to ComputeSkill on the character it is aimed at, and the affect
+	// it adds carries the skill's own vnum, so this is the self-buff pass
+	// pointed at somebody else: the build's own buff list, what the player has
+	// not already got, one cast per tick, and before the bot's own buffs -
+	// whose copy of the skill then waits out the cooldown, which is the price a
+	// player's Shaman pays as well. Cure is a heal and goes to a player under
+	// PLAYERBOT_PARTY_LEADER_CURE_HP_PERCENT. A buff reaches 800 to 1000 and
+	// the follow pass leaves a bot anywhere inside
+	// PLAYERBOT_PARTY_FOLLOW_DISTANCE, so a bot out of reach and not fighting
+	// walks up first, and one on a transport horse climbs down first, because
+	// the engine refuses every other skill from that saddle. "Nigdy zaden
+	// szaman nie uzyl swoich buffow na mnie gdy bylismy w PT" (sizowski,
+	// 14 September).
+	bool ManagePlayerBotBuffHumanLeader(LPCHARACTER ch, TPlayerBotAIState& state, DWORD dwNow)
+	{
+		static std::map<DWORD, DWORD> s_mapPlayerBotLeaderBuffNext;
+		if (!ch || ch->IsDead() || ch->GetJob() != JOB_SHAMAN || ch->GetSkillGroup() == 0)
+			return false;
+		LPPARTY party = ch->GetParty();
+		if (!party || !IsPlayerBotHumanLedParty(party))
+			return false;
+		DWORD& next = s_mapPlayerBotLeaderBuffNext[ch->GetPlayerID()];
+		if (dwNow < next)
+			return false;
+		next = dwNow + PLAYERBOT_PARTY_LEADER_BUFF_INTERVAL;
+		// A visit, a Biologist walk or a stable errand the bot carried into the
+		// party is only paused there (the tick skips all three for a player's
+		// party), so its flags stay set and must not stop the buffs.
+		if (state.bRecoveringAfterDeath || state.bTacticalRetreat ||
+				state.bMultiPullActive || state.bFishingSession || ch->GetMyShop())
+			return false;
+		LPCHARACTER leader = party->GetLeaderCharacter();
+		if (!leader || leader == ch || leader->IsDead() || leader->GetMapIndex() != ch->GetMapIndex())
+			return false;
+		const bool fighting = ch->GetVictim() && !ch->GetVictim()->IsDead();
+		const bool hunting = fighting || state.dwTargetVID != 0 ||
+				(state.dwLastCombatActionTime != 0 &&
+				 dwNow - state.dwLastCombatActionTime < PLAYERBOT_BUFF_COMBAT_WINDOW);
+		const int dist = DISTANCE_APPROX(ch->GetX() - leader->GetX(), ch->GetY() - leader->GetY());
+		const TJobSkillBuild build = GetPlayerBotSkillBuild(ch->GetJob(), ch->GetSkillGroup(), ch->GetPlayerID());
+		for (size_t i = 0; i < sizeof(build.dwBuffSkills) / sizeof(build.dwBuffSkills[0]); ++i)
+		{
+			const DWORD vnum = build.dwBuffSkills[i];
+			if (vnum == 0 || ch->GetSkillLevel(vnum) == 0)
+				continue;
+			if (!hunting && !IsPlayerBotOutOfCombatBuff(vnum))
+				continue;
+			if (vnum == 109) // Cure / Heal
+			{
+				if (leader->GetMaxHP() <= 0 ||
+						(long long)leader->GetHP() * 100 / leader->GetMaxHP() > PLAYERBOT_PARTY_LEADER_CURE_HP_PERCENT)
+					continue;
+			}
+			else if (IsPlayerBotBuffAffectOn(leader, vnum))
+				continue;
+			CSkillProto* proto = CSkillManager::instance().Get(vnum);
+			if (!proto || IS_SET(proto->dwFlag, SKILL_FLAG_SELFONLY))
+				continue;
+			if (proto->dwTargetRange != 0 && dist > (int)proto->dwTargetRange)
+			{
+				if (fighting)
+					continue;
+				if (!MovePlayerBot(ch, leader->GetX(), leader->GetY(), dwNow, 8, true, false, false, false))
+					continue;
+				next = dwNow + PLAYERBOT_PARTY_FOLLOW_INTERVAL;
+				SetPlayerBotAction(state, BOT_ACTION_TRAVEL, dwNow);
+				return true;
+			}
+			if (ch->IsRiding() && !CanPlayerBotEverFightOnHorse(ch))
+			{
+				SetPlayerBotRidingForTravel(ch, state, false, dwNow, "leader_buff");
+				next = dwNow + PLAYERBOT_BUFF_RECHECK_FAST;
+				return true;
+			}
+			if (!ch->UseSkill(vnum, leader))
+				continue;
+			SendPlayerBotSkillPacket(ch, vnum);
+			state.dwLastBotSkillTime = dwNow;
+			state.dwNextAttackTime = dwNow + PLAYERBOT_SKILL_ANIMATION_LOCK;
+			next = dwNow + PLAYERBOT_BUFF_RECHECK_FAST;
+			sys_log(0, "PLAYERBOT_AI: buffed party leader pid=%u name=%s leader=%s vnum=%u",
+					ch->GetPlayerID(), ch->GetName(), leader->GetName(), vnum);
+			return true;
+		}
+		return false;
 	}
 
 	void ManagePlayerBotParty(LPCHARACTER ch, TPlayerBotAIState& state, DWORD dwNow)
@@ -993,12 +1246,12 @@ namespace
 		// one camp; applied to a person's party they would walk the bot back
 		// out within a minute of it being invited, which is the opposite of
 		// what an invitation means. The player decides when it ends.
+		// Its distribution mode included: a bot in a person's party put the
+		// party back on parity at every check, whatever the leader had chosen
+		// ("boty dodane do PT zawsze same zmieniaja podzial na rowny nawet gdy
+		// to nie one sa liderem", Dearminder, 15 September).
 		if (pParty && IsPlayerBotHumanLedParty(pParty))
-		{
-			if (pParty->GetExpDistributionMode() != PARTY_EXP_DISTRIBUTION_PARITY)
-				pParty->SetParameter(PARTY_EXP_DISTRIBUTION_PARITY);
 			return;
-		}
 		// Party play is an explicit, deterministic cohort. Archer weighting is
 		// decided at login, while the total cohort remains close to ten percent.
 		if (!IsPlayerBotPartyEligible(ch, state))
@@ -1093,6 +1346,16 @@ namespace
 							!IsPlayerBotPartyEligible(candidate, stateIt->second))
 						return true;
 
+					// The engine's first rule of a party, and the one a bot's own
+					// Join never asked: CHARACTER::IsPartyJoinableCondition refuses
+					// another kingdom before anything else, so a player cannot group
+					// across kingdoms and a bot must not either. On the shared maps
+					// the bots of all three stand side by side, and they grouped
+					// there as if they were one ("boty z roznych krolestw expia w
+					// jednym PT", l0st3k).
+					if (candidate->GetEmpire() != m_me->GetEmpire())
+						return true;
+
 					if (abs((int)candidate->GetLevel() - (int)m_me->GetLevel()) > 3)
 						return true;
 
@@ -1107,7 +1370,8 @@ namespace
 					if (cp && cp->GetMemberCount() < (DWORD)GetPlayerBotPartyDesiredMax(m_me))
 					{
 						LPCHARACTER leader = cp->GetLeaderCharacter();
-						if (leader && leader->GetMapIndex() == m_me->GetMapIndex())
+						if (leader && leader->GetMapIndex() == m_me->GetMapIndex() &&
+								leader->GetEmpire() == m_me->GetEmpire())
 						{
 							int ld = DISTANCE_APPROX(m_me->GetX() - leader->GetX(), m_me->GetY() - leader->GetY());
 							if (ld <= 1800 &&
@@ -1180,8 +1444,10 @@ namespace
 			finder.m_pTargetParty->Link(ch);
 			finder.m_pTargetParty->SetParameter(PARTY_EXP_DISTRIBUTION_PARITY);
 			state.dwPartyExpireTime = dwNow + number(300000, 900000); // 5 to 15 mins
-			sys_log(0, "PLAYERBOT_AI: joined party pid=%u name=%s members=%d",
-					ch->GetPlayerID(), ch->GetName(), finder.m_pTargetParty->GetMemberCount());
+			LPCHARACTER joinedLeader = finder.m_pTargetParty->GetLeaderCharacter();
+			sys_log(0, "PLAYERBOT_AI: joined party pid=%u name=%s members=%d empire=%u leader_empire=%u",
+					ch->GetPlayerID(), ch->GetName(), finder.m_pTargetParty->GetMemberCount(),
+					(unsigned int)ch->GetEmpire(), joinedLeader ? (unsigned int)joinedLeader->GetEmpire() : 0U);
 		}
 		else if (finder.m_pSoloCandidate)
 		{
@@ -1195,10 +1461,11 @@ namespace
 				state.dwPartyExpireTime = dwNow + number(300000, 900000); // 5 to 15 mins
 				RememberPlayerBotEncounter(ch, finder.m_pSoloCandidate,
 						PLAYERBOT_FRIEND_PARTY_POINTS, dwNow);
-				sys_log(0, "PLAYERBOT_AI: created party pid=%u name=%s partner_pid=%u affinity=%d",
+				sys_log(0, "PLAYERBOT_AI: created party pid=%u name=%s partner_pid=%u affinity=%d empire=%u partner_empire=%u",
 						ch->GetPlayerID(), ch->GetName(),
 						finder.m_pSoloCandidate->GetPlayerID(),
-						GetPlayerBotAffinity(state, finder.m_pSoloCandidate->GetPlayerID()));
+						GetPlayerBotAffinity(state, finder.m_pSoloCandidate->GetPlayerID()),
+						(unsigned int)ch->GetEmpire(), (unsigned int)finder.m_pSoloCandidate->GetEmpire());
 			}
 		}
 	}
@@ -1288,95 +1555,45 @@ namespace
 				bestSocket, after, bestScore);
 	}
 
-	bool SharePlayerBotUsefulItemWithParty(LPCHARACTER ch, TPlayerBotAIState& state, DWORD dwNow)
+	// Sztuka Combo and the Leadership books, read the way the engine's own use
+	// path reads them (char_item.cpp, 50301-50306): Combo from level 30 and
+	// again from 50, Leadership twenty levels a book. The day the engine puts
+	// between two reads of one skill is waved away like the class books' while
+	// the BOOKS switch is on; a read costs 20 000 experience, which a bot of
+	// thirty has. Combo widens what a swing hits (GetShootMaxTargetCount is
+	// 3 + the Combo level) and Leadership is what a party's bonuses ask of
+	// their leader. Asked from ManagePlayerBotSkillBooks when no class book
+	// is due, on its clock (sizowski, 16 September: "dodanie korzystania z
+	// combo i dowodzenia botom").
+	bool ReadPlayerBotGeneralSkillBook(LPCHARACTER ch, TPlayerBotAIState& state, DWORD dwNow)
 	{
-		if (!ch || !ch->IsItemLoaded() || dwNow < state.dwNextPartyShareTime)
+		if (!ch || ch->IsPolymorphed())
 			return false;
-		state.dwNextPartyShareTime = dwNow + PLAYERBOT_PARTY_SHARE_INTERVAL + number(0, 5000);
-
-		// Reserve equipment sharing is deliberately not restricted to a party.
-		// Solo bots that meet in the field may help a lower-level bot of the same
-		// class/build, while all other useful-item sharing remains party-only.
 		for (WORD cell = 0; cell < PLAYERBOT_BAG_CELLS; ++cell)
 		{
 			LPITEM item = ch->GetInventoryItem(cell);
-			if (!item || item->GetRefineLevel() < PLAYERBOT_RESERVE_GEAR_MIN_REFINE ||
-					!IsPlayerBotEquipmentCandidate(ch, item))
+			if (!item || item->GetCell() != cell || !IsPlayerBotGeneralSkillBook(item->GetVnum()) ||
+					!CanPlayerBotReadGeneralSkillBookNow(ch, item->GetVnum()))
 				continue;
-
-			const int wearCell = item->FindEquipCell(ch);
-			LPITEM worn = wearCell >= 0 ? ch->GetWear(wearCell) : NULL;
-			if (!worn || GetPlayerBotEquipmentScore(item, ch) > GetPlayerBotEquipmentScore(worn, ch))
-				continue; // This is the giver's pending upgrade, not a spare.
-
-			if (SharePlayerBotOldGearNearby(ch, item))
-				return true;
-		}
-
-		if (!ch->GetParty())
-			return false;
-
-		for (WORD cell = 0; cell < PLAYERBOT_BAG_CELLS; ++cell)
-		{
-			LPITEM item = ch->GetInventoryItem(cell);
-			if (!item || item->IsEquipped() || item->isLocked())
-				continue;
-
-			const DWORD skillVnum = GetPlayerBotSkillBookSkillVnum(item);
-			const bool isShareableBook = skillVnum != 0 && !IsPlayerBotOwnSkill(ch, skillVnum);
-			const bool isShareableMaterial =
-					(item->GetType() == ITEM_MATERIAL ||
-					 (item->GetVnum() >= 30000 && item->GetVnum() <= 30200)) &&
-					!PlayerBotNeedsRefineMaterial(ch, item->GetVnum());
-			if (!isShareableBook && !isShareableMaterial)
-				continue;
-
-			struct FUsefulItemReceiver
-			{
-				LPCHARACTER m_giver;
-				LPITEM m_item;
-				DWORD m_skillVnum;
-				bool m_bMaterial;
-				LPCHARACTER m_receiver;
-
-				FUsefulItemReceiver(LPCHARACTER giver, LPITEM item, DWORD skillVnum, bool material) :
-					m_giver(giver), m_item(item), m_skillVnum(skillVnum),
-					m_bMaterial(material), m_receiver(NULL) {}
-
-				void operator () (LPCHARACTER member)
-				{
-					if (m_receiver || !member || member == m_giver || member->IsDead() ||
-							!member->GetDesc() || !member->GetDesc()->IsBot() ||
-							DISTANCE_APPROX(m_giver->GetX() - member->GetX(), m_giver->GetY() - member->GetY()) > 1800 ||
-							member->GetEmptyInventory(m_item->GetSize()) < 0)
-						return;
-
-					if ((!m_bMaterial && IsPlayerBotOwnSkill(member, m_skillVnum)) ||
-							(m_bMaterial && PlayerBotNeedsRefineMaterial(member, m_item->GetVnum())))
-						m_receiver = member;
-				}
-			};
-
-			FUsefulItemReceiver finder(ch, item, skillVnum, isShareableMaterial);
-			ch->GetParty()->ForEachOnMapMember(finder, ch->GetMapIndex());
-			if (!finder.m_receiver)
-				continue;
-
-			const int receiverCell = finder.m_receiver->GetEmptyInventory(item->GetSize());
-			const WORD oldCell = item->GetCell();
-			const DWORD itemVnum = item->GetVnum();
-			item->RemoveFromCharacter();
-			if (receiverCell >= 0 && item->AddToCharacter(finder.m_receiver,
-					TItemPos(INVENTORY, receiverCell)))
-			{
-				sys_log(0, "PLAYERBOT_AI: shared useful item pid=%u name=%s -> target_pid=%u target_name=%s vnum=%u kind=%s",
-						ch->GetPlayerID(), ch->GetName(), finder.m_receiver->GetPlayerID(),
-						finder.m_receiver->GetName(), itemVnum,
-						isShareableBook ? "skill_book" : "refine_material");
-				return true;
-			}
-
-			item->AddToCharacter(ch, TItemPos(INVENTORY, oldCell));
+			const DWORD skill = GetPlayerBotGeneralSkillBookSkill(item->GetVnum());
+			if (IsPlayerBotFastBooksEnabled() && get_global_time() < ch->GetSkillNextReadTime(skill))
+#if defined(PLAYERBOT_ENGINE_MT2009)
+				ch->SetSkillNextReadTime(skill, get_global_time(), true);
+#else
+				ch->SetSkillNextReadTime(skill, get_global_time());
+#endif
+			if (get_global_time() < ch->GetSkillNextReadTime(skill) &&
+					!ch->FindAffect(AFFECT_SKILL_NO_BOOK_DELAY))
+				return false;
+			const BYTE oldLevel = ch->GetSkillLevel(skill);
+			const DWORD vnum = item->GetVnum();
+			if (!ch->UseItem(TItemPos(INVENTORY, cell)))
+				return false;
+			SetPlayerBotAction(state, BOT_ACTION_READ_BOOK, dwNow);
+			sys_log(0, "PLAYERBOT_AI: read general book pid=%u name=%s vnum=%u skill=%u old_level=%u new_level=%u success=%d",
+					ch->GetPlayerID(), ch->GetName(), vnum, skill, oldLevel, ch->GetSkillLevel(skill),
+					ch->GetSkillLevel(skill) > oldLevel ? 1 : 0);
+			return true;
 		}
 		return false;
 	}
@@ -1387,9 +1604,6 @@ namespace
 				dwNow < state.dwNextSkillBookTime)
 			return;
 		state.dwNextSkillBookTime = dwNow + PLAYERBOT_SKILL_BOOK_CHECK_INTERVAL;
-
-		if (SharePlayerBotUsefulItemWithParty(ch, state, dwNow))
-			return;
 
 		const TJobSkillBuild build = GetPlayerBotSkillBuild(ch->GetJob(), ch->GetSkillGroup(), ch->GetPlayerID());
 		int bestCell = -1;
@@ -1421,7 +1635,10 @@ namespace
 		}
 
 		if (bestCell < 0 || bestSkillVnum == 0)
+		{
+			ReadPlayerBotGeneralSkillBook(ch, state, dwNow);
 			return;
+		}
 
 		if (get_global_time() < ch->GetSkillNextReadTime(bestSkillVnum))
 		{
@@ -1461,13 +1678,12 @@ namespace
 				!ch->FindAffect(AFFECT_SKILL_NO_BOOK_DELAY))
 			return;
 
-		// LearnSkillByBook refuses a rider outright, so the one NPC-less
-		// errand that still needs the ground is this one.
-		if (ch->IsRiding())
-		{
-			SetPlayerBotRidingForTravel(ch, state, false, dwNow, "reading_book");
-			return;
-		}
+		// Read from the saddle: neither LearnSkillByBook nor the book's use asks
+		// about a horse, on either engine. The pass used to climb down, return,
+		// and read on its next visit eight seconds later - by which time the
+		// travel had put the bot back on the horse - so a rider on a long leg was
+		// down every eight seconds and mostly read nothing: 5 121 climb-downs in
+		// 36 minutes on the test world, one rider down 268 times for 15 books.
 		const BYTE oldLevel = ch->GetSkillLevel(bestSkillVnum);
 		if (ch->UseItem(TItemPos(INVENTORY, bestCell)))
 		{
@@ -1477,6 +1693,173 @@ namespace
 					ch->GetSkillLevel(bestSkillVnum),
 					ch->GetSkillLevel(bestSkillVnum) > oldLevel ? 1 : 0);
 		}
+	}
+
+	// Kamien Duchowy (50513) is the Grand Master's book: one read trains a skill
+	// at G1..G10 on towards Perfect Master. The engine's half is
+	// LearnGrandMasterSkill (a thirty percent roll, four under the first reads);
+	// the rest is training_grandmaster_skill.quest, a dialog a bot cannot
+	// answer, so this pass does what the quest does - twelve hours between
+	// reads (waved away like the books' while the panel's BOOKS switch is on),
+	// the stone spent either way, and the rank the training costs: 1000 plus
+	// 500 a grade over G1 on a success, a third to a half of that on a failure,
+	// twice as much for a rank already below zero. A bot trains only while the
+	// full price leaves its rank at zero or above, so it never walks about with
+	// a negative rank - the rank that lets a player hunt it for its gear
+	// (ItemDropPenalty). The stones used to go to the merchant for 194 yang,
+	// because nothing kept an ITEM_QUEST out of the junk rule ("Boty sprzedaja
+	// kamienie zamiast z nich korzystac", mateuszp211, 15 September).
+	void ManagePlayerBotGrandMasterTraining(LPCHARACTER ch, TPlayerBotAIState& state, DWORD dwNow)
+	{
+		static std::map<DWORD, DWORD> s_mapPlayerBotGrandMasterNext;
+		if (!ch || !ch->IsItemLoaded() || ch->IsDead() || ch->GetSkillGroup() == 0 ||
+				ch->GetExchange() || ch->GetMyShop())
+			return;
+		DWORD& next = s_mapPlayerBotGrandMasterNext[ch->GetPlayerID()];
+		if (dwNow < next)
+			return;
+		next = dwNow + PLAYERBOT_GRAND_MASTER_CHECK_INTERVAL;
+
+		LPITEM stone = NULL;
+		for (WORD cell = 0; cell < PLAYERBOT_BAG_CELLS && !stone; ++cell)
+		{
+			LPITEM item = ch->GetInventoryItem(cell);
+			if (item && item->GetVnum() == PLAYERBOT_GRAND_MASTER_STONE_VNUM && !item->isLocked())
+				stone = item;
+		}
+		if (!stone)
+			return;
+
+		const char* nextTimeFlag = "training_grandmaster_skill.next_time";
+		const int now = get_global_time();
+		if (now < ch->GetQuestFlag(nextTimeFlag) && !IsPlayerBotFastBooksEnabled())
+			return;
+
+		// The skill the books would pick: the build's primary first, then the
+		// highest grade.
+		const TJobSkillBuild build = GetPlayerBotSkillBuild(ch->GetJob(), ch->GetSkillGroup(), ch->GetPlayerID());
+		DWORD skillVnum = 0;
+		int bestPriority = INT_MIN;
+		for (BYTE i = 0; i < build.bSkillCount; ++i)
+		{
+			const DWORD vnum = build.dwSkills[i];
+			if (vnum == 0 || ch->GetSkillMasterType(vnum) != SKILL_GRAND_MASTER)
+				continue;
+			const int level = ch->GetSkillLevel(vnum);
+			if (level < 30 || level >= 40)
+				continue;
+			const int priority = (vnum == build.dwPrimaryMaxSkill ? 10000 : 0) + level;
+			if (priority > bestPriority)
+			{
+				bestPriority = priority;
+				skillVnum = vnum;
+			}
+		}
+		if (skillVnum == 0)
+			return;
+
+		const int level = ch->GetSkillLevel(skillVnum);
+		const int rank = ch->GetRealAlignment();
+		const int cost = (1000 + 500 * (level - 30)) * (rank < 0 ? 2 : 1);
+		if (rank - cost < 0)
+		{
+			PlayerBotLogThrottled("grand_master_rank", dwNow,
+					"PLAYERBOT_AI: grand master training waits for rank pid=%u name=%s skill=%u level=%d rank=%d cost=%d",
+					ch->GetPlayerID(), ch->GetName(), skillVnum, level, rank, cost);
+			return;
+		}
+
+		// item.remove(1): the quest spends the stone before the roll.
+		if (stone->GetCount() > 1)
+			stone->SetCount(stone->GetCount() - 1);
+		else
+			ITEM_MANAGER::instance().RemoveItem(stone, "PLAYERBOT_GRAND_MASTER_READ");
+		ch->SetQuestFlag(nextTimeFlag, now + PLAYERBOT_GRAND_MASTER_TRAIN_SECONDS);
+		const bool learned = ch->LearnGrandMasterSkill(skillVnum);
+		ch->UpdateAlignment(-(learned ? cost : number(cost / 3, cost / 2)));
+		SetPlayerBotAction(state, BOT_ACTION_READ_BOOK, dwNow);
+		sys_log(0, "PLAYERBOT_AI: grand master training %s pid=%u name=%s skill=%u level=%d->%d rank=%d->%d",
+				learned ? "SUCCESS" : "FAILED", ch->GetPlayerID(), ch->GetName(), skillVnum,
+				level, (int)ch->GetSkillLevel(skillVnum), rank, ch->GetRealAlignment());
+	}
+
+	// A rank below zero is what lets another player hunt a character for its
+	// gear, and Fasolka Zen lifts it by up to its value0 - the engine takes a
+	// bean only then. The training above never takes a bot under zero, so this
+	// is the net for whatever else might ("boty powinny unikac biegania z
+	// negatywna ranga", Tieru, 15 September).
+	void ManagePlayerBotZenBeans(LPCHARACTER ch, DWORD dwNow)
+	{
+		static std::map<DWORD, DWORD> s_mapPlayerBotZenBeanNext;
+		if (!ch || !ch->IsItemLoaded() || ch->IsDead() || ch->GetAlignment() >= 0)
+			return;
+		DWORD& next = s_mapPlayerBotZenBeanNext[ch->GetPlayerID()];
+		if (dwNow < next)
+			return;
+		next = dwNow + PLAYERBOT_ZEN_BEAN_CHECK_INTERVAL;
+		for (WORD cell = 0; cell < PLAYERBOT_BAG_CELLS; ++cell)
+		{
+			LPITEM item = ch->GetInventoryItem(cell);
+			if (!item || item->GetVnum() != PLAYERBOT_ZEN_BEAN_VNUM || item->isLocked())
+				continue;
+			const int before = ch->GetRealAlignment();
+			ch->UseItem(TItemPos(INVENTORY, cell));
+			sys_log(0, "PLAYERBOT_AI: zen bean pid=%u name=%s rank=%d->%d",
+					ch->GetPlayerID(), ch->GetName(), before, ch->GetRealAlignment());
+			return;
+		}
+	}
+
+	// A rank below zero keeps a bot inside its village's safe ring until it is
+	// back. A character with a negative rank drops what it carries when a player
+	// kills it, and outside the ring anybody may ("boty powinny unikac biegania
+	// z negatywna ranga poza kolem", Tieru, 15 September, and a yes to holding
+	// them there with only Fasolka Zen to lift the rank in town). Off its village
+	// the bot is carried home to the market pitch, on a village map it walks
+	// there, and inside the ring it stands: the shopping pass buys a bean off a
+	// counter when one is there (WantsPlayerBotStallItem) and
+	// ManagePlayerBotZenBeans eats it. The rest mark it renews is what keeps the
+	// inactivity watchdog off a bot standing still on purpose. The Kamien
+	// Duchowy never takes a bot under zero, so this is the net for whatever
+	// else does.
+	bool KeepPlayerBotNegativeRankInTown(LPCHARACTER ch, TPlayerBotAIState& state, DWORD dwNow)
+	{
+		if (!ch || ch->IsDead() || !ch->IsItemLoaded() || ch->GetRealAlignment() >= 0)
+			return false;
+		// A raider of the Demon Tower finishes the tower first.
+		if (IsPlayerBotOnTowerBusiness(ch, state))
+			return false;
+		const long map = ch->GetMapIndex();
+		if (IsPlayerBotSafeZone(map, ch->GetX(), ch->GetY()))
+		{
+			state.dwTownLingerUntil = dwNow + PLAYERBOT_NEGATIVE_RANK_HOLD_MS;
+			if (ch->IsStateMove())
+				ch->Stop();
+			ClearPlayerBotRoute(state, true);
+			SetPlayerBotAction(state, BOT_ACTION_TOWN_REST, dwNow);
+			PlayerBotLogThrottled("negative_rank_hold", dwNow,
+					"PLAYERBOT_AI: negative rank, holding in town pid=%u name=%s map=%ld rank=%d beans=%d",
+					ch->GetPlayerID(), ch->GetName(), map, ch->GetRealAlignment(),
+					(int)ch->CountSpecifyItem(PLAYERBOT_ZEN_BEAN_VNUM));
+			return true;
+		}
+		playerbot_empire_rules::TPoint pitch;
+		if (IsPlayerBotVillageMap(map) && playerbot_empire_rules::GetTownPitch(map, pitch))
+		{
+			SetPlayerBotAction(state, BOT_ACTION_TRAVEL, dwNow);
+			// At the pitch is as good as inside the ring, should a pitch ever
+			// stand on a cell the ring's attribute misses.
+			if (MovePlayerBotTownLeg(ch, state, dwNow, pitch.x, pitch.y,
+					PLAYERBOT_NEGATIVE_RANK_PITCH_ARRIVAL))
+				state.dwTownLingerUntil = dwNow + PLAYERBOT_NEGATIVE_RANK_HOLD_MS;
+			return true;
+		}
+		long destMap = 0, destX = 0, destY = 0;
+		if (GetPlayerBotVillageReturn(ch, playerbot_empire_rules::MAP_ROLE_M1, destMap, destX, destY) &&
+				TransitionPlayerBotMap(ch, state, destMap, destX, destY, dwNow, "negative_rank_home"))
+			sys_log(0, "PLAYERBOT_AI: negative rank, carried home pid=%u name=%s from=%ld rank=%d",
+					ch->GetPlayerID(), ch->GetName(), map, ch->GetRealAlignment());
+		return true;
 	}
 
 	// Once a minute, the reasons the level-40 bots in Bokjung are there.
@@ -1621,10 +2004,18 @@ namespace
 		// An angler stands still on purpose: a single cast can wait 40 s for the
 		// bite alone, so stillness at the bank is the activity, not a symptom.
 		// A bot resting in town stands still on purpose, exactly like an angler
-		// waiting for a bite - stillness is the activity, not a symptom.
+		// waiting for a bite - stillness is the activity, not a symptom. So does
+		// a bot beside the player whose party it is: the follow pass only moves
+		// it past PLAYERBOT_PARTY_FOLLOW_DISTANCE, and a reset after ninety
+		// seconds next to an idle player took it out of the party below -
+		// "dodaje boty do PT, a po chwili z niego wychodza" (sizowski, 14
+		// September).
 		if (moved || foughtRecently || castRecently || state.bFishingSession ||
 				IsPlayerBotMiningNow(ch->GetPlayerID(), dwNow) ||
-				state.dwTownLingerUntil != 0)
+				state.dwTownLingerUntil != 0 || IsPlayerBotBesideHumanLeader(ch) ||
+				// waiting for a floor's script in the Demon Tower, or for the
+				// raid to gather on its ground floor (playerbot_demon_tower.h)
+				state.lTowerInstance != 0 || state.dwTowerRaidGuild != 0 || state.bTowerSummoned)
 		{
 			state.dwLastMeaningfulActivityTime = dwNow;
 			state.lLastX = ch->GetX();
@@ -1677,7 +2068,8 @@ namespace
 		// select the same idle party state again.  Break only a party which has
 		// already tripped the 90-second inactivity watchdog, then keep this bot
 		// solo briefly so it can acquire an independent destination/target.
-		if (ch->GetParty())
+		// A player's party is not one of those: the player ends it.
+		if (ch->GetParty() && !IsPlayerBotHumanLedParty(ch->GetParty()))
 		{
 			ch->GetParty()->Quit(ch->GetPlayerID());
 			state.dwPartyExpireTime = 0;
@@ -1845,7 +2237,7 @@ bool CPlayerBotManager::LoadRegisteredBots()
 	m_mapBotAccounts.clear();
 
 	const char* query =
-			"SELECT l.pid, a.id, a.login, pi.empire "
+			"SELECT l.pid, a.id, a.login, pi.empire, p.level "
 			"FROM common.playerbot_seed_state AS l "
 			"JOIN player.player AS p ON p.id=l.pid "
 			"JOIN account.account AS a ON a.id=p.account_id "
@@ -1906,6 +2298,12 @@ bool CPlayerBotManager::LoadRegisteredBots()
 				str_to_number(account.dwID, row[1]);
 			if (row[2])
 				account.strLogin = row[2];
+			// The level the character was saved at, which is what the medal
+			// droppers' cohort is chosen by (SpawnMedalDropperCohort).
+			unsigned int level = 0;
+			if (row[4])
+				str_to_number(level, row[4]);
+			account.bLevel = (BYTE)std::min<unsigned int>(level, 255);
 			m_mapBotAccounts[pid] = account;
 		}
 	}
@@ -2051,7 +2449,7 @@ size_t CPlayerBotManager::SpawnRegistered(size_t count, BYTE bEmpire)
 		++selected;
 	}
 
-	const size_t batches = std::max<size_t>(1, PLAYERBOT_SPAWN_WINDOW / PLAYERBOT_SPAWN_BATCH_INTERVAL);
+	const size_t batches = std::max<size_t>(1, m_dwSpawnWindowMs / PLAYERBOT_SPAWN_BATCH_INTERVAL);
 	m_uSpawnBatchSize = std::max<size_t>(1,
 			(m_setScheduledBots.size() + batches - 1) / batches);
 	m_dwSpawnWindowStarted = get_dword_time();
@@ -2060,9 +2458,64 @@ size_t CPlayerBotManager::SpawnRegistered(size_t count, BYTE bEmpire)
 	sys_log(0, "PLAYERBOT: staggered spawn empire=%u scheduled=%u total=%u batch=%u every=%ums window=%ums",
 			(unsigned int)bEmpire, (unsigned int)selected,
 			(unsigned int)m_uSpawnWindowTotal, (unsigned int)m_uSpawnBatchSize,
-			PLAYERBOT_SPAWN_BATCH_INTERVAL, PLAYERBOT_SPAWN_WINDOW);
+			PLAYERBOT_SPAWN_BATCH_INTERVAL, m_dwSpawnWindowMs);
 	SpawnPendingBatch(get_dword_time());
 	return selected;
+}
+
+// The medal droppers an operator asks for, on top of the population
+// (PLAYERBOT_MEDAL_DROPPERS a kingdom, PLAYERBOT_MEDAL_DROPPER_LEVEL): "po 33
+// osoby na kazde krolestwo z osobowoscia dropek medali, aby grali w lochu malp
+// i mieli zablokowany exp" (Tieru, 15 September). They are taken from the far
+// end of the kingdom's registry, where the identities that have never played
+// stand, so the ordinary slider - which takes the registry from the front -
+// does not reach them until nearly every bot plays, and the same characters
+// are chosen after every restart. One saved more than two levels over the lock
+// is passed over: two is the margin for a level taken on the tick before the
+// lock landed. Scheduled before the ordinary cohort, which steps over them, and
+// restored by TopUpMissingBots like the rest.
+size_t CPlayerBotManager::SpawnMedalDropperCohort(size_t count, BYTE bEmpire, BYTE bExpLockLevel)
+{
+	if (count == 0 || bEmpire < 1 || bEmpire > 3 || bExpLockLevel == 0 || !LoadRegisteredBots())
+		return 0;
+	m_bMedalDropperCohortLevel = bExpLockLevel;
+	size_t selected = 0;
+	for (TRegisteredPlayerBotSet::const_reverse_iterator it = m_setRegisteredBots.rbegin();
+			it != m_setRegisteredBots.rend() && selected < count; ++it)
+	{
+		TPlayerBotAccountMap::const_iterator account = m_mapBotAccounts.find(*it);
+		if (account == m_mapBotAccounts.end() || account->second.bEmpire != bEmpire ||
+				(int)account->second.bLevel > (int)bExpLockLevel + 2)
+			continue;
+		if (m_setScheduledBots.find(*it) != m_setScheduledBots.end())
+			continue;
+		m_setMedalDropperCohort.insert(*it);
+		m_dequePendingSpawns.push_back(*it);
+		m_setScheduledBots.insert(*it);
+		++selected;
+	}
+
+	const size_t batches = std::max<size_t>(1, m_dwSpawnWindowMs / PLAYERBOT_SPAWN_BATCH_INTERVAL);
+	m_uSpawnBatchSize = std::max<size_t>(1,
+			(m_setScheduledBots.size() + batches - 1) / batches);
+	m_dwSpawnWindowStarted = get_dword_time();
+	m_uSpawnWindowTotal = m_setScheduledBots.size();
+	m_dwNextSpawnBatchTime = 0;
+	sys_log(0, "PLAYERBOT: medal dropper cohort empire=%u asked=%u scheduled=%u exp_lock=%u",
+			(unsigned int)bEmpire, (unsigned int)count, (unsigned int)selected,
+			(unsigned int)bExpLockLevel);
+	SpawnPendingBatch(get_dword_time());
+	return selected;
+}
+
+bool CPlayerBotManager::IsMedalDropperCohortPID(DWORD dwPlayerID) const
+{
+	return m_setMedalDropperCohort.find(dwPlayerID) != m_setMedalDropperCohort.end();
+}
+
+BYTE CPlayerBotManager::GetMedalDropperCohortLevel() const
+{
+	return m_bMedalDropperCohortLevel;
 }
 
 // One batch from the queue, if one is due. Called from Update every tick and
@@ -2081,6 +2534,9 @@ void CPlayerBotManager::SpawnPendingBatch(DWORD dwNow)
 		// scheduled, so removing the ban lets a later top-up bring it back.
 		if (m_setBannedBots.find(pid) != m_setBannedBots.end())
 			continue;
+		// A resting one likewise: its rest ends in ManageLifeSchedule.
+		if (IsRestingBot(pid))
+			continue;
 		Spawn(pid, GetRegisteredEmpire(pid));
 		++sent;
 	}
@@ -2088,6 +2544,89 @@ void CPlayerBotManager::SpawnPendingBatch(DWORD dwNow)
 		sys_log(0, "PLAYERBOT: staggered spawn complete scheduled=%u over=%ums",
 				(unsigned int)m_uSpawnWindowTotal,
 				(unsigned int)(dwNow - m_dwSpawnWindowStarted));
+}
+
+// The operator's spawn plan. The cohort's window: a minute by default, up to
+// PLAYERBOT_SPAWN_WINDOW_MAX_MINUTES, so a thousand bots can take a quarter of
+// an hour to come in instead of filling the square in sixty seconds.
+void CPlayerBotManager::SetSpawnWindow(DWORD dwWindowMs)
+{
+	const DWORD maxMs = PLAYERBOT_SPAWN_WINDOW_MAX_MINUTES * 60U * 1000U;
+	if (dwWindowMs < PLAYERBOT_SPAWN_WINDOW)
+		dwWindowMs = PLAYERBOT_SPAWN_WINDOW;
+	else if (dwWindowMs > maxMs)
+		dwWindowMs = maxMs;
+	m_dwSpawnWindowMs = dwWindowMs;
+	sys_log(0, "PLAYERBOT: spawn window %u s", (unsigned int)(dwWindowMs / 1000U));
+}
+
+// A second cohort that joins one at a time: the next `count` identities of the
+// kingdom after the ones already scheduled, each given its moment spread evenly
+// over the window. Nothing is in the world or in m_setScheduledBots until that
+// moment, so the top-up neither counts nor hurries them; from it on they are
+// the cohort's like the rest. "Dodatkowe 500 botow dolacza stopniowo w ciagu
+// 24 godzin" (Tieru, 16 September).
+size_t CPlayerBotManager::ScheduleLateJoiners(size_t count, BYTE bEmpire, DWORD dwWindowMs)
+{
+	if (count == 0 || bEmpire < 1 || bEmpire > 3 || !LoadRegisteredBots())
+		return 0;
+	const DWORD maxMs = PLAYERBOT_LATE_JOIN_MAX_HOURS * 60U * 60U * 1000U;
+	if (dwWindowMs < 60000U)
+		dwWindowMs = 60000U;
+	else if (dwWindowMs > maxMs)
+		dwWindowMs = maxMs;
+	std::set<DWORD> waiting;
+	for (std::deque<std::pair<DWORD, DWORD> >::const_iterator it = m_dequeLateJoiners.begin();
+			it != m_dequeLateJoiners.end(); ++it)
+		waiting.insert(it->second);
+	std::vector<DWORD> chosen;
+	for (TRegisteredPlayerBotSet::const_iterator it = m_setRegisteredBots.begin();
+			it != m_setRegisteredBots.end() && chosen.size() < count; ++it)
+	{
+		if (GetRegisteredEmpire(*it) != bEmpire)
+			continue;
+		if (m_setScheduledBots.find(*it) != m_setScheduledBots.end() ||
+				m_setMedalDropperCohort.find(*it) != m_setMedalDropperCohort.end() ||
+				waiting.find(*it) != waiting.end())
+			continue;
+		chosen.push_back(*it);
+	}
+	const DWORD dwNow = get_dword_time();
+	for (size_t i = 0; i < chosen.size(); ++i)
+	{
+		// The i-th of n joins at (i+1)/(n+1) of the window: the first not at
+		// once, the last not at the very end.
+		const DWORD due = dwNow + (DWORD)((unsigned long long)dwWindowMs * (i + 1) / (chosen.size() + 1));
+		m_dequeLateJoiners.push_back(std::make_pair(due, chosen[i]));
+	}
+	std::sort(m_dequeLateJoiners.begin(), m_dequeLateJoiners.end());
+	m_uLateJoinersTotal += chosen.size();
+	sys_log(0, "PLAYERBOT: late joiners empire=%u scheduled=%u over=%umin first_in=%umin waiting=%u",
+			(unsigned int)bEmpire, (unsigned int)chosen.size(),
+			(unsigned int)(dwWindowMs / 60000U),
+			m_dequeLateJoiners.empty() ? 0U : (unsigned int)((m_dequeLateJoiners.front().first - dwNow) / 60000U),
+			(unsigned int)m_dequeLateJoiners.size());
+	return chosen.size();
+}
+
+void CPlayerBotManager::SpawnLateJoiners(DWORD dwNow)
+{
+	while (!m_dequeLateJoiners.empty() && (int)(dwNow - m_dequeLateJoiners.front().first) >= 0)
+	{
+		const DWORD pid = m_dequeLateJoiners.front().second;
+		m_dequeLateJoiners.pop_front();
+		if (m_setScheduledBots.find(pid) != m_setScheduledBots.end())
+			continue;
+		m_setScheduledBots.insert(pid);
+		// A banned or resting one is scheduled and not spawned: the top-up
+		// brings it in when the ban lifts or the rest ends, like anybody's.
+		if (m_setBannedBots.find(pid) != m_setBannedBots.end() || IsRestingBot(pid))
+			continue;
+		Spawn(pid, GetRegisteredEmpire(pid));
+		sys_log(0, "PLAYERBOT: late joiner pid=%u empire=%u left=%u of %u",
+				pid, (unsigned int)GetRegisteredEmpire(pid),
+				(unsigned int)m_dequeLateJoiners.size(), (unsigned int)m_uLateJoinersTotal);
+	}
 }
 
 // Put back whoever the world has lost.
@@ -2125,7 +2664,7 @@ void CPlayerBotManager::TopUpMissingBots(DWORD dwNow)
 		// A banned bot is missing on purpose; leaving it out of the queue keeps
 		// the top-up from asking for it every minute only for SpawnPendingBatch
 		// to drop it again.
-		else if (m_setBannedBots.find(*it) == m_setBannedBots.end())
+		else if (m_setBannedBots.find(*it) == m_setBannedBots.end() && !IsRestingBot(*it))
 			missing.push_back(*it);
 	}
 	if (missing.empty())
@@ -2223,6 +2762,118 @@ bool CPlayerBotManager::Despawn(DWORD dwPlayerID)
 	return true;
 }
 
+bool CPlayerBotManager::IsRestingBot(DWORD dwPlayerID) const
+{
+	return m_mapLifeRestEnd.find(dwPlayerID) != m_mapLifeRestEnd.end();
+}
+
+// "Boty graja jak zywi ludzie" - the LIFE switch of the weights file, off by
+// default and experimental: a bot plays for PLAYERBOT_LIFE_SESSION_MIN..MAX,
+// logs out, rests for PLAYERBOT_LIFE_REST_MIN..MAX and comes back through the
+// top-up, which leaves a resting bot alone (IsRestingBot) the way it leaves a
+// banned one. The first session after a start is drawn from half an hour up
+// so the log-outs spread over the day instead of the cohort leaving together;
+// a bot in a player's party is not logged out from under them, it waits. Its
+// offline shop stands on, as any player's does. Switched off, every rest ends
+// at once and the top-up fills the world again.
+void CPlayerBotManager::ManageLifeSchedule(DWORD dwNow)
+{
+	if (m_dwNextLifeCheckTime != 0 && dwNow < m_dwNextLifeCheckTime)
+		return;
+	m_dwNextLifeCheckTime = dwNow + PLAYERBOT_LIFE_CHECK_INTERVAL;
+	if (!IsPlayerBotLifeScheduleEnabled())
+	{
+		if (!m_mapLifeSessionEnd.empty() || !m_mapLifeRestEnd.empty() || !m_setLifeReturning.empty())
+		{
+			sys_log(0, "PLAYERBOT_LIFE: schedule off, %u resting come back",
+					(unsigned int)m_mapLifeRestEnd.size());
+			m_mapLifeSessionEnd.clear();
+			m_mapLifeRestEnd.clear();
+			m_setLifeReturning.clear();
+			m_dwNextTopUpTime = 0;
+		}
+		return;
+	}
+
+	std::vector<DWORD> leaving;
+	for (TPlayerBotMap::const_iterator it = m_mapBots.begin(); it != m_mapBots.end(); ++it)
+	{
+		const DWORD pid = it->first;
+		std::map<DWORD, DWORD>::iterator session = m_mapLifeSessionEnd.find(pid);
+		if (session == m_mapLifeSessionEnd.end())
+		{
+			// Back from a rest: a whole session. Just started with the world:
+			// anything from half an hour, so the first log-outs spread.
+			const bool returning = m_setLifeReturning.erase(pid) > 0;
+			const DWORD floor = returning ? PLAYERBOT_LIFE_SESSION_MIN_MS : PLAYERBOT_LIFE_FIRST_SESSION_MIN_MS;
+			const DWORD spread = PlayerBotNavHash(pid ^ (dwNow / 1000U) ^ 0x4c494645U) %
+					(PLAYERBOT_LIFE_SESSION_MAX_MS - floor);
+			m_mapLifeSessionEnd[pid] = dwNow + floor + spread;
+			continue;
+		}
+		if ((int)(dwNow - session->second) < 0)
+			continue;
+		LPCHARACTER ch = it->second ? it->second->GetCharacter() : NULL;
+		if (ch && ch->GetParty() && IsPlayerBotHumanLedParty(ch->GetParty()))
+		{
+			session->second = dwNow + PLAYERBOT_LIFE_POSTPONE_MS;
+			continue;
+		}
+		leaving.push_back(pid);
+	}
+	for (size_t i = 0; i < leaving.size(); ++i)
+	{
+		const DWORD pid = leaving[i];
+		const DWORD rest = PLAYERBOT_LIFE_REST_MIN_MS +
+				PlayerBotNavHash(pid ^ dwNow ^ 0x52455354U) %
+				(PLAYERBOT_LIFE_REST_MAX_MS - PLAYERBOT_LIFE_REST_MIN_MS);
+		char szName[CHARACTER_NAME_MAX_LEN + 1];
+		szName[0] = '\0';
+		TPlayerBotMap::const_iterator bot = m_mapBots.find(pid);
+		if (bot != m_mapBots.end() && bot->second && bot->second->GetCharacter())
+			strlcpy(szName, bot->second->GetCharacter()->GetName(), sizeof(szName));
+		m_mapLifeSessionEnd.erase(pid);
+		if (!Despawn(pid))
+			continue;
+		m_mapLifeRestEnd[pid] = dwNow + rest;
+		sys_log(0, "PLAYERBOT_LIFE: logged out pid=%u name=%s rest=%umin",
+				pid, szName, (unsigned int)(rest / 60000U));
+	}
+	// Whose rest is over: off the resting list, and the top-up on the next
+	// tick brings them back the way it brings anybody back.
+	unsigned int back = 0;
+	for (std::map<DWORD, DWORD>::iterator it = m_mapLifeRestEnd.begin(); it != m_mapLifeRestEnd.end(); )
+	{
+		if ((int)(dwNow - it->second) >= 0)
+		{
+			sys_log(0, "PLAYERBOT_LIFE: back pid=%u", it->first);
+			m_setLifeReturning.insert(it->first);
+			m_mapLifeRestEnd.erase(it++);
+			++back;
+		}
+		else
+			++it;
+	}
+	if (back > 0)
+		m_dwNextTopUpTime = 0;
+	// A sessioned bot that left the world for another reason (a ban, a load
+	// failure) would keep a stale entry; forget what is not in the world.
+	for (std::map<DWORD, DWORD>::iterator it = m_mapLifeSessionEnd.begin(); it != m_mapLifeSessionEnd.end(); )
+	{
+		if (m_mapBots.find(it->first) == m_mapBots.end())
+			m_mapLifeSessionEnd.erase(it++);
+		else
+			++it;
+	}
+	if (m_dwNextLifeCensusTime == 0 || dwNow >= m_dwNextLifeCensusTime)
+	{
+		m_dwNextLifeCensusTime = dwNow + PLAYERBOT_LIFE_CENSUS_INTERVAL;
+		sys_log(0, "PLAYERBOT_LIFE: census online=%u resting=%u returning=%u left_now=%u back_now=%u",
+				(unsigned int)m_mapBots.size(), (unsigned int)m_mapLifeRestEnd.size(),
+				(unsigned int)m_setLifeReturning.size(), (unsigned int)leaving.size(), back);
+	}
+}
+
 void CPlayerBotManager::OnPlayerLoaded(LPDESC d)
 {
 	if (!d || !d->IsBot() || !d->GetCharacter())
@@ -2272,6 +2923,13 @@ void CPlayerBotManager::OnPlayerLoaded(LPDESC d)
 			state.bBotRole = BOT_ROLE_MOB_GRINDER;
 		state.bPersonality = GetPlayerBotStablePersonality(
 				d->GetCharacter(), state.bBotRole);
+		// The operator's medal droppers are that and nothing else, whatever
+		// their pid draws: no party role, no stone hunting.
+		if (IsMedalDropperCohortPID(dwPID))
+		{
+			state.bBotRole = BOT_ROLE_MOB_GRINDER;
+			state.bPersonality = BOT_PERSONALITY_MEDAL_DROPPER;
+		}
 		state.bAmbition = GetPlayerBotStableAmbition(
 				d->GetCharacter(), state.bPersonality);
 
@@ -2389,9 +3047,13 @@ void CPlayerBotManager::Update()
 
 	// The next batch of the cohort, if one is due - see PLAYERBOT_SPAWN_WINDOW.
 	SpawnPendingBatch(dwNow);
+	// The second cohort, one at a time over its hours (ScheduleLateJoiners).
+	SpawnLateJoiners(dwNow);
 	// And a minute apart, whoever is missing from it - and, on the same clock,
-	// whoever a GM has banned is taken back out.
+	// whoever a GM has banned is taken back out, and whoever the life schedule
+	// logs out or lets back in (the LIFE switch) goes before the count.
 	RefreshBannedBots(dwNow);
+	ManageLifeSchedule(dwNow);
 	TopUpMissingBots(dwNow);
 
 	// Once for the whole population: the panel may have moved a weight since
@@ -2399,6 +3061,17 @@ void CPlayerBotManager::Update()
 	RefreshPlayerBotWeights(dwNow);
 	RefreshPlayerBotItemPolicy(dwNow);
 	ManagePlayerBotNight(dwNow);
+	// The timed events: chest windows, rate windows, "activate now" - and the
+	// notices that go with them (playerbot_events.h).
+	ManagePlayerBotEvents(dwNow);
+	// The guilds: the population's strength census and the tier floors, the
+	// wars, and the guild report the panel reads (playerbot_guild.h,
+	// playerbot_guild_war.h).
+	RefreshPlayerBotStrengths(dwNow);
+	ManagePlayerBotGuildWars(dwNow);
+	ManagePlayerBotTowerRaids(dwNow);
+	WritePlayerBotGuildStatus(dwNow);
+	WritePlayerBotItemShopCensus(dwNow);
 	// The ore veins, once a minute for the whole world. A vein deletes itself
 	// after 7-15 minutes and nothing in this world's regen files puts one back -
 	// there are no vein spawns on any of its maps at all - so the sites are
@@ -2470,7 +3143,12 @@ void CPlayerBotManager::Update()
 		// independent of those branches and still makes every change visible in
 		// at most one second.
 		if (d->IsPhase(PHASE_GAME) && !ch->IsDead())
+		{
 			ManagePlayerBotStatusOverhead(ch, state, dwNow);
+#if defined(PLAYERBOT_ENGINE_MT2009)
+			ManagePlayerBotPersonalityTitle(ch, state, dwNow);
+#endif
+		}
 
 		// Keep expensive decisions staggered over two ticks, but let an already
 		// engaged bot continue its basic combo on the intervening tick.  This makes
@@ -2533,6 +3211,11 @@ void CPlayerBotManager::Update()
 		// to the blacksmith instead is what "bot zaakceptowal PvP ale mnie nie
 		// bije" was.
 		if (ManagePlayerBotDuelCombat(ch, state, dwNow))
+			continue;
+
+		// The guild war the bot's guild is in, ahead of every errand: the walk
+		// to the kingdom's guild map and the fight there (playerbot_guild_war.h).
+		if (ManagePlayerBotGuildWar(ch, state, dwNow))
 			continue;
 
 		// Before anything that can claim the tick. An open stall is engine state
@@ -2697,7 +3380,14 @@ void CPlayerBotManager::Update()
 
 		ManagePlayerBotSkillBooks(ch, state, dwNow);
 		ManagePlayerBotSoulStones(ch, state, dwNow);
+		ManagePlayerBotGrandMasterTraining(ch, state, dwNow);
+		// The vouchers cashed and the shop's goods bought (playerbot_itemshop.h).
+		ManagePlayerBotItemShop(ch, state, dwNow);
+		ManagePlayerBotZenBeans(ch, dwNow);
 		ManagePlayerBotThirdHand(ch, state, dwNow);
+		// Rings and gloves on the clock while the bot hunts and off in town,
+		// and the uniques a bot never wears off for good.
+		ManagePlayerBotUniqueSlots(ch, state, dwNow);
 		// The gear pass, early. It used to sit at the bottom of the tick, past
 		// the stall, the loot, the horse, the fishing, the travel, the town
 		// visit and the wander, each of which claims the tick - so a bot that
@@ -2755,6 +3445,15 @@ void CPlayerBotManager::Update()
 		ManagePlayerBotPvpChallenge(ch, state, dwNow);
 		ManagePlayerBotKingdomHostility(ch, state, dwNow);
 		ManagePlayerBotParty(ch, state, dwNow);
+		// A bot in a player's party keeps its errands and runs none of them
+		// while it is there. A Biologist or a merchant it had been walking to
+		// took it away from the player, the follow pass fetched it back, and
+		// the two took turns for as long as the party lasted ("[PT] Ide do
+		// handlarza bronia (cel: Biolog)" - Pabloo, 15 September, whose fix
+		// this is). The world travel has stood down since 2.0.48; the stable,
+		// the Biologist, the town visit and the empty-handed recovery stand
+		// down below. Fighting does not: a bot in a party is there to fight.
+		const bool bHumanLedParty = IsPlayerBotHumanLedParty(ch->GetParty());
 		// Keeping up with the player comes before the bot's own plans for the
 		// tick, or the wander pass walks it out of the party it just joined.
 		if (ManagePlayerBotFollowHumanLeader(ch, state, dwNow))
@@ -2775,7 +3474,8 @@ void CPlayerBotManager::Update()
 		// Only trigger when NOT in the middle of fighting an active Metin stone!
 		LPCHARACTER curTarget = state.dwTargetVID != 0 ? CHARACTER_MANAGER::instance().Find(state.dwTargetVID) : NULL;
 		if (curTarget && curTarget->IsStone() && !curTarget->IsDead() &&
-				!IsPlayerBotMetinWorthFighting(ch, curTarget))
+				!IsPlayerBotMetinWorthFighting(ch, curTarget) &&
+				!IsPlayerBotStoneJoinable(ch, curTarget))
 		{
 			ReleasePlayerBotMetinReservation(ch, curTarget);
 			sys_log(0, "PLAYERBOT_METIN: skipped obsolete stone pid=%u name=%s level=%u stone=%s stone_level=%u",
@@ -2802,6 +3502,20 @@ void CPlayerBotManager::Update()
 			ResetPlayerBotStoneProgress(state);
 		}
 
+		// A boss that fell leaves its casket where it stood, and the raid's next
+		// step is "boss down, going back to work": the killer walked off and the
+		// Umarly Rozpruwacz's casket lay on the snow (Ciapek, 16 September). The
+		// loot window a broken stone gets - PLAYERBOT_METIN_LOOT_DASH_TIME within
+		// PLAYERBOT_METIN_LOOT_DASH_RANGE, whatever else is going on - is its.
+		if (state.dwFightProgressVID != 0 && state.bFightProgressBoss &&
+				(curTarget == NULL || curTarget->IsDead()) &&
+				(state.dwStoneBrokenTime == 0 || dwNow - state.dwStoneBrokenTime > PLAYERBOT_METIN_LOOT_DASH_TIME))
+		{
+			state.dwStoneBrokenTime = dwNow;
+			sys_log(0, "PLAYERBOT_LOOT: boss down, loot window pid=%u name=%s map=%ld",
+					ch->GetPlayerID(), ch->GetName(), ch->GetMapIndex());
+		}
+
 		// And the same question for an ordinary monster, which until now could
 		// hold a bot for as long as the two of them healed at the same rate.
 		if (!bFightingMetin && curTarget && !curTarget->IsDead() &&
@@ -2821,14 +3535,27 @@ void CPlayerBotManager::Update()
 				 NeedsPlayerBotProgressionHelmet(ch) ||
 				 NeedsPlayerBotProgressionBoots(ch));
 
+		// A negative rank keeps the bot inside its village's safe ring, ahead of
+		// the loot, the errands, the travel and the fight below.
+		if (!bHumanLedParty && !state.bMultiPullActive &&
+				KeepPlayerBotNegativeRankInTown(ch, state, dwNow))
+			continue;
+
 		// Exactly one loot decision per full AI pass. HandleLoot performs a
 		// non-blocking, throttled Z-style pickup in combat and returns false, while
 		// peaceful loot may take ownership of this tick and walk to the drop.
 		if (HandleLoot(ch, state, dwNow))
 			continue;
 
+		// The Demon Tower: a raider on its way to the ground floor, and every
+		// bot inside an instance whatever brought it there
+		// (playerbot_demon_tower.h). Owns the tick the way the guild war does,
+		// after the loot so the floors' keys are picked up.
+		if (ManagePlayerBotDemonTower(ch, state, dwNow))
+			continue;
+
 		// Horse medals are equally real resources: a bot leaves combat, walks to
-		if (!state.bMultiPullActive && !bFightingMetin &&
+		if (!bHumanLedParty && !state.bMultiPullActive && !bFightingMetin &&
 				ManagePlayerBotHorse(ch, state, dwNow))
 			continue;
 
@@ -2866,7 +3593,7 @@ void CPlayerBotManager::Update()
 		// Research is a first-class activity, not an instant reward. A bot that
 		// has collected the outstanding specimens walks to Chaegirab and submits
 		// them one by one before it resumes hunting.
-		if (!state.bMultiPullActive && !bFightingMetin &&
+		if (!bHumanLedParty && !state.bMultiPullActive && !bFightingMetin &&
 				ManagePlayerBotBiologist(ch, state, dwNow))
 			continue;
 
@@ -2876,7 +3603,7 @@ void CPlayerBotManager::Update()
 		// the next tier loops forever between the weapon and armour merchants and
 		// never returns to combat (or to its local party).
 		const bool bOnTownMap = IsPlayerBotVillageMap(ch->GetMapIndex());
-		if (bOnTownMap && !state.bVisitingShop && !state.bMultiPullActive &&
+		if (!bHumanLedParty && bOnTownMap && !state.bVisitingShop && !state.bMultiPullActive &&
 				!bFightingMetin &&
 				(bNeedsProfession || dwNow > state.dwNextShopCheckTime))
 		{
@@ -2926,7 +3653,7 @@ void CPlayerBotManager::Update()
 		// A visit is an adaptive, persistent route. The bot only visits specialists
 		// needed by its current inventory: weapon merchant, armor merchant, Misc
 		// Merchant and/or blacksmith. Goals never change in the middle of a route.
-		if (HandlePlayerBotTownVisit(ch, state, dwNow))
+		if (!bHumanLedParty && HandlePlayerBotTownVisit(ch, state, dwNow))
 			continue;
 
 		// A normal horse is for transport only, so it comes off before buffs
@@ -2957,6 +3684,15 @@ void CPlayerBotManager::Update()
 		{
 			state.dwTargetVID = 0;
 			ch->SetVictim(NULL);
+			// Every way out of this branch is an errand - a merchant, the world
+			// travel, the scavenging wander - so in a player's party the bot
+			// stays by the player without one, and a Shaman still buffs.
+			if (bHumanLedParty)
+			{
+				ManagePlayerBotBuffHumanLeader(ch, state, dwNow);
+				ch->Stop();
+				continue;
+			}
 			if (state.dwEmergencyScavengeUntil != 0 &&
 					dwNow < state.dwEmergencyScavengeUntil &&
 					IsPlayerBotM1Map(ch->GetMapIndex()))
@@ -3053,6 +3789,9 @@ void CPlayerBotManager::Update()
 
 		// A buff is a complete action for this AI update.  Continuing into the
 		// attack code used to emit a second skill packet in the very same tick.
+		// A player's Shaman buffs the player before itself.
+		if (ManagePlayerBotBuffHumanLeader(ch, state, dwNow))
+			continue;
 		if (ManagePlayerBotCombatBuffs(ch, state, dwNow))
 			continue;
 		if (HandlePlayerBotMultiPull(ch, state, dwNow))
@@ -3157,7 +3896,7 @@ void CPlayerBotManager::Update()
 			{
 				TPlayerBotLoadTimer targetTimer(s_uPlayerBotLoadTargetUs);
 				++s_uPlayerBotLoadTargetSearches;
-				target = FindPlayerBotEngagedTarget(ch);
+				target = FindPlayerBotEngagedTarget(ch, &state, dwNow);
 				// An engaged monster is usually self-defence and passes, but the
 				// finder also returns what is fighting the party from across the
 				// field - so it goes through the same filter as everything else
@@ -3205,7 +3944,15 @@ void CPlayerBotManager::Update()
 			if (target)
 			{
 				if (target->IsStone())
+				{
 					ReservePlayerBotMetin(ch, target, dwNow);
+					int stoneBots = 0, stonePlayers = 0;
+					CountPlayerBotStoneAttackersByKind(target, ch, stoneBots, stonePlayers);
+					if (stoneBots > 0 || stonePlayers > 0)
+						sys_log(0, "PLAYERBOT_METIN: joined a stone pid=%u name=%s level=%u stone=%s stone_level=%u bots_on_it=%d players_on_it=%d",
+								ch->GetPlayerID(), ch->GetName(), ch->GetLevel(), target->GetName(),
+								target->GetLevel(), stoneBots, stonePlayers);
+				}
 				sys_log(1, "PLAYERBOT_AI: target acquired pid=%u name=%s level=%u target_vid=%u target=%s target_level=%u is_stone=%d recent_death=%d",
 						ch->GetPlayerID(), ch->GetName(), ch->GetLevel(), state.dwTargetVID,
 						target->GetName(), target->GetLevel(), target->IsStone() ? 1 : 0, bRecentDeath ? 1 : 0);
@@ -3423,6 +4170,92 @@ void CPlayerBotManager::GetAvailableBots(std::vector<DWORD>& out, size_t limit)
 			it != m_setRegisteredBots.end() && out.size() < limit; ++it)
 		if (m_mapBots.find(*it) == m_mapBots.end())
 			out.push_back(*it);
+}
+
+// A GM's /transfer of a bot on this core. The engine's own transfer is a
+// WarpSet, which tells a client to reconnect and takes the character off its
+// sectree until it does; a bot has nobody to reconnect, so the rescue put it
+// back where its own map starts ("robi tp, ale jakby na start mapy" -
+// NerrVoVy, Mat and RetroGracz38, 14 September). This is the map change the
+// AI makes for every other move, onto the GM's own spot, and the GM is told
+// how it went. Nothing holds the bot there afterwards: its next plan is its own.
+// A bot's WarpSet (char.cpp through playerbotify.py, apply_bot_warpset): the
+// engine's own map change for a player - a dungeon's jump, d.exit_all, a
+// quest's pc.warp, a GM's /warp - made server-side, because a bot has no
+// client to reconnect. Only onto a map this core hosts, and with the dungeon
+// membership Entergame would give a reconnecting player.
+bool CPlayerBotManager::WarpBot(LPCHARACTER bot, long x, long y, long lPrivateMapIndex)
+{
+	if (!bot)
+		return false;
+	const DWORD dwNow = get_dword_time();
+	long lMapIndex = SECTREE_MANAGER::instance().GetMapIndex(x, y);
+	if (lPrivateMapIndex >= PLAYERBOT_INSTANCE_MAP_INDEX_MIN)
+	{
+		if (lMapIndex != 0 && lPrivateMapIndex / 10000 != lMapIndex)
+		{
+			sys_err("PLAYERBOT_WORLD: warpset pid=%u name=%s private map %ld is not a child of %ld",
+					bot->GetPlayerID(), bot->GetName(), lPrivateMapIndex, lMapIndex);
+			return false;
+		}
+		lMapIndex = lPrivateMapIndex;
+	}
+	TPlayerBotAIStateMap::iterator it = s_mapPlayerBotAIStates.find(bot->GetPlayerID());
+	if (lMapIndex == 0 || it == s_mapPlayerBotAIStates.end() || !IsPlayerBotMapHostedHere(lMapIndex))
+	{
+		sys_log(0, "PLAYERBOT_WORLD: warpset refused pid=%u name=%s to=(%ld,%ld) map=%ld private=%ld from=%ld",
+				bot->GetPlayerID(), bot->GetName(), x, y, lMapIndex, lPrivateMapIndex, bot->GetMapIndex());
+		return false;
+	}
+	LPDUNGEON before = bot->GetDungeon();
+	if (!TransitionPlayerBotMap(bot, it->second, lMapIndex, x, y, dwNow, "warpset"))
+		return false;
+	LPDUNGEON after = lMapIndex >= PLAYERBOT_INSTANCE_MAP_INDEX_MIN
+			? CDungeonManager::instance().FindByMapIndex(lMapIndex) : NULL;
+	if (before != after)
+	{
+		if (before)
+			bot->SetDungeon(NULL);
+		if (after)
+			bot->SetDungeon(after);
+	}
+	return true;
+}
+
+bool CPlayerBotManager::TransferBot(LPCHARACTER bot, LPCHARACTER to)
+{
+	if (!bot || !to)
+		return false;
+	const DWORD dwNow = get_dword_time();
+	const long mapIndex = to->GetMapIndex();
+	TPlayerBotAIStateMap::iterator it = s_mapPlayerBotAIStates.find(bot->GetPlayerID());
+	const char* refusal = NULL;
+	if (it == s_mapPlayerBotAIStates.end())
+		refusal = "bot jeszcze nie wszedl do gry";
+	else if (bot->IsDead())
+		refusal = "bot nie zyje";
+	else if (mapIndex >= PLAYERBOT_INSTANCE_MAP_INDEX_MIN)
+		refusal = "bot nie wejdzie do lochu z osobna instancja";
+	else if (!IsPlayerBotMapHostedHere(mapIndex))
+		refusal = "tej mapy nie hostuje rdzen bota";
+	else if (!TransitionPlayerBotMap(bot, it->second, mapIndex, to->GetX(), to->GetY(),
+			dwNow, "gm_transfer"))
+		refusal = "bot nie moze stanac na tej mapie";
+	if (refusal)
+		to->ChatPacket(CHAT_TYPE_INFO, "Nie przeniesiono bota %s: %s.", bot->GetName(), refusal);
+	else
+		to->ChatPacket(CHAT_TYPE_INFO, "Przeniesiono bota %s do Ciebie.", bot->GetName());
+	sys_log(0, "PLAYERBOT_WORLD: gm transfer pid=%u name=%s gm=%s map=%ld pos=(%ld,%ld) result=%s",
+			bot->GetPlayerID(), bot->GetName(), to->GetName(), mapIndex, to->GetX(), to->GetY(),
+			refusal ? refusal : "ok");
+	return refusal == NULL;
+}
+
+void CPlayerBotManager::OnGuildInvite(CGuild* guild, LPCHARACTER inviter, LPCHARACTER invitee)
+{
+	if (!guild || !invitee || !IsRegisteredBotPID(invitee->GetPlayerID()))
+		return;
+	AcceptPlayerBotGuildInvite(invitee, guild, inviter);
 }
 
 // --- The F10 bot-admin window -----------------------------------------------

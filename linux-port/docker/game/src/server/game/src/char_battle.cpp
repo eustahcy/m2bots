@@ -2215,20 +2215,8 @@ bool CHARACTER::Damage(LPCHARACTER pAttacker, int dam, EDamageType type, DWORD d
 	bool IsCritical = false;
 	bool IsDeathBlow = false;
 
-	if (pAttacker && IsNPC() && GetMapIndex() == 65) // only hwang temple
-	{
-		int chance_to_break = (IsRaceFlag(RACE_FLAG_ATT_TEMPLE) ? 0 : 50) + pAttacker->GetPoint(POINT_BREAK_TEMPLE_CURSE);
-		if (number(1, 100) > chance_to_break)
-		{
-			if (test_server)
-			{
-				pAttacker->ChatDebug("temple curse break chance %d", chance_to_break);
-			}
-
-			SendDamagePacket(pAttacker, 0, DAMAGE_DODGE);
-			return false;
-		}
-	}
+	// Playerbot: the Hwang Temple has no curse and so no Maska Sabaha - its
+	// monsters are hit like any others (playerbotify apply_hwang_curse_removed).
 
 	if (pAttacker && pAttacker->IsPC() && pAttacker->IsPolymorphed() && IsPC())
 	{

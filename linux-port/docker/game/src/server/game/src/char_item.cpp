@@ -956,7 +956,7 @@ bool CHARACTER::DoRefine(LPITEM item, bool bMoneyOnly, BYTE refineType)
 			BYTE bCell = item->GetCell();
 
 			// DETAIL_REFINE_LOG
-			NotifyRefineSuccess(this, item, IsRefineThroughGuild() ? "GUILD" : "POWER");
+			NotifyRefineSuccess(this, item, IsRefineThroughGuild() ? "GUILD" : (bMoneyOnly ? "DEVILTOWER" : "POWER"));
 			DBManager::instance().SendMoneyLog(MONEY_LOG_REFINE, item->GetVnum(), -cost);
 			ITEM_MANAGER::instance().RemoveItem(item, "REMOVE (REFINE SUCCESS)");
 			// END_OF_DETAIL_REFINE_LOG
@@ -982,7 +982,7 @@ bool CHARACTER::DoRefine(LPITEM item, bool bMoneyOnly, BYTE refineType)
 			// DETAIL_REFINE_LOG
 
 			sys_err("cannot create item %u", result_vnum);
-			NotifyRefineFail(this, item, IsRefineThroughGuild() ? "GUILD" : "POWER");
+			NotifyRefineFail(this, item, IsRefineThroughGuild() ? "GUILD" : (bMoneyOnly ? "DEVILTOWER" : "POWER"));
 			// END_OF_DETAIL_REFINE_LOG
 		}
 	}
@@ -992,7 +992,7 @@ bool CHARACTER::DoRefine(LPITEM item, bool bMoneyOnly, BYTE refineType)
 			AddPlayerStat(PLAYER_STATS_REFINE_FAIL_SMITH_FLAG);
 
 		DBManager::instance().SendMoneyLog(MONEY_LOG_REFINE, item->GetVnum(), -cost);
-		NotifyRefineFail(this, item, IsRefineThroughGuild() ? "GUILD" : "POWER");
+		NotifyRefineFail(this, item, IsRefineThroughGuild() ? "GUILD" : (bMoneyOnly ? "DEVILTOWER" : "POWER"));
 
 		if (bIsDestroyOnFail)
 		{
@@ -1155,6 +1155,12 @@ bool CHARACTER::DoRefineWithScroll(LPITEM item)
 			bCheckMaterials = false;
 		}
 	}
+
+	// The scroll by its vnum for the refine log, taken while it exists:
+	// SetCount below destroys the last one.
+	char szRefineWay[48];
+	snprintf(szRefineWay, sizeof(szRefineWay), "SCROLL:%u", pkItemScroll->GetVnum());
+	szRefineType = szRefineWay;
 
 	success_prob += pkItemScroll->GetValue(1);
 
@@ -5934,6 +5940,25 @@ bool CHARACTER::PickupItem(DWORD dwVID)
 		if (!owner)
 			return false;
 
+		// A stackable the owner already carries joins that stack first, as the
+		// owner's own pickup above does: straight to an empty cell, every potion
+		// a party member picked up for somebody took a slot of its own. What a
+		// full stack cannot take goes on to the empty cell below.
+		auto finalItem = owner->AutoStackItem(item);
+		if (finalItem)
+		{
+			if (owner == this)
+				ChatPacketRecieveItem(this, finalItem, 1);
+			else
+			{
+				owner->ChatPacket(CHAT_TYPE_INFO, LC_TEXT("%s receives %s."), owner->GetName(), finalItem->GetName());
+				ChatPacket(CHAT_TYPE_INFO, LC_TEXT("Item Trade: %s, %s"), owner->GetName(), finalItem->GetName());
+			}
+			if (finalItem->GetType() == ITEM_QUEST)
+				quest::CQuestManager::instance().PickupItem(owner->GetPlayerID(), finalItem);
+			return true;
+		}
+
 		int iEmptyCell = -1;
 		if (!(owner && (iEmptyCell = owner->GetEmptyInventoryEx(item)) != -1))
 		{
@@ -5956,7 +5981,7 @@ bool CHARACTER::PickupItem(DWORD dwVID)
 		}
 		else
 		{
-			owner->ChatPacket(CHAT_TYPE_INFO, LC_TEXT("%s receives %s."), GetName(), item->GetName());
+			owner->ChatPacket(CHAT_TYPE_INFO, LC_TEXT("%s receives %s."), owner->GetName(), item->GetName());
 			ChatPacket(CHAT_TYPE_INFO, LC_TEXT("Item Trade: %s, %s"), owner->GetName(), item->GetName());
 		}
 
@@ -7615,6 +7640,13 @@ bool CHARACTER::IsValidItemPosition(TItemPos Pos) const
 
 bool CHARACTER::CanEquipNow(const LPITEM item, const TItemPos& srcCell, const TItemPos& destCell) /*const*/
 {
+	// playerbot: costumes are off on this line (playerbotify.py, apply_costume_block).
+	// A hairstyle passes (playerbotify.py, apply_costume_hair_allowed).
+	if (item && item->GetType() == ITEM_COSTUME && item->GetSubType() != COSTUME_HAIR)
+	{
+		ChatPacket(CHAT_TYPE_INFO, "Kostiumy sa na tym serwerze wylaczone.");
+		return false;
+	}
 	if (!PulseManager::Instance().IncreaseCount(GetPlayerID(), ePulse::ItemEquip, std::chrono::milliseconds(500), 5))
 	{
 		return false;

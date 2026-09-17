@@ -1,294 +1,239 @@
-// The words over a stall: the community's own market talk, by what the
-// counter holds. Iwakura wrote the lists from 2010-2012 Polish server
-// screenshots ("NAZWY SKLEPOW", 11 September 2026) - what people actually put
-// over a counter, spelling and all - and asked for them to follow the goods:
-// fish signs on a fish counter, book signs on a bookshop, and a keeper with a
-// big refine still headlining that item. This file is the lists and the
-// choice; playerbot_town.h decides what kind of counter it is opening.
+// The words over a stall: Iwakura's names for a counter (playerbot_shop_names.h,
+// rendered from his list of 14 September) chosen by his rules
+// (playerbot_shop_name_rules.h). This file is the engine's half - what each
+// line on a counter is, in the terms those rules read - and it comes after
+// playerbot_town.h because what heads a +7..+9 piece or a soul stone is its
+// price.
 //
-// Player-visible, so ASCII-only Polish like every other bot string. A name
-// may carry three placeholders:
-//   %N  the keeper's name
-//   %C  the unit price of the counter's fish line (yang)
-//   %I  the best gear line's name; the +N is part of the name
-// A sign is SHOP_SIGN_MAX_LEN (32) characters. A name that does not fit once
-// expanded is passed over for the next one in its list - a long nickname must
-// never cut a sign mid-word - and a list with nothing that fits leaves the
-// choice to the caller's older wording.
+// Player-visible and, on purpose, not ASCII like the other bot strings: the
+// names are his, diacritics and all, in CP1250 - the engine's encoding for an
+// item name and a shop name alike (player.ikashop_offlineshop.name is
+// cp1250_polish_ci). The one piece of wording that is not his is the short
+// form of a bonus line below; his rule gives two examples of it.
 namespace
 {
-	enum EPlayerBotSignKind
+	// The item's own name with its "+N" taken off - "Miecz Pelni Ksiezyca+9" is
+	// "Miecz Pelni Ksiezyca" - because his rule puts the plus after a space.
+	std::string GetPlayerBotSignBaseName(LPITEM item)
 	{
-		SIGN_UNIVERSAL,
-		SIGN_BOOKS,
-		SIGN_FISH,
-		SIGN_GEAR,
-		SIGN_MATERIALS,
-		SIGN_MEDALS,
-		SIGN_SCRAP,
-		SIGN_SCROLLS,
-		SIGN_STONES,
-	};
-
-	// A mixed counter, or one nothing else describes.
-	static const char* const s_apszSignUniversal[] = {
-		"TANIEJ JUZ NIE BEDZIE",
-		"TANIEJ NIZ OBOK >>>>>",
-		"<<<<<< TANIEJ NIZ OBOK",
-		"Koncze gre Koncze gre Koncze gre",
-		"! ! Wybocilem to wszystko ! !",
-		"Rozne smieci (KUP PLS)",
-		"Da ktos cos na rozpoczecie gry?",
-		"Wszystko i nic",
-		"ZBANUJCIE TE BOTY!!!",
-		"@@@@@ ZBIERAM NA SLUB @@@@@",
-		"Sklep z roznosciami u %N",
-		"do wyboru do koloru",
-		"ZOBACZ SAM CO TU MAM",
-		"Z A P R A S Z A M",
-		"GG 52871243",
-		"Itemy na miare twoich yangow",
-		"! ! ITEMY SKYPE TOMEK NOWAK ! !",
-		"TANIO :)",
-		"tanioszka)))))))))))))))))))",
-		"CUDA I NIEWIDY !!!!",
-		"TANIOOOOOOOOOOOOOOOOOOO",
-		"@ PIERWSZY    SKLEP @",
-		"WSPOMOZ CHOREGO WOJTKA :(",
-		"Zbieractwo to moja pasja",
-		"Syf kila i mogila za yangi",
-		"Zbierane na nielegalu",
-		"Bot dzialal cala noc | zapraszam",
-		"---> %N ZaPrAsZa :) <---",
-		"WSZYSTKO CZEGO POTRZEBUJESZ :3",
-		"Dobry Sklep",
-		"! ! ! KUP SZYBKO ! ! !",
-		".........ZAPRASZAM.........",
-		"Zobacz kotku co mam w srodku",
-		"Zaczynam gre, kup cos",
-		"%N - najnizsze ceny",
-		"Wszystko za grosze",
-		"Tanio jak barszcz",
-		"Czego szukasz, to mam",
-		"Sprzedam, bez targow",
-	};
-
-	// Mostly skill books.
-	static const char* const s_apszSignBooks[] = {
-		"Makulatura po dziadku",
-		"Ksiazeczki na dobranoc",
-		"Wyprzedaz KU!!",
-		"tylko ku",
-		"Czytaj i wbijaj na G ;p",
-		"Wszystkie KU taniej niz obok :)",
-		"@@@@@@ KU Woj Sura Ninja @@@@@",
-		"Ksiegarnia u Mirka :)",
-		"Tylko dobre KU bez smieci!!!",
-		"@@@@@@@ Hurtownia KU @@@@@@@",
-		"Tajna wiedza z przeceny",
-		"!!!Wyprzedaz z m2 same KU!!!",
-		"Sell KU koncze gre!!",
-		"@@@ Dla analfabetow @@@",
-		"Nauka czytania dla opornych",
-		"Czytelnia u Michala",
-		"AURA MIECZA AURA MIECZA",
-		"Ksiazki madrzejsze od Ciebie",
-		"! >> Wiedza to potega << !",
-		"Ksiegi umiejetnosci",
-		"KU dla kazdej klasy",
-	};
-
-	// Mostly shellfish, pearls and fish.
-	static const char* const s_apszSignFish[] = {
-		"MALZE PERLY RYBKI",
-		"Malze po %C sztuka!",
-		"Smierdzi ryba ale tanio",
-		"Perly Biala Niebieska Krwawa",
-		"@@@@@@@@@@@@ RYBY! @@@@@@@@@@@@",
-		"Sklep Rybny u Janusza ;]",
-		"Sklep Rybny u Wiktori ;p",
-		"@ @ @ Dary rzeki @ @ @",
-		"<3 Rybak zaprasza na zakupy <3",
-		"Zlow to sam albo kup tutaj!",
-		"Drop z wedki +20 :O!!!",
-		"RYBY | FARBY | MALZE",
-		"Malze %C sztuka - taniocha!!",
-		"RybieOsciKowalNieZrobiPoZlosci",
-		"TANIE OWOCE MORZA",
-		"@@@ RYBY TANIO KONCZE GRE @@@",
-		"MALZE",
-	};
-
-	// Mostly weapons and armour worth a counter (PLAYERBOT_SHOP_MIN_GEAR_REFINE
-	// and up); a single big refine still headlines under its own name.
-	static const char* const s_apszSignGear[] = {
-		"%I TANIO SPRAWDZ",
-		"@@@@@@ KONIEC GRY SELL EQ @@@@@@",
-		"Rzeczy ktore kowal oszczedzil",
-		"EQ NAJTANIEJ w MIESCIE!",
-		"Wyprzedaz szafy mojej szamanki",
-		"@ @ Zbroje na chude klaty @ @",
-		"W tym juz nikt cie nie wysmieje",
-		"TARCZE ZBROJE BRONIE I INNE",
-		"NIE MARZNIJ NA SOHAN",
-		"@@@@ Kute w bolach u kowala @@@@",
-		"! ! ! Sprzet po zmarlym kowalu",
-		"$ Lepsze to niz bicie z piesci $",
-		"Zestaw przetrwania na dzikie psy",
-		"EKWIPUNEK +7/+8/+9 ! ! !",
-		">>> EQ TANIEJ NIZ OBOK <<<",
-		"%I i inne",
-	};
-
-	// Mostly refine materials.
-	static const char* const s_apszSignMaterials[] = {
-		"KAWALKI KLEJNOTU | ULEPY Z M2",
-		"@@@@@@@@@ KSIEGI KLATW @@@@@@@@@",
-		"Ulepki z m2 i doliny orkow",
-		"Narzady zwierzat tanio oddam",
-		"TANIE ULEPY KONCZE GRE!!!",
-		"Kawalek klejnotu, zepsuta zbroja",
-		"@@@ ZEBY ORKA @@@",
-		"ZROB SOBIE EQ +9",
-		"Pajecze sieci i oczy pajaka",
-		"Matowe lody dla ochlody",
-		"Oby Kowal Nie Palil",
-		"Zolc i skora niedzwiedzia",
-		"@@@ Shurikeny z plusem @@@",
-		"Sklepik z ulepkami z m1/m2",
-		"Wszystkie ulepszacze!!!",
-		"ULEPSZACZE TANIEJ NIZ OBOK >>>>",
-		"Materialy do kowala",
-		"Skory, zeby i kly",
-	};
-
-	// One thing a counter can be full of and nothing else describes.
-	static const char* const s_apszSignMedals[] = {
-		"@@@@@@ MEDALE KONNE @@@@@@",
-		"Medale konne, tanio",
-		"MEDALE KONNE u %N",
-	};
-	// Bronie i zbroje ponizej progu ulepszenia (+0..+3) - w grze towar na
-	// przepalenie, nie na noszenie. Stare brzmienie tej polki, "Zlom do
-	// palenia +0..+3", zostaje pierwsze na liscie: ma je w pamieci kazdy,
-	// kto widzial te stragany wczesniej. %I dostaje nazwe pierwszej takiej
-	// pozycji z lady (playerbot_town.h podaje tu pszScrap, nie pszGear).
-	static const char* const s_apszSignScrap[] = {
-		"Zlom do palenia +0..+3",
-		"ZLOM NA ULEPSZANIE",
-		"Bronie i zbroje na czesci",
-		"Tanie EQ do przepalenia",
-		"ZLOM +0..+3 TANIO",
-		"Stare EQ za grosze",
-		"Zlomik u %N",
-		"%I i inne zlomy",
-		"Palnik czeka: zlom +0..+3",
-		"EQ na start, tanio",
-	};
-	static const char* const s_apszSignScrolls[] = {
-		"ZWOJE BLOGOSLAWIENSTWA",
-		"ZWOJE BLOGOSLAWIENSTWA TANIO!",
-		"Zwoje blogoslawienstwa u %N",
-	};
-	static const char* const s_apszSignStones[] = {
-		"Kamienie dla ukojenia duszy [*]",
-		"KD +3/+4!!!",
-		"@@@ KAMIENIE DUCHOW @@@",
-		"KD taniej niz obok",
-	};
-
-	struct TPlayerBotSignList
-	{
-		const char* const* names;
-		size_t count;
-	};
-
-	TPlayerBotSignList GetPlayerBotSignList(EPlayerBotSignKind kind)
-	{
-		TPlayerBotSignList list = { s_apszSignUniversal, sizeof(s_apszSignUniversal) / sizeof(s_apszSignUniversal[0]) };
-		switch (kind)
-		{
-			case SIGN_BOOKS:     list.names = s_apszSignBooks;     list.count = sizeof(s_apszSignBooks) / sizeof(s_apszSignBooks[0]); break;
-			case SIGN_FISH:      list.names = s_apszSignFish;      list.count = sizeof(s_apszSignFish) / sizeof(s_apszSignFish[0]); break;
-			case SIGN_GEAR:      list.names = s_apszSignGear;      list.count = sizeof(s_apszSignGear) / sizeof(s_apszSignGear[0]); break;
-			case SIGN_MATERIALS: list.names = s_apszSignMaterials; list.count = sizeof(s_apszSignMaterials) / sizeof(s_apszSignMaterials[0]); break;
-			case SIGN_MEDALS:    list.names = s_apszSignMedals;    list.count = sizeof(s_apszSignMedals) / sizeof(s_apszSignMedals[0]); break;
-			case SIGN_SCRAP:     list.names = s_apszSignScrap;     list.count = sizeof(s_apszSignScrap) / sizeof(s_apszSignScrap[0]); break;
-			case SIGN_SCROLLS:   list.names = s_apszSignScrolls;   list.count = sizeof(s_apszSignScrolls) / sizeof(s_apszSignScrolls[0]); break;
-			case SIGN_STONES:    list.names = s_apszSignStones;    list.count = sizeof(s_apszSignStones) / sizeof(s_apszSignStones[0]); break;
-			default: break;
-		}
-		return list;
+		const TItemTable* proto = item ? item->GetProto() : NULL;
+		if (!proto)
+			return std::string();
+		std::string name = proto->szLocaleName;
+		const std::string::size_type plus = name.rfind('+');
+		if (plus != std::string::npos && plus + 1 < name.size() &&
+				name.find_first_not_of("0123456789", plus + 1) == std::string::npos)
+			name.erase(plus);
+		while (!name.empty() && name[name.size() - 1] == ' ')
+			name.erase(name.size() - 1);
+		return name;
 	}
 
-	// One name with its placeholders filled. False when the result would not
-	// fit a sign, or when the name wants something the counter has not got
-	// (%I with no gear line, %C with no fish line).
-	bool ExpandPlayerBotShopSign(char* out, size_t outSize, const char* pszName,
-			const char* pszNick, DWORD dwFishUnitPrice, const char* pszGearName)
+	// A bonus line in as few letters as a sign has room for. His rule gives
+	// "1500 HP" and "10 do PZ" (x% of the damage added to HP); the rest follow
+	// the same market habit, the number and then what it is. Only lines that
+	// can be worth x1.5 at their top roll are here - no other line is named.
+	struct TPlayerBotSignBonusLabel { BYTE bApply; const char* szLabel; bool bValue; };
+	const TPlayerBotSignBonusLabel PLAYERBOT_SIGN_BONUS_LABELS[] = {
+		{ APPLY_MAX_HP, "HP", true },
+		{ APPLY_STEAL_HP, "do P\xAF", true },
+		{ APPLY_ATTBONUS_HUMAN, "PL", true },
+		{ APPLY_ATTBONUS_ANIMAL, "zwierz", true },
+		{ APPLY_ATTBONUS_DEVIL, "diably", true },
+		{ APPLY_ATTBONUS_UNDEAD, "nieumarli", true },
+		{ APPLY_ATTBONUS_ORC, "orki", true },
+		{ APPLY_ATTBONUS_MILGYO, "mistyki", true },
+		{ APPLY_ATT_GRADE_BONUS, "WA", true },
+		{ APPLY_ATT_SPEED, "SA", true },
+		{ APPLY_CAST_SPEED, "SZ", true },
+		{ APPLY_MOV_SPEED, "SR", true },
+		{ APPLY_BLOCK, "blok", true },
+		{ APPLY_REFLECT_MELEE, "odbicie", true },
+		{ APPLY_STR, "Sila", true },
+		{ APPLY_INT, "Int", true },
+		{ APPLY_DEX, "Zr", true },
+		{ APPLY_CON, "Wit", true },
+		{ APPLY_CRITICAL_PCT, "kryt", true },
+		{ APPLY_PENETRATE_PCT, "przesz", true },
+		{ APPLY_STUN_PCT, "omdl", true },
+		{ APPLY_POISON_PCT, "otruc", true },
+		{ APPLY_DODGE, "unik", true },
+		{ APPLY_GOLD_DOUBLE_BONUS, "yang", true },
+		{ APPLY_MALL_EXPBONUS, "EXP", true },
+		{ APPLY_IMMUNE_STUN, "NNO", false },
+		{ APPLY_RESIST_BOW, "odp strzaly", true },
+		{ APPLY_RESIST_DAGGER, "odp sztylety", true },
+		{ APPLY_RESIST_SWORD, "odp miecze", true },
+		{ APPLY_RESIST_TWOHAND, "odp 2r", true },
+		{ APPLY_RESIST_BELL, "odp dzwony", true },
+		{ APPLY_RESIST_FAN, "odp wachlarze", true },
+		{ APPLY_RESIST_MAGIC, "odp magia", true },
+		{ APPLY_NORMAL_HIT_DAMAGE_BONUS, "sr", true },
+		{ APPLY_SKILL_DAMAGE_BONUS, "UM", true },
+	};
+
+	const TPlayerBotSignBonusLabel* FindPlayerBotSignBonusLabel(BYTE bApply)
 	{
-		size_t len = 0;
-		for (const char* p = pszName; *p; ++p)
+		for (size_t i = 0; i < sizeof(PLAYERBOT_SIGN_BONUS_LABELS) / sizeof(PLAYERBOT_SIGN_BONUS_LABELS[0]); ++i)
+			if (PLAYERBOT_SIGN_BONUS_LABELS[i].bApply == bApply)
+				return &PLAYERBOT_SIGN_BONUS_LABELS[i];
+		return NULL;
+	}
+
+	// The one line worth naming over a +7..+9 piece. His rule: "maksymalny
+	// bonus podbijajacy cene o min. 1.5x" - a line at its top roll whose
+	// multiplier is at least SIGN_BONUS_MIN_PCT. A weapon's two damage lines are
+	// priced by tier on his sheet, not by a top roll, so a tier worth that much
+	// counts. Asked of the same rows GetPlayerBotBonusPricePercent compounds,
+	// so the sign cannot praise a line the price ignored; the dearest wins.
+	std::string GetPlayerBotSignBonus(LPITEM item)
+	{
+		const BYTE slot = GetPlayerBotPriceSlot(item);
+		if (!item || slot == 0)
+			return std::string();
+		const int level = item->GetLevelLimit();
+		int bestPct = 0;
+		long bestValue = 0;
+		const TPlayerBotSignBonusLabel* best = NULL;
+		const int count = item->GetAttributeCount();
+		for (int i = 0; i < count && i < ITEM_ATTRIBUTE_MAX_NUM; ++i)
 		{
-			const char* piece = NULL;
-			char number[16];
-			if (*p == '%' && p[1] != '\0')
-			{
-				++p;
-				if (*p == 'N')
-					piece = pszNick ? pszNick : "";
-				else if (*p == 'I')
-				{
-					if (!pszGearName || !*pszGearName)
-						return false;
-					piece = pszGearName;
-				}
-				else if (*p == 'C')
-				{
-					if (dwFishUnitPrice == 0)
-						return false;
-					snprintf(number, sizeof(number), "%u", dwFishUnitPrice);
-					piece = number;
-				}
-				else
-				{
-					number[0] = '%'; number[1] = *p; number[2] = '\0';
-					piece = number;
-				}
-			}
-			if (piece)
-			{
-				const size_t n = strlen(piece);
-				if (len + n > SHOP_SIGN_MAX_LEN || len + n + 1 > outSize)
-					return false;
-				memcpy(out + len, piece, n);
-				len += n;
+			const BYTE type = item->GetAttributeType(i);
+			const long value = item->GetAttributeValue(i);
+			const TPlayerBotSignBonusLabel* label = FindPlayerBotSignBonusLabel(type);
+			if (type == 0 || value <= 0 || !label)
 				continue;
+			int pct = 0;
+			if (slot == PRICE_SLOT_WEAPON && type == APPLY_NORMAL_HIT_DAMAGE_BONUS)
+				pct = GetPlayerBotDamageTierPct(PLAYERBOT_AVERAGE_DAMAGE_TIERS,
+						sizeof(PLAYERBOT_AVERAGE_DAMAGE_TIERS) / sizeof(PLAYERBOT_AVERAGE_DAMAGE_TIERS[0]), value);
+			else if (slot == PRICE_SLOT_WEAPON && type == APPLY_SKILL_DAMAGE_BONUS)
+				pct = GetPlayerBotDamageTierPct(PLAYERBOT_SKILL_DAMAGE_TIERS,
+						sizeof(PLAYERBOT_SKILL_DAMAGE_TIERS) / sizeof(PLAYERBOT_SKILL_DAMAGE_TIERS[0]), value);
+			else
+			{
+				for (size_t r = 0; r < sizeof(PLAYERBOT_BONUS_PRICE_ROWS) / sizeof(PLAYERBOT_BONUS_PRICE_ROWS[0]); ++r)
+				{
+					const TPlayerBotBonusPriceRow& row = PLAYERBOT_BONUS_PRICE_ROWS[r];
+					if (row.bApply != type || (row.bSlots & slot) == 0 ||
+							level < row.bMinLevel || level > row.bMaxLevel)
+						continue;
+					const long maxRoll = GetPlayerBotBonusMaxRoll(item, type);
+					if (maxRoll > 0 && value >= maxRoll)
+						pct = row.wMaxPct;
+					break;
+				}
 			}
-			if (len + 1 > SHOP_SIGN_MAX_LEN || len + 2 > outSize)
-				return false;
-			out[len++] = *p;
+			if (pct >= playerbot_shop_names::SIGN_BONUS_MIN_PCT && pct > bestPct)
+			{
+				bestPct = pct;
+				bestValue = value;
+				best = label;
+			}
 		}
-		out[len] = '\0';
-		return len > 0;
+		if (!best)
+			return std::string();
+		char text[32];
+		if (best->bValue)
+			snprintf(text, sizeof(text), "%ld %s", bestValue, best->szLabel);
+		else
+			snprintf(text, sizeof(text), "%s", best->szLabel);
+		return text;
 	}
 
-	// The list's name for this keeper: the draw picks where to start, and the
-	// first name that fits from there wins, so two neighbours with different
-	// draws read differently and a draw that lands on a long name still gets
-	// a sign. False when nothing in the list fits.
-	bool PickPlayerBotShopSign(char* out, size_t outSize, EPlayerBotSignKind kind, DWORD dwDraw,
-			const char* pszNick, DWORD dwFishUnitPrice, const char* pszGearName)
+	// One counter line in the terms of his rules.
+	playerbot_shop_names::TSignLine DescribePlayerBotSignLine(LPITEM item)
 	{
-		const TPlayerBotSignList list = GetPlayerBotSignList(kind);
-		if (list.count == 0)
-			return false;
-		for (size_t i = 0; i < list.count; ++i)
+		using namespace playerbot_shop_names;
+		TSignLine line;
+		if (!item)
+			return line;
+		const DWORD vnum = item->GetVnum();
+		const BYTE type = item->GetType();
+		line.dwVnum = vnum;
+		if (type == ITEM_WEAPON || type == ITEM_ARMOR)
 		{
-			const char* pszName = list.names[(dwDraw + i) % list.count];
-			if (ExpandPlayerBotShopSign(out, outSize, pszName, pszNick, dwFishUnitPrice, pszGearName))
-				return true;
+			line.iPlus = item->GetRefineLevel();
+			line.bLine = GetSignGearLine(line.iPlus);
+			line.iLevel = item->GetLevelLimit();
+			if (type == ITEM_WEAPON)
+				line.bGearSlot = SIGN_GEAR_WEAPON;
+			else if (item->GetSubType() == ARMOR_BODY)
+				line.bGearSlot = SIGN_GEAR_BODY;
+			else if (item->GetSubType() == ARMOR_SHIELD)
+				line.bGearSlot = SIGN_GEAR_SHIELD;
+			line.strName = GetPlayerBotSignBaseName(item);
+			if (line.bLine == SIGN_LINE_TOP_GEAR)
+			{
+				line.qwValue = GetPlayerBotShopAskingPrice(item);
+				line.strBonus = GetPlayerBotSignBonus(item);
+				line.bStones = GetPlayerBotSocketStonePercent(item) >= SIGN_STONES_MIN_PCT;
+			}
+			return line;
 		}
-		return false;
+		if (type == ITEM_SKILLBOOK)
+		{
+			line.bLine = SIGN_LINE_BOOK;
+			line.dwSkill = GetPlayerBotSkillBookSkillVnum(item);
+			return line;
+		}
+		// Asked before the materials: a shell and the pearls are refine materials
+		// too, and a fish counter is not a smith's supplier.
+		if (type == ITEM_FISH || vnum == PLAYERBOT_SHELLFISH_VNUM ||
+				(vnum >= PLAYERBOT_PEARL_FIRST_VNUM && vnum <= PLAYERBOT_PEARL_LAST_VNUM) ||
+				(vnum >= PLAYERBOT_GRILLED_FISH_FIRST_VNUM && vnum <= PLAYERBOT_GRILLED_FISH_LAST_VNUM) ||
+				IsPlayerBotHairDye(vnum))
+		{
+			line.bLine = SIGN_LINE_FISH;
+			return line;
+		}
+		if (type == ITEM_METIN)
+		{
+			line.bLine = SIGN_LINE_STONE;
+			line.strName = GetPlayerBotSignBaseName(item);
+			line.iPlus = GetPlayerBotSoulStoneGrade(vnum);
+			line.qwValue = GetPlayerBotSoulStoneAskingBase(vnum);
+			return line;
+		}
+		// His [INNE]: ores, horse medals and the Blessing Scroll by name - 25040,
+		// not the Magic Stone that shares its name in this locale.
+		const bool ore = IsPlayerBotRawOre(vnum) || IsPlayerBotSmeltedOre(vnum);
+		if (ore || vnum == PLAYERBOT_HORSE_MEDAL_VNUM || vnum == PLAYERBOT_BLESSING_SCROLL_VNUM)
+		{
+			line.bLine = SIGN_LINE_OTHER;
+			line.bOre = ore;
+			return line;
+		}
+		if (IsPlayerBotTradeableMaterial(item))
+		{
+			line.bLine = SIGN_LINE_MATERIAL;
+			const TItemTable* proto = item->GetProto();
+			line.strName = proto ? proto->szLocaleName : "";
+		}
+		return line;
+	}
+
+	// A name for a counter of these goods, the classic stall's lines or an
+	// offline shop's. False only for an empty counter; how says which of his
+	// rules chose it, for the log.
+	bool ChoosePlayerBotShopName(LPCHARACTER ch, const std::vector<LPITEM>& goods,
+			char* out, size_t outSize, const char** how)
+	{
+		if (!out || outSize == 0)
+			return false;
+		playerbot_shop_names::TSignCounter counter;
+		counter.bFirstVillage = ch && IsPlayerBotM1Map(ch->GetMapIndex());
+		for (size_t i = 0; i < goods.size(); ++i)
+			if (goods[i])
+				counter.lines.push_back(DescribePlayerBotSignLine(goods[i]));
+		auto roll = [](int lo, int hi) { return number(lo, hi); };
+		std::string name;
+		uint8_t reason = playerbot_shop_names::SIGN_HOW_NONE;
+		if (!playerbot_shop_names::ChooseSignName(counter, roll, name, reason))
+			return false;
+		strlcpy(out, name.c_str(), outSize);
+		if (how)
+			*how = playerbot_shop_names::GetSignHowName(reason);
+		return true;
 	}
 }

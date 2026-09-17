@@ -280,6 +280,15 @@ ACMD(do_transfer)
 				return;
 			}
 
+			// Playerbot: a bot on another core stays there - it cannot stand
+			// on a map its own core does not host, and a WarpSet only takes it
+			// off its sectree.
+			if (CPlayerBotManager::instance().IsRegisteredBotPID(pkCCI->dwPID))
+			{
+				ch->ChatPacket(CHAT_TYPE_INFO, "Bot %s jest na innym rdzeniu (mapa %ld) i nie przejdzie na mape tego rdzenia.", arg1, pkCCI->lMapIndex);
+				return;
+			}
+
 			TPacketGGTransfer pgg;
 
 			pgg.bHeader = HEADER_GG_TRANSFER;
@@ -303,6 +312,13 @@ ACMD(do_transfer)
 	}
 
 	//tch->Show(ch->GetMapIndex(), ch->GetX(), ch->GetY(), ch->GetZ());
+	// Playerbot: a bot has no client to reconnect, so it changes map the
+	// way its own AI changes every other one.
+	if (tch->GetDesc() && tch->GetDesc()->IsBot())
+	{
+		CPlayerBotManager::instance().TransferBot(tch, ch);
+		return;
+	}
 	tch->WarpSet(ch->GetX(), ch->GetY(), ch->GetMapIndex());
 }
 
@@ -7071,6 +7087,9 @@ ACMD(do_gmpanel_botlist)
 // /botadmin - otwiera GUI.
 ACMD(do_botadmin)
 {
+	// F10 from a player: silence, the same as F9 (do_gmpanel_open).
+	if (ch->GetGMLevel() < GM_IMPLEMENTOR)
+		return;
 	ch->ChatPacket(CHAT_TYPE_COMMAND, "OpenPlayerbotAdminWindow");
 }
 
@@ -7232,6 +7251,10 @@ ACMD(do_gmpanel_open)
 
 {
 
+	// Registered for GM_PLAYER, so a player pressing F9 hears nothing
+	// instead of "no such command"; the threshold is kept here.
+	if (ch->GetGMLevel() < GM_HIGH_WIZARD)
+		return;
 	ch->ChatPacket(CHAT_TYPE_COMMAND, "OpenGMPanelWindow");
 
 }
@@ -7506,6 +7529,9 @@ ACMD(do_gmpanel_check_gm)
 
 {
 
+	// The client asks this on every entry into the game, GM or not.
+	if (ch->GetGMLevel() < GM_HIGH_WIZARD)
+		return;
 	ch->ChatPacket(CHAT_TYPE_COMMAND, "SetGMFlag");
 
 }

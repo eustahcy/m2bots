@@ -1645,19 +1645,83 @@ void CInputDB::MapLocations(const char * c_pData)
 			registered[playerbot_empire_rules::EMPIRE_JINNO] = 0;
 		}
 		playerbot_empire_rules::SplitPopulation(autoSpawnCount, registered, want);
+		// The operator's medal droppers, on top of the population: this many in
+		// each kingdom, their experience stopped at the level they farm
+		// (CPlayerBotManager::SpawnMedalDropperCohort). Zero by default.
+		int medalDroppers = 0;
+		int medalDropperLevel = 25;
+		const char* configuredDroppers = std::getenv("PLAYERBOT_MEDAL_DROPPERS");
+		if (configuredDroppers && *configuredDroppers)
+			medalDroppers = std::atoi(configuredDroppers);
+		if (medalDroppers < 0)
+			medalDroppers = 0;
+		else if (medalDroppers > 200)
+			medalDroppers = 200;
+		const char* configuredDropperLevel = std::getenv("PLAYERBOT_MEDAL_DROPPER_LEVEL");
+		if (configuredDropperLevel && *configuredDropperLevel)
+			medalDropperLevel = std::atoi(configuredDropperLevel);
+		// Under eighteen no Monkey Dungeon takes a bot at all.
+		if (medalDropperLevel < 18)
+			medalDropperLevel = 18;
+		else if (medalDropperLevel > 120)
+			medalDropperLevel = 120;
+		// The spawn plan: the window the cohort arrives over, and a second
+		// cohort joining one at a time over hours (CPlayerBotManager::
+		// SetSpawnWindow, ScheduleLateJoiners). A minute and nobody by default.
+		int spawnWindowMinutes = 1;
+		const char* configuredWindow = std::getenv("PLAYERBOT_SPAWN_WINDOW_MINUTES");
+		if (configuredWindow && *configuredWindow)
+			spawnWindowMinutes = std::atoi(configuredWindow);
+		if (spawnWindowMinutes < 1)
+			spawnWindowMinutes = 1;
+		else if (spawnWindowMinutes > 180)
+			spawnWindowMinutes = 180;
+		CPlayerBotManager::instance().SetSpawnWindow((DWORD)spawnWindowMinutes * 60U * 1000U);
+		int lateJoiners = 0;
+		const char* configuredLate = std::getenv("PLAYERBOT_LATE_JOINERS");
+		if (configuredLate && *configuredLate)
+			lateJoiners = std::atoi(configuredLate);
+		if (lateJoiners < 0)
+			lateJoiners = 0;
+		else if (lateJoiners > autoSpawnCeiling)
+			lateJoiners = autoSpawnCeiling;
+		int lateJoinHours = 24;
+		const char* configuredLateHours = std::getenv("PLAYERBOT_LATE_JOIN_HOURS");
+		if (configuredLateHours && *configuredLateHours)
+			lateJoinHours = std::atoi(configuredLateHours);
+		if (lateJoinHours < 1)
+			lateJoinHours = 1;
+		else if (lateJoinHours > 168)
+			lateJoinHours = 168;
+		// Split between the kingdoms like the cohort, over the identities
+		// the cohort leaves them.
+		int registeredLeft[playerbot_empire_rules::EMPIRE_COUNT];
+		int lateWant[playerbot_empire_rules::EMPIRE_COUNT];
+		for (int e = 0; e < playerbot_empire_rules::EMPIRE_COUNT; ++e)
+			registeredLeft[e] = registered[e] > want[e] ? registered[e] - want[e] : 0;
+		playerbot_empire_rules::SplitPopulation(lateJoiners, registeredLeft, lateWant);
 
 		for (int empire = playerbot_empire_rules::EMPIRE_SHINSOO;
 				empire <= playerbot_empire_rules::EMPIRE_JINNO; ++empire)
 		{
 			const long lVillage = playerbot_empire_rules::GetHomeMap(
 					empire, playerbot_empire_rules::MAP_ROLE_M1);
-			if (lVillage == 0 || !map_allow_find(lVillage) || want[empire] <= 0)
+			if (lVillage == 0 || !map_allow_find(lVillage))
+				continue;
+			if (medalDroppers > 0 && registered[empire] > 0)
+				CPlayerBotManager::instance().SpawnMedalDropperCohort(
+						(size_t)medalDroppers, (BYTE)empire, (BYTE)medalDropperLevel);
+			if (want[empire] <= 0)
 				continue;
 			const size_t spawned = CPlayerBotManager::instance().SpawnRegistered(
 					(size_t)want[empire], (BYTE)empire);
 			sys_log(0, "PLAYERBOT: autospawn empire=%d village=%ld requested=%d registered=%d started=%u",
 					empire, lVillage, want[empire], registered[empire],
 					(unsigned int)spawned);
+			if (lateWant[empire] > 0)
+				CPlayerBotManager::instance().ScheduleLateJoiners(
+						(size_t)lateWant[empire], (BYTE)empire,
+						(DWORD)lateJoinHours * 60U * 60U * 1000U);
 		}
 	}
 }

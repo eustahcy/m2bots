@@ -66,7 +66,10 @@ req = urllib.request.Request(sys.argv[1], headers={
 sys.stdout.write(urllib.request.urlopen(req, timeout=30).read().decode('utf-8', 'replace'))
 EOF
     elif have curl; then
-        curl -fsSL -A 'metin2-playerbots-update/2' -H 'Accept: application/vnd.github.raw+json' "$_url"
+        # Bounded, like python's timeout above: a connection that stalls
+        # without failing held "[1/4] reading what is published" for good,
+        # and the raw CDN fallback below only runs once this one gives up.
+        curl -fsSL --connect-timeout 20 --max-time 60 -A 'metin2-playerbots-update/2' -H 'Accept: application/vnd.github.raw+json' "$_url"
     else
         die "neither python3 nor curl is installed"
     fi
@@ -95,7 +98,7 @@ EOF
 download() {
     _url=$1; _out=$2
     if have curl; then
-        curl -fL --retry 3 -A 'metin2-playerbots-update/2' -o "$_out" "$_url"
+        curl -fL --retry 3 --connect-timeout 20 -A 'metin2-playerbots-update/2' -o "$_out" "$_url"
     elif have python3; then
         python3 - "$_url" "$_out" <<'EOF'
 import sys, urllib.request, shutil
@@ -175,6 +178,40 @@ note() { say "$*"; [ "$WATCHING" = 1 ] && printf '%s %s\n' "$(now)" "$*" >> "$LO
 step() { STEP=$((STEP + 1)); note "[$STEP/$STEPS] $*"; set_status running "$*"; }
 fail() { note "FAILED: $*"; note "   nothing was removed; the server keeps running the version it had"; set_status failed "$1"; return 1; }
 
+# The containers take their clock's zone from M2_TZ, and .env.example has
+# always said UTC: a Polish player's panel two hours behind the clock of the
+# machine it runs on (hunmar, 14 September). Run here on the host, the host's
+# zone is known, so the example's UTC is replaced once and M2_TZ_DEFAULTED
+# records it - a zone set afterwards, UTC included, is left as it is. Inside
+# the updater container the host's zone cannot be seen, and nothing changes.
+migrate_timezone() {
+    _env="$COMPOSE_DIR/.env"
+    [ -f "$_env" ] || return 0
+    [ -f /.dockerenv ] && return 0
+    grep -q '^M2_TZ_DEFAULTED=' "$_env" && return 0
+    _cur=$(kv "$_env" M2_TZ | tr -d ' \r')
+    _zone=""
+    if [ -z "$_cur" ] || [ "$_cur" = UTC ]; then
+        if have timedatectl; then _zone=$(timedatectl show -p Timezone --value 2>/dev/null); fi
+        if [ -z "$_zone" ] && [ -f /etc/timezone ]; then _zone=$(head -n 1 /etc/timezone | tr -d ' \r'); fi
+        if [ -z "$_zone" ] && [ -L /etc/localtime ]; then _zone=$(readlink /etc/localtime | sed 's|.*zoneinfo/||'); fi
+        case "$_zone" in
+            */*|UTC) ;;
+            *) return 0 ;;
+        esac
+    fi
+    [ -n "$(tail -c 1 "$_env")" ] && printf '\n' >> "$_env"
+    if [ -n "$_zone" ]; then
+        if grep -q '^M2_TZ=' "$_env"; then
+            sed -i "s|^M2_TZ=.*|M2_TZ=$_zone|" "$_env"
+        else
+            printf 'M2_TZ=%s\n' "$_zone" >> "$_env"
+        fi
+        note "   the server's clock zone: M2_TZ=$_zone (this machine's own)"
+    fi
+    printf 'M2_TZ_DEFAULTED=1\n' >> "$_env"
+}
+
 run_update() {
     STEP=0
     rm -rf "$WORK"; mkdir -p "$WORK" || { fail "cannot create $WORK"; return 1; }
@@ -197,6 +234,7 @@ run_update() {
     step "unpacking $_ver over $ROOT"
     unpack_over "$WORK/update.zip" "$ROOT" || { fail "the zip could not be unpacked"; return 1; }
     note "   the folder now says version $(installed_version)"
+    migrate_timezone
     step "building and starting the new version (docker compose up -d --build)"
     # By hand the build talks to the terminal; under the panel it goes to the
     # spool's log, which is what the panel's progress page tails.

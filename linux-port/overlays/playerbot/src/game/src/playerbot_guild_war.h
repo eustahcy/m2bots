@@ -1,0 +1,518 @@
+#ifndef __INC_METIN2_PLAYERBOT_GUILD_WAR_H__
+#define __INC_METIN2_PLAYERBOT_GUILD_WAR_H__
+
+// Guild wars between the bots' guilds.
+//
+// Two bot guilds of one kingdom, of the same tier where there is a pair, fight
+// a field war - the engine's own GUILD_WAR_TYPE_FIELD: declared by one master
+// and accepted by the other through CGuild::RequestDeclareWar, thirty minutes
+// on the db core's clock, every kill between the two counted by
+// CGuildManager::Kill, the winner and the ladder points settled by the db
+// core, the notices its own. A field war is fought anywhere, so the
+// battlefield is ours to choose: the kingdom's guild map (Waryong and its two
+// mirrors), which every core hosts for its own kingdom, is nearly empty, and
+// needs none of the arena maps 110/111 that only the first core carries. Both
+// guilds rally on the open, fightable ground nearest the map's Town.txt point
+// (two of the three points sit inside a safe zone), a side apart, and every
+// bot of either goes for the nearest enemy it can see; the dead stand up in
+// their village and come back. "Potem stworzymy wojny gildii, gdzie beda chodzic na
+// specjalna mape i walczyc jak gracze miedzy soba" (Tieru, 16 September).
+//
+// What this is not: a war with a player's guild. A player who declares war on
+// a bot guild is refused nothing by the engine, but no bot master accepts, so
+// the declaration stands until it times out; that is a decision for another
+// day, not an oversight. And a guild skill cannot be used here: CGuild::UseSkill
+// only works inside a war arena.
+//
+// An implementation fragment in the sense playerbot_types.h describes: include
+// it exactly once, after playerbot_targeting.h (the blows are that file's) and
+// before playerbot_lure.h.
+
+namespace
+{
+	struct TPlayerBotGuildWar
+	{
+		DWORD dwGuild1;
+		DWORD dwGuild2;
+		DWORD dwDeclaredAt;
+		DWORD dwStartedAt;
+		bool bStarted;
+	};
+	// One war a kingdom at a time.
+	std::map<BYTE, TPlayerBotGuildWar> s_mapPlayerBotGuildWars;
+	DWORD s_adwPlayerBotNextGuildWarTime[playerbot_empire_rules::EMPIRE_COUNT];
+	DWORD s_dwNextPlayerBotGuildWarCheck = 0;
+	unsigned int s_uPlayerBotGuildWarsFought = 0;
+
+	bool IsPlayerBotGuildWarPair(DWORD a, DWORD b)
+	{
+		for (std::map<BYTE, TPlayerBotGuildWar>::const_iterator it = s_mapPlayerBotGuildWars.begin();
+				it != s_mapPlayerBotGuildWars.end(); ++it)
+			if ((it->second.dwGuild1 == a && it->second.dwGuild2 == b) ||
+					(it->second.dwGuild1 == b && it->second.dwGuild2 == a))
+				return true;
+		return false;
+	}
+
+	// The guild this one is at war with, if the war is one of ours.
+	CGuild* GetPlayerBotWarEnemy(CGuild* mine)
+	{
+		if (!mine)
+			return NULL;
+		const DWORD opp = mine->UnderAnyWar(GUILD_WAR_TYPE_FIELD);
+		if (opp == 0 || !IsPlayerBotGuildWarPair(mine->GetID(), opp))
+			return NULL;
+		return CGuildManager::instance().FindGuild(opp);
+	}
+
+	struct TPlayerBotWarEntry
+	{
+		CGuild* guild;
+		int tier;
+		int online;
+	};
+
+	bool PlayerBotWarEntryOrder(const TPlayerBotWarEntry& a, const TPlayerBotWarEntry& b)
+	{
+		if (a.tier != b.tier)
+			return a.tier < b.tier;
+		return a.online > b.online;
+	}
+
+	// Two guilds of the kingdom that can fight now: both with
+	// PLAYERBOT_GUILD_WAR_MIN_ONLINE bots in this core's world, neither at war
+	// already, the closest tiers of any pair, rotated by the minute so the same
+	// two do not meet every time.
+	bool PickPlayerBotGuildWarPair(BYTE empire, DWORD dwNow, CGuild*& out1, CGuild*& out2)
+	{
+		std::vector<TPlayerBotWarEntry> ready;
+		for (std::map<DWORD, TPlayerBotGuildInfo>::const_iterator it = s_mapPlayerBotGuildInfo.begin();
+				it != s_mapPlayerBotGuildInfo.end(); ++it)
+		{
+			if (it->second.bEmpire != empire)
+				continue;
+			CGuild* g = CGuildManager::instance().FindGuild(it->first);
+			// A guild climbing the Demon Tower is not picked for a war
+			// (playerbot_demon_tower.h).
+			if (!g || g->UnderAnyWar() != 0 || IsPlayerBotGuildRaidingTower(it->first))
+				continue;
+			const int online = CountPlayerBotGuildOnline(g);
+			if (online < PLAYERBOT_GUILD_WAR_MIN_ONLINE)
+				continue;
+			TPlayerBotWarEntry e;
+			e.guild = g;
+			e.tier = it->second.bTier;
+			e.online = online;
+			ready.push_back(e);
+		}
+		if (ready.size() < 2)
+			return false;
+		std::sort(ready.begin(), ready.end(), PlayerBotWarEntryOrder);
+		const size_t start = (size_t)(PlayerBotNavHash(dwNow / 60000U ^ 0x57415250U) % ready.size());
+		size_t bestI = 0, bestJ = 1;
+		int bestGap = INT_MAX;
+		for (size_t n = 0; n < ready.size(); ++n)
+		{
+			const size_t i = (start + n) % ready.size();
+			for (size_t m = 1; m < ready.size(); ++m)
+			{
+				const size_t j = (i + m) % ready.size();
+				const int gap = abs(ready[i].tier - ready[j].tier);
+				if (gap < bestGap)
+				{
+					bestGap = gap;
+					bestI = i;
+					bestJ = j;
+				}
+			}
+			if (bestGap == 0)
+				break;
+		}
+		out1 = ready[bestI].guild;
+		out2 = ready[bestJ].guild;
+		return true;
+	}
+
+	const char* GetPlayerBotKingdomName(BYTE empire)
+	{
+		switch (empire)
+		{
+			case playerbot_empire_rules::EMPIRE_SHINSOO: return "Shinsoo";
+			case playerbot_empire_rules::EMPIRE_CHUNJO: return "Chunjo";
+			case playerbot_empire_rules::EMPIRE_JINNO: return "Jinno";
+			default: return "?";
+		}
+	}
+
+	// Once a minute for the world: the war in progress moved along, or the
+	// next one declared when its time has come. A declaration is a round trip
+	// through the db core - the other master accepts on a later minute, once
+	// its guild reports GUILD_WAR_RECV_DECLARE - and a war the db core has
+	// ended is noticed by UnderWar going false.
+	void ManagePlayerBotGuildWars(DWORD dwNow)
+	{
+		if (s_dwNextPlayerBotGuildWarCheck != 0 && dwNow < s_dwNextPlayerBotGuildWarCheck)
+			return;
+		s_dwNextPlayerBotGuildWarCheck = dwNow + PLAYERBOT_GUILD_WAR_CHECK_INTERVAL;
+		const bool enabled = IsPlayerBotGuildWarsEnabled();
+
+		for (int empire = playerbot_empire_rules::EMPIRE_SHINSOO;
+				empire <= playerbot_empire_rules::EMPIRE_JINNO; ++empire)
+		{
+			const long battlefield = playerbot_empire_rules::GetHomeMap(empire, playerbot_empire_rules::MAP_ROLE_M3);
+			if (battlefield == 0 || !IsPlayerBotMapHostedHere(battlefield))
+				continue;
+
+			std::map<BYTE, TPlayerBotGuildWar>::iterator it = s_mapPlayerBotGuildWars.find((BYTE)empire);
+			if (it != s_mapPlayerBotGuildWars.end())
+			{
+				TPlayerBotGuildWar& war = it->second;
+				CGuild* g1 = CGuildManager::instance().FindGuild(war.dwGuild1);
+				CGuild* g2 = CGuildManager::instance().FindGuild(war.dwGuild2);
+				if (!g1 || !g2)
+				{
+					s_mapPlayerBotGuildWars.erase(it);
+					continue;
+				}
+				if (!war.bStarted)
+				{
+					if (g1->UnderWar(g2->GetID()))
+					{
+						war.bStarted = true;
+						war.dwStartedAt = dwNow;
+						++s_uPlayerBotGuildWarsFought;
+						char notice[200];
+						snprintf(notice, sizeof(notice), "Wojna gildii: %s kontra %s! Pole bitwy: mapa gildyjna (%s), 30 minut.",
+								g1->GetName(), g2->GetName(), GetPlayerBotKingdomName((BYTE)empire));
+						BroadcastNotice(notice);
+						sys_log(0, "PLAYERBOT_GUILD: war on %s vs %s empire=%d battlefield=%ld online=%d/%d",
+								g1->GetName(), g2->GetName(), empire, battlefield,
+								CountPlayerBotGuildOnline(g1), CountPlayerBotGuildOnline(g2));
+					}
+					else if (g2->GetGuildWarState(g1->GetID()) == GUILD_WAR_RECV_DECLARE)
+					{
+						g2->RequestDeclareWar(g1->GetID(), GUILD_WAR_TYPE_FIELD);
+						sys_log(0, "PLAYERBOT_GUILD: war accepted by %s from %s", g2->GetName(), g1->GetName());
+					}
+					else if (dwNow - war.dwDeclaredAt > PLAYERBOT_GUILD_WAR_DECLARE_TIMEOUT)
+					{
+						sys_log(0, "PLAYERBOT_GUILD: war declaration went nowhere %s -> %s (state=%d), dropped",
+								g1->GetName(), g2->GetName(), g2->GetGuildWarState(g1->GetID()));
+						s_mapPlayerBotGuildWars.erase(it);
+						s_adwPlayerBotNextGuildWarTime[empire] = dwNow + PLAYERBOT_GUILD_WAR_RETRY_MS;
+					}
+					continue;
+				}
+				if (!g1->UnderWar(g2->GetID()))
+				{
+					sys_log(0, "PLAYERBOT_GUILD: war over %s vs %s after %u min (wins/draws/losses %d/%d/%d and %d/%d/%d, ladder %d and %d)",
+							g1->GetName(), g2->GetName(), (unsigned int)((dwNow - war.dwStartedAt) / 60000U),
+							g1->GetGuildWarWinCount(), g1->GetGuildWarDrawCount(), g1->GetGuildWarLossCount(),
+							g2->GetGuildWarWinCount(), g2->GetGuildWarDrawCount(), g2->GetGuildWarLossCount(),
+							g1->GetLadderPoint(), g2->GetLadderPoint());
+					s_mapPlayerBotGuildWars.erase(it);
+					s_adwPlayerBotNextGuildWarTime[empire] = dwNow + PLAYERBOT_GUILD_WAR_INTERVAL;
+				}
+				continue;
+			}
+
+			if (!enabled)
+				continue;
+			if (s_adwPlayerBotNextGuildWarTime[empire] == 0)
+			{
+				// One kingdom after another, PLAYERBOT_GUILD_WAR_KINGDOM_STAGGER
+				// apart, so there is a war to watch somewhere for most of the
+				// time and not three at once followed by ninety quiet minutes.
+				s_adwPlayerBotNextGuildWarTime[empire] = dwNow + PLAYERBOT_GUILD_WAR_FIRST_DELAY +
+						(DWORD)(empire - playerbot_empire_rules::EMPIRE_SHINSOO) * PLAYERBOT_GUILD_WAR_KINGDOM_STAGGER;
+				continue;
+			}
+			if (dwNow < s_adwPlayerBotNextGuildWarTime[empire])
+				continue;
+			CGuild* a = NULL;
+			CGuild* b = NULL;
+			if (!PickPlayerBotGuildWarPair((BYTE)empire, dwNow, a, b))
+			{
+				s_adwPlayerBotNextGuildWarTime[empire] = dwNow + PLAYERBOT_GUILD_WAR_RETRY_MS;
+				continue;
+			}
+			a->RequestDeclareWar(b->GetID(), GUILD_WAR_TYPE_FIELD);
+			TPlayerBotGuildWar war;
+			war.dwGuild1 = a->GetID();
+			war.dwGuild2 = b->GetID();
+			war.dwDeclaredAt = dwNow;
+			war.dwStartedAt = 0;
+			war.bStarted = false;
+			s_mapPlayerBotGuildWars[(BYTE)empire] = war;
+			sys_log(0, "PLAYERBOT_GUILD: war declared %s -> %s empire=%d online=%d/%d",
+					a->GetName(), b->GetName(), empire, CountPlayerBotGuildOnline(a), CountPlayerBotGuildOnline(b));
+			// Said a minute or two before the blows, so a player who wants to
+			// watch has the time to get to the guild map.
+			char notice[200];
+			snprintf(notice, sizeof(notice), "Za chwile wojna gildii botow (%s): %s kontra %s. Pole bitwy: mapa gildyjna.",
+					GetPlayerBotKingdomName((BYTE)empire), a->GetName(), b->GetName());
+			BroadcastNotice(notice);
+		}
+	}
+
+	// Seconds until this kingdom's next war for the guild report: 0 while one
+	// is declared or under way, -1 when none is scheduled (the switch is off,
+	// the map is not hosted here, or the clock has not been set yet).
+	int GetPlayerBotNextGuildWarInSeconds(BYTE empire, DWORD dwNow)
+	{
+		if (empire >= playerbot_empire_rules::EMPIRE_COUNT)
+			return -1;
+		if (s_mapPlayerBotGuildWars.find(empire) != s_mapPlayerBotGuildWars.end())
+			return 0;
+		if (!IsPlayerBotGuildWarsEnabled() || s_adwPlayerBotNextGuildWarTime[empire] == 0)
+			return -1;
+		const DWORD at = s_adwPlayerBotNextGuildWarTime[empire];
+		return dwNow >= at ? 0 : (int)((at - dwNow) / 1000U);
+	}
+
+	// ------------------------------------------------------------ the ground
+	//
+	// Where the war is fought is not the Town.txt point. On metin2_map_guild_02
+	// and _03 that point sits inside the map's safe zone - ATTR_BANPK two
+	// kilometres across, where battle_is_attackable refuses every blow - and
+	// the first wars on the test world ended 0:0 on both while Shinsoo's, whose
+	// Town.txt is open ground, ran to 17074:14107. And the sides 1500 units off
+	// it were blocked cells on two of the three maps. So the battlefield is
+	// found at runtime from the map's own attributes: the open, fightable cell
+	// nearest the Town.txt point, and each guild's side the open cell nearest a
+	// short step from it. Once a map, kept for the process.
+	bool IsPlayerBotWarGroundOpen(long lMapIndex, long x, long y)
+	{
+		LPSECTREE tree = SECTREE_MANAGER::instance().Get(lMapIndex, x, y);
+		return tree && tree->GetAttributePtr() && !tree->IsAttr(x, y, ATTR_BLOCK | ATTR_OBJECT | ATTR_BANPK);
+	}
+
+	bool FindPlayerBotWarGround(long lMapIndex, long x, long y, long radius, long& outX, long& outY)
+	{
+		if (IsPlayerBotWarGroundOpen(lMapIndex, x, y))
+		{
+			outX = x;
+			outY = y;
+			return true;
+		}
+		for (long r = 100; r <= radius; r += 100)
+		{
+			for (long dx = -r; dx <= r; dx += 100)
+			{
+				const long step = (dx == -r || dx == r) ? 100 : 2 * r;
+				for (long dy = -r; dy <= r; dy += step)
+				{
+					if (IsPlayerBotWarGroundOpen(lMapIndex, x + dx, y + dy))
+					{
+						outX = x + dx;
+						outY = y + dy;
+						return true;
+					}
+				}
+			}
+		}
+		return false;
+	}
+
+	struct TPlayerBotWarSide
+	{
+		long x[2];
+		long y[2];
+		bool bKnown;
+	};
+	std::map<long, TPlayerBotWarSide> s_mapPlayerBotWarSides;
+
+	// A bot's own spot on its guild's side of the battlefield: the side's
+	// ground with a few hundred units of pid, snapped back onto open ground.
+	bool GetPlayerBotWarRally(long lMapIndex, BYTE empire, int side, DWORD pid, long& outX, long& outY)
+	{
+		std::map<long, TPlayerBotWarSide>::iterator it = s_mapPlayerBotWarSides.find(lMapIndex);
+		if (it == s_mapPlayerBotWarSides.end())
+		{
+			TPlayerBotWarSide sides;
+			sides.bKnown = false;
+			playerbot_empire_rules::TPoint town;
+			long cx = 0, cy = 0;
+			if (playerbot_empire_rules::GetTeleportArrival((int)empire, playerbot_empire_rules::TELEPORT_GUILD_MAP, town) &&
+					FindPlayerBotWarGround(lMapIndex, town.x, town.y, PLAYERBOT_GUILD_WAR_GROUND_SEARCH, cx, cy))
+			{
+				sides.bKnown = true;
+				for (int s = 0; s < 2 && sides.bKnown; ++s)
+				{
+					const long wantX = cx + (s == 0 ? -1 : 1) * PLAYERBOT_GUILD_WAR_RALLY_SPREAD;
+					if (!FindPlayerBotWarGround(lMapIndex, wantX, cy, PLAYERBOT_GUILD_WAR_GROUND_SEARCH, sides.x[s], sides.y[s]))
+						sides.bKnown = false;
+				}
+				sys_log(0, "PLAYERBOT_GUILD: battlefield map=%ld town=(%ld,%ld) ground=(%ld,%ld) sides=(%ld,%ld)/(%ld,%ld) known=%d",
+						lMapIndex, town.x, town.y, cx, cy, sides.x[0], sides.y[0], sides.x[1], sides.y[1], (int)sides.bKnown);
+			}
+			else
+				sys_err("PLAYERBOT_GUILD: no fightable ground near the Town.txt point of map %ld", lMapIndex);
+			it = s_mapPlayerBotWarSides.insert(std::make_pair(lMapIndex, sides)).first;
+		}
+		if (!it->second.bKnown)
+			return false;
+		const int s = side < 0 ? 0 : 1;
+		const long jx = it->second.x[s] + (long)(PlayerBotNavHash(pid ^ 0x57415221U) % 801U) - 400;
+		const long jy = it->second.y[s] + (long)(PlayerBotNavHash(pid ^ 0x57415222U) % 801U) - 400;
+		if (FindPlayerBotWarGround(lMapIndex, jx, jy, 400, outX, outY))
+			return true;
+		outX = it->second.x[s];
+		outY = it->second.y[s];
+		return true;
+	}
+
+	// The nearest bot of the enemy guild on the bot's map.
+	LPCHARACTER FindPlayerBotGuildWarFoe(LPCHARACTER ch, CGuild* enemy)
+	{
+		LPCHARACTER best = NULL;
+		int bestDistance = INT_MAX;
+		for (TPlayerBotAIStateMap::const_iterator it = s_mapPlayerBotAIStates.begin();
+				it != s_mapPlayerBotAIStates.end(); ++it)
+		{
+			LPCHARACTER other = CHARACTER_MANAGER::instance().FindByPID(it->first);
+			if (!other || other == ch || other->IsDead() || other->GetGuild() != enemy ||
+					other->GetMapIndex() != ch->GetMapIndex())
+				continue;
+			const int distance = DISTANCE_APPROX(ch->GetX() - other->GetX(), ch->GetY() - other->GetY());
+			if (distance < bestDistance)
+			{
+				bestDistance = distance;
+				best = other;
+			}
+		}
+		return best;
+	}
+
+	// A bot's part in its guild's war. Claims the tick for the war's whole
+	// half hour: the walk to the battlefield, the rally, the fight; and the way
+	// home afterwards. A bot in a player's party stays with the player.
+	bool ManagePlayerBotGuildWar(LPCHARACTER ch, TPlayerBotAIState& state, DWORD dwNow)
+	{
+		if (!ch || ch->IsDead())
+			return false;
+		CGuild* mine = ch->GetGuild();
+		CGuild* enemy = mine ? GetPlayerBotWarEnemy(mine) : NULL;
+		if (!enemy)
+		{
+			if (state.dwGuildWarEnemyGID != 0)
+			{
+				state.dwGuildWarEnemyGID = 0;
+				state.dwTargetVID = 0;
+				ch->SetVictim(NULL);
+				const long battlefield = playerbot_empire_rules::GetHomeMap(
+						(int)ch->GetEmpire(), playerbot_empire_rules::MAP_ROLE_M3);
+				if (ch->GetMapIndex() == battlefield)
+				{
+					long destMap = 0, destX = 0, destY = 0;
+					if (GetPlayerBotVillageReturn(ch, playerbot_empire_rules::MAP_ROLE_M2, destMap, destX, destY))
+						TransitionPlayerBotMap(ch, state, destMap, destX, destY, dwNow, "guild_war_over");
+				}
+			}
+			return false;
+		}
+		if (ch->GetParty() && IsPlayerBotHumanLedParty(ch->GetParty()))
+			return false;
+		const BYTE empire = ch->GetEmpire();
+		const long battlefield = playerbot_empire_rules::GetHomeMap((int)empire, playerbot_empire_rules::MAP_ROLE_M3);
+		if (battlefield == 0 || !IsPlayerBotMapHostedHere(battlefield))
+			return false;
+		const DWORD pid = ch->GetPlayerID();
+		const int side = mine->GetID() < enemy->GetID() ? -1 : 1;
+		long rallyX = 0, rallyY = 0;
+		if (!GetPlayerBotWarRally(battlefield, empire, side, pid, rallyX, rallyY))
+			return false;
+
+		if (state.dwGuildWarEnemyGID != enemy->GetID())
+		{
+			state.dwGuildWarEnemyGID = enemy->GetID();
+			PlayerBotLogThrottled("guild_war_to", dwNow,
+					"PLAYERBOT_GUILD: to war pid=%u name=%s guild=%s enemy=%s map=%ld rally=(%ld,%ld)",
+					ch->GetPlayerID(), ch->GetName(), mine->GetName(), enemy->GetName(), ch->GetMapIndex(), rallyX, rallyY);
+		}
+		SetPlayerBotAction(state, BOT_ACTION_FIGHT, dwNow);
+
+		if (ch->GetMapIndex() != battlefield)
+		{
+			if (dwNow < state.dwNextGuildWarMoveTime)
+				return true;
+			state.dwNextGuildWarMoveTime = dwNow + 5000;
+			TransitionPlayerBotMap(ch, state, battlefield, rallyX, rallyY, dwNow, "guild_war");
+			return true;
+		}
+		// A transport horse comes off for the fight, as in a duel.
+		if (ch->IsRiding() && !CanPlayerBotEverFightOnHorse(ch))
+		{
+			SetPlayerBotRidingForTravel(ch, state, false, dwNow, "guild_war");
+			return true;
+		}
+
+		// The foe in hand is kept while it stands; the roster is searched only
+		// when it is lost, because that search is every bot in the world.
+		LPCHARACTER foe = NULL;
+		if (state.dwTargetVID != 0)
+		{
+			LPCHARACTER held = CHARACTER_MANAGER::instance().Find(state.dwTargetVID);
+			if (held && !held->IsDead() && held->GetGuild() == enemy &&
+					held->GetMapIndex() == ch->GetMapIndex())
+				foe = held;
+		}
+		if (!foe)
+			foe = FindPlayerBotGuildWarFoe(ch, enemy);
+		if (!foe)
+		{
+			state.dwTargetVID = 0;
+			if (DISTANCE_APPROX(ch->GetX() - rallyX, ch->GetY() - rallyY) > 600 &&
+					dwNow >= state.dwNextGuildWarMoveTime)
+			{
+				state.dwNextGuildWarMoveTime = dwNow + 3000;
+				MovePlayerBot(ch, rallyX, rallyY, dwNow, 8, true, false);
+			}
+			return true;
+		}
+
+		const int distance = DISTANCE_APPROX(ch->GetX() - foe->GetX(), ch->GetY() - foe->GetY());
+		state.dwTargetVID = (DWORD)foe->GetVID();
+		ch->SetVictim(foe);
+		ch->SetRotationToXY(foe->GetX(), foe->GetY());
+
+		// The same fight a duel is: the aura first, a caster from its range, a
+		// warrior across the gap, a blade from where it reaches.
+		if (distance <= PLAYERBOT_DUEL_BUFF_RANGE && ManagePlayerBotCombatBuffs(ch, state, dwNow, true))
+			return true;
+		LPITEM weapon = ch->GetWear(WEAR_WEAPON);
+		const bool isBow = (weapon && weapon->GetType() == ITEM_WEAPON &&
+				weapon->GetSubType() == WEAPON_BOW);
+		const int combatRange = isBow ? 800 : PLAYERBOT_DUEL_MELEE_RANGE;
+		const bool caster = ch->GetJob() == JOB_SHAMAN ||
+				(ch->GetJob() == JOB_SURA && ch->GetSkillGroup() == 2);
+		if (distance > combatRange)
+		{
+			if (!isBow && caster && distance <= PLAYERBOT_DUEL_CASTER_RANGE &&
+					dwNow >= state.dwNextSkillCastTime)
+			{
+				if (ch->IsStateMove())
+					ch->Stop();
+				if (CastPlayerBotDuelSkill(ch, foe, state, dwNow))
+					return true;
+			}
+			if (!isBow && distance <= PLAYERBOT_SEARCH_RANGE &&
+					TryPlayerBotDuelGapCloser(ch, foe, state, dwNow, distance))
+				return true;
+			if (dwNow >= state.dwNextGuildWarMoveTime)
+			{
+				state.dwNextGuildWarMoveTime = dwNow + 1000;
+				MovePlayerBot(ch, foe->GetX(), foe->GetY(), dwNow, 4, distance > PLAYERBOT_SEARCH_RANGE, false);
+			}
+			return true;
+		}
+		if (ch->IsStateMove())
+			ch->Stop();
+		ch->SetPosition(POS_FIGHTING);
+		if (!CastPlayerBotDuelSkill(ch, foe, state, dwNow))
+			ExecutePlayerBotBasicAttack(ch, foe, state, dwNow);
+		return true;
+	}
+}
+
+#endif

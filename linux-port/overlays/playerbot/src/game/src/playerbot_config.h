@@ -102,12 +102,6 @@ namespace
 	// Percent of stall keepers that sell scrap gear. Zero is off, and the
 	// default: it is the "hard server" flavour, asked for by name.
 	int s_iPlayerBotScrapPercent = 0;
-	// Percent of the bots that also buy a stall line purely because it is
-	// priced well under what it would fetch relisted - a profit trader, not
-	// a shopper with a need. Zero is off, and the default: this is a new
-	// kind of spending, not a variant of a role bots already had, so the
-	// operator turns it on on purpose. See IsPlayerBotProfitTrader.
-	int s_iPlayerBotProfitTraderPercent = 0;
 	// Percent of the bots that finish an errand in a first village and stay
 	// a while on the market ring (PLAYERBOT_TOWN_LINGER_*). A hundred is the
 	// author's town; zero is the operator who wants every bot hunting, asked
@@ -121,11 +115,20 @@ namespace
 	// is what "some aggressive, some neutral" has to mean if a kingdom is to
 	// have a character rather than a mood.
 	int s_iPlayerBotKingdomPvpPercent = 0;
-	// The refine an ordinary weapon/armour spare needs to be worth a counter
-	// slot on its own merits (PLAYERBOT_SHOP_MIN_GEAR_REFINE's live override).
-	// -1 means the file has never set it: fall back to the constant, which is
-	// also what a fresh install and a broken file both get. Range 0-9 - 0
-	// would put every spare on the market, 9 almost none.
+	// The lowest plus a refine under a Blessing or Dragon God scroll may land
+	// on. One is no floor, and the default: the refine passes keep their own
+	// rules about where a scroll is worth it (from +7, earlier for a worn piece
+	// that can burn and for a prize piece). Seven puts a scroll on the steps to
+	// +7, +8 and +9 only, and every step under that goes to the plain anvil the
+	// way a bot with no scroll refines - asked for as one setting for the whole
+	// world ("tylko mozna np uzywac na +7 +8 +9", Tieru).
+	int s_iPlayerBotScrollFromPlus = 1;
+	// SCRAPFLOOR z panelu Tuike: od jakiego +N zwykla bron/zbroja jest warta
+	// miejsca na straganie. -1 = plik tego nie ustawil, wiec obowiazuje stala
+	// PLAYERBOT_SHOP_MIN_GEAR_REFINE (4). Zakres 0-9. Przeniesione na 2.0.63,
+	// bo upstream ma ten prog na sztywno, a Tuike (panel spoza upstreamu)
+	// wystawia go do zmiany na zywo - bez tego pole w panelu po cichu nic by
+	// nie robilo.
 	int s_iPlayerBotShopMinGearRefine = -1;
 	// Whether a bot reads its books without the engine's day between them.
 	// On by default: the day is what makes a book a month's project, and the
@@ -136,6 +139,19 @@ namespace
 	// and the switch in the panel is for the ones who would rather not.
 	bool s_bPlayerBotNight = true;
 	bool s_bPlayerBotNightReported = true;
+	// "Boty graja jak zywi ludzie" (the LIFE key): sessions and rests, in
+	// CPlayerBotManager::ManageLifeSchedule. Off until the panel says so.
+	bool s_bPlayerBotLifeSchedule = false;
+	bool s_bPlayerBotLifeScheduleReported = false;
+	// Guild wars between the bots' guilds (the WARS key), playerbot_guild_war.h.
+	bool s_bPlayerBotGuildWars = true;
+	bool s_bPlayerBotGuildWarsReported = true;
+	// The bot guilds' Demon Tower raids (the TOWER key), playerbot_demon_tower.h.
+	bool s_bPlayerBotTowerRaids = true;
+	bool s_bPlayerBotTowerRaidsReported = true;
+	// The bots' ItemShop purchases (the ISHOP key), playerbot_itemshop.h.
+	bool s_bPlayerBotItemShop = true;
+	bool s_bPlayerBotItemShopReported = true;
 	// What the clock last asked the DB core for, so a request is not repeated
 	// every minute while the round trip is still in flight, and so switching
 	// the clock off in the middle of a night lowers the flag it raised.
@@ -170,12 +186,16 @@ namespace
 			s_aiPlayerBotWeights[i] = PLAYERBOT_WEIGHT_NEUTRAL;
 		s_bPlayerBotOverheadChat = true;
 		s_iPlayerBotScrapPercent = 0;
-		s_iPlayerBotProfitTraderPercent = 0;
 		s_iPlayerBotRestPercent = 100;
 		s_iPlayerBotKingdomPvpPercent = 0;
+		s_iPlayerBotScrollFromPlus = 1;
 		s_iPlayerBotShopMinGearRefine = -1;
 		s_bPlayerBotFastBooks = true;
 		s_bPlayerBotNight = true;
+		s_bPlayerBotLifeSchedule = false;
+		s_bPlayerBotGuildWars = true;
+		s_bPlayerBotTowerRaids = true;
+		s_bPlayerBotItemShop = true;
 		if (s_iPlayerBotChestConfigPermille < 0)
 		{
 			s_iPlayerBotChestConfigPermille = g_iMoonlightChestPermille;
@@ -250,6 +270,50 @@ namespace
 			s_bPlayerBotNight = enabled;
 			return;
 		}
+		if (PlayerBotWeightNameEquals(szKey, "LIFE"))
+		{
+			const bool enabled = value != 0;
+			if (enabled != s_bPlayerBotLifeScheduleReported)
+			{
+				sys_log(0, "PLAYERBOT_CONFIG: life schedule %s", enabled ? "on" : "off");
+				s_bPlayerBotLifeScheduleReported = enabled;
+			}
+			s_bPlayerBotLifeSchedule = enabled;
+			return;
+		}
+		if (PlayerBotWeightNameEquals(szKey, "WARS"))
+		{
+			const bool enabled = value != 0;
+			if (enabled != s_bPlayerBotGuildWarsReported)
+			{
+				sys_log(0, "PLAYERBOT_CONFIG: guild wars %s", enabled ? "on" : "off");
+				s_bPlayerBotGuildWarsReported = enabled;
+			}
+			s_bPlayerBotGuildWars = enabled;
+			return;
+		}
+		if (PlayerBotWeightNameEquals(szKey, "TOWER"))
+		{
+			const bool enabled = value != 0;
+			if (enabled != s_bPlayerBotTowerRaidsReported)
+			{
+				sys_log(0, "PLAYERBOT_CONFIG: tower raids %s", enabled ? "on" : "off");
+				s_bPlayerBotTowerRaidsReported = enabled;
+			}
+			s_bPlayerBotTowerRaids = enabled;
+			return;
+		}
+		if (PlayerBotWeightNameEquals(szKey, "ISHOP"))
+		{
+			const bool enabled = value != 0;
+			if (enabled != s_bPlayerBotItemShopReported)
+			{
+				sys_log(0, "PLAYERBOT_CONFIG: itemshop %s", enabled ? "on" : "off");
+				s_bPlayerBotItemShopReported = enabled;
+			}
+			s_bPlayerBotItemShop = enabled;
+			return;
+		}
 		if (PlayerBotWeightNameEquals(szKey, "CHEST") || PlayerBotWeightNameEquals(szKey, "CHEST_STONE"))
 		{
 			const int permille = value < 0 ? 0 : (value > 1000 ? 1000 : (int)value);
@@ -278,14 +342,6 @@ namespace
 			s_iPlayerBotRestPercent = percent;
 			return;
 		}
-		if (PlayerBotWeightNameEquals(szKey, "PROFIT"))
-		{
-			const int percent = value < 0 ? 0 : (value > 100 ? 100 : (int)value);
-			if (percent != s_iPlayerBotProfitTraderPercent)
-				sys_log(0, "PLAYERBOT_CONFIG: profit traders %d%%", percent);
-			s_iPlayerBotProfitTraderPercent = percent;
-			return;
-		}
 		if (PlayerBotWeightNameEquals(szKey, "KINGDOMPVP"))
 		{
 			const int percent = value < 0 ? 0 : (value > 100 ? 100 : (int)value);
@@ -300,6 +356,15 @@ namespace
 			if (refine != s_iPlayerBotShopMinGearRefine)
 				sys_log(0, "PLAYERBOT_CONFIG: shop gear floor +%d", refine);
 			s_iPlayerBotShopMinGearRefine = refine;
+			return;
+		}
+		if (PlayerBotWeightNameEquals(szKey, "SCROLL_FROM"))
+		{
+			const int plus = value < 1 ? 1 : (value > PLAYERBOT_SCROLL_REFINE_MAX_PLUS
+					? (int)PLAYERBOT_SCROLL_REFINE_MAX_PLUS : (int)value);
+			if (plus != s_iPlayerBotScrollFromPlus)
+				sys_log(0, "PLAYERBOT_CONFIG: refine scrolls from +%d", plus);
+			s_iPlayerBotScrollFromPlus = plus;
 			return;
 		}
 		for (size_t i = 0; i < sizeof(PLAYERBOT_WEIGHT_NAMES) /
@@ -381,7 +446,6 @@ namespace
 		"RESTOCK", "REFINE", "SKILL", "HORSE", "BIOLOG", "METIN", "PARTY",
 		"HUNTING", "LEVEL", "FISHING", "TRADE",
 		"CHAT", "BOOKS", "NIGHT", "SCRAP", "CHEST", "CHEST_STONE", "REST",
-		"PROFIT", "SCRAPFLOOR",
 	};
 	const size_t PLAYERBOT_PANEL_WEIGHT_COUNT =
 			sizeof(PLAYERBOT_PANEL_WEIGHT_ORDER) / sizeof(PLAYERBOT_PANEL_WEIGHT_ORDER[0]);
@@ -390,6 +454,10 @@ namespace
 	// -1 for the two chest keys while no file has set them: the chest odds then
 	// come from CONFIG and the panel must show "-" rather than a number it did
 	// not choose, or the first slider drag would silently take them over.
+	// The chest figures are the sliders' own, not the zero the event gate
+	// (playerbot_events.h, later in the include order) may be holding the
+	// engine's variables at while no chest window is open.
+	int GetPlayerBotChestWantedPermille(bool stone);
 	long GetPlayerBotPanelWeightValue(const char* szKey)
 	{
 		if (PlayerBotWeightNameEquals(szKey, "CHAT"))
@@ -398,20 +466,28 @@ namespace
 			return s_bPlayerBotFastBooks ? 1 : 0;
 		if (PlayerBotWeightNameEquals(szKey, "NIGHT"))
 			return s_bPlayerBotNight ? 1 : 0;
+		if (PlayerBotWeightNameEquals(szKey, "LIFE"))
+			return s_bPlayerBotLifeSchedule ? 1 : 0;
+		if (PlayerBotWeightNameEquals(szKey, "WARS"))
+			return s_bPlayerBotGuildWars ? 1 : 0;
+		if (PlayerBotWeightNameEquals(szKey, "TOWER"))
+			return s_bPlayerBotTowerRaids ? 1 : 0;
+		if (PlayerBotWeightNameEquals(szKey, "ISHOP"))
+			return s_bPlayerBotItemShop ? 1 : 0;
 		if (PlayerBotWeightNameEquals(szKey, "SCRAP"))
 			return s_iPlayerBotScrapPercent;
 		if (PlayerBotWeightNameEquals(szKey, "REST"))
 			return s_iPlayerBotRestPercent;
-		if (PlayerBotWeightNameEquals(szKey, "PROFIT"))
-			return s_iPlayerBotProfitTraderPercent;
 		if (PlayerBotWeightNameEquals(szKey, "KINGDOMPVP"))
 			return s_iPlayerBotKingdomPvpPercent;
+		if (PlayerBotWeightNameEquals(szKey, "CHEST"))
+			return !s_bPlayerBotChestFromFile ? -1 :
+					(GetPlayerBotChestWantedPermille(false) >= 0 ? GetPlayerBotChestWantedPermille(false) : g_iMoonlightChestPermille);
 		if (PlayerBotWeightNameEquals(szKey, "SCRAPFLOOR"))
 			return s_iPlayerBotShopMinGearRefine;
-		if (PlayerBotWeightNameEquals(szKey, "CHEST"))
-			return s_bPlayerBotChestFromFile ? g_iMoonlightChestPermille : -1;
 		if (PlayerBotWeightNameEquals(szKey, "CHEST_STONE"))
-			return s_bPlayerBotChestFromFile ? g_iMoonlightChestStonePermille : -1;
+			return !s_bPlayerBotChestFromFile ? -1 :
+					(GetPlayerBotChestWantedPermille(true) >= 0 ? GetPlayerBotChestWantedPermille(true) : g_iMoonlightChestStonePermille);
 		for (size_t i = 0; i < sizeof(PLAYERBOT_WEIGHT_NAMES) /
 				sizeof(PLAYERBOT_WEIGHT_NAMES[0]); ++i)
 		{
@@ -445,13 +521,16 @@ namespace
 	{
 		if (PlayerBotWeightNameEquals(szKey, "CHAT") ||
 				PlayerBotWeightNameEquals(szKey, "BOOKS") ||
-				PlayerBotWeightNameEquals(szKey, "NIGHT"))
+				PlayerBotWeightNameEquals(szKey, "NIGHT") ||
+				PlayerBotWeightNameEquals(szKey, "LIFE") ||
+				PlayerBotWeightNameEquals(szKey, "WARS") ||
+				PlayerBotWeightNameEquals(szKey, "TOWER") ||
+				PlayerBotWeightNameEquals(szKey, "ISHOP"))
 		{
 			value = value ? 1 : 0;
 			return true;
 		}
-		if (PlayerBotWeightNameEquals(szKey, "SCRAP") ||
-				PlayerBotWeightNameEquals(szKey, "PROFIT"))
+		if (PlayerBotWeightNameEquals(szKey, "SCRAP"))
 		{
 			value = value < 0 ? 0 : (value > 100 ? 100 : value);
 			return true;
@@ -733,22 +812,6 @@ namespace
 		return (int)((dwPID * 2654435761U) % 100U) < s_iPlayerBotScrapPercent;
 	}
 
-	// Whether this bot buys a stall line it has no personal use for, purely
-	// because it is priced well under what it could fetch relisted - the
-	// panel's PROFIT slider, salted apart from every other pid-hashed role so
-	// a scrap keeper or a resource trader can be a profit trader too, or not,
-	// independently. See PLAYERBOT_MARKET_PROFIT_MARGIN_PERCENT for what
-	// counts as "well under" and WantsPlayerBotStallItem for where this gates.
-	bool IsPlayerBotProfitTrader(DWORD dwPID)
-	{
-		if (!s_bPlayerBotWeightsInitialised)
-			ResetPlayerBotWeights();
-		if (s_iPlayerBotProfitTraderPercent <= 0)
-			return false;
-		return (int)(((dwPID ^ 0x27d4eb2fU) * 3266489917U) % 100U) <
-				s_iPlayerBotProfitTraderPercent;
-	}
-
 	// Whether this bot trades its own resources - the unopened chests and the
 	// refine scrolls - instead of spending every one of them on itself. A
 	// fixed share by pid like the scrap keeper above, and salted apart from it
@@ -764,21 +827,34 @@ namespace
 				PLAYERBOT_RESOURCE_TRADER_PERCENT;
 	}
 
-	int GetPlayerBotRestPercent()
-	{
-		if (!s_bPlayerBotWeightsInitialised)
-			ResetPlayerBotWeights();
-		return s_iPlayerBotRestPercent;
-	}
-
-	// The live override of PLAYERBOT_SHOP_MIN_GEAR_REFINE (playerbot_types.h),
-	// or that constant itself while the panel has never said otherwise.
 	BYTE GetPlayerBotShopMinGearRefine()
 	{
 		if (!s_bPlayerBotWeightsInitialised)
 			ResetPlayerBotWeights();
 		return s_iPlayerBotShopMinGearRefine >= 0
 				? (BYTE)s_iPlayerBotShopMinGearRefine : PLAYERBOT_SHOP_MIN_GEAR_REFINE;
+	}
+
+	int GetPlayerBotScrollFromPlus()
+	{
+		if (!s_bPlayerBotWeightsInitialised)
+			ResetPlayerBotWeights();
+		return s_iPlayerBotScrollFromPlus;
+	}
+
+	// Whether the refine from this plus may go under a Blessing or Dragon God
+	// scroll: it lands on plusLevel + 1, and SCROLL_FROM is the lowest landing
+	// a scroll is spent on. Every pass that reaches for a scroll asks this.
+	bool IsPlayerBotScrollStepAllowed(BYTE plusLevel)
+	{
+		return (int)plusLevel + 1 >= GetPlayerBotScrollFromPlus();
+	}
+
+	int GetPlayerBotRestPercent()
+	{
+		if (!s_bPlayerBotWeightsInitialised)
+			ResetPlayerBotWeights();
+		return s_iPlayerBotRestPercent;
 	}
 
 	// The market ledger's count of open counters on a map (playerbot_market.h,
@@ -792,9 +868,12 @@ namespace
 	// sklepu wystawionego, to niech nie ogladaja straganow, bo ich nie ma".
 	// Asked when a rest is rolled and on every tick of one, so a slider moved
 	// to zero ends the rests already running rather than waiting them out.
+	// A dropper does not: its time is its table's, and ten medal droppers were
+	// found resting on Yongan's square between two dungeon trips.
 	bool MayPlayerBotRestInTown(LPCHARACTER ch)
 	{
 		return ch && IsPlayerBotM1Map(ch->GetMapIndex()) &&
+				!IsPlayerBotDropper(GetPlayerBotPersonalityByPID(ch->GetPlayerID())) &&
 				ch->GetLevel() >= PLAYERBOT_TOWN_REST_MIN_LEVEL &&
 				GetPlayerBotRestPercent() > 0 &&
 				GetPlayerBotStallsOnMap(ch->GetMapIndex()) > 0;
@@ -811,6 +890,30 @@ namespace
 		if (!s_bPlayerBotWeightsInitialised)
 			ResetPlayerBotWeights();
 		return s_bPlayerBotOverheadChat;
+	}
+
+	// The LIFE switch, asked by CPlayerBotManager::ManageLifeSchedule.
+	bool IsPlayerBotLifeScheduleEnabled()
+	{
+		return s_bPlayerBotLifeSchedule;
+	}
+
+	// The WARS switch, asked by ManagePlayerBotGuildWars.
+	bool IsPlayerBotGuildWarsEnabled()
+	{
+		return s_bPlayerBotGuildWars;
+	}
+
+	// The TOWER switch, asked by ManagePlayerBotTowerRaids.
+	bool IsPlayerBotTowerRaidsEnabled()
+	{
+		return s_bPlayerBotTowerRaids;
+	}
+
+	// The ISHOP switch, asked by ManagePlayerBotItemShop.
+	bool IsPlayerBotItemShopEnabled()
+	{
+		return s_bPlayerBotItemShop;
 	}
 
 	bool IsPlayerBotFastBooksEnabled()

@@ -393,6 +393,13 @@ bool CPVPManager::CanAttack(LPCHARACTER pkChr, LPCHARACTER pkVictim)
 			return false;
 	}
 
+	// Playerbot: a summoned horse is its rider's and nobody's target. The
+	// switch above lets every other NPC through, so a splash skill beside
+	// a dismounted rider killed the horse following it - and a horse
+	// destroyed that way is what CHARACTER::Destroy failed to unlink.
+	if (pkVictim->GetRider())
+		return false;
+
 	if (pkChr == pkVictim)
 		return false;
 

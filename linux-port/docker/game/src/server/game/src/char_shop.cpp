@@ -419,12 +419,17 @@ BYTE CHARACTER::GetShopUnlockedProgress()
 
 bool CHARACTER::CanOpenShop()
 {
+	// playerbot: a GM opens a stall without the kill count.
+	if (GetGMLevel() > GM_PLAYER)
+		return true;
 	// A playerbot trades from the start: the level and the eight hundred kills
 	// are a rule for people, and a world of two thousand bots opened no
 	// counter for hours after every restart while each one earned them again.
 	if (GetDesc() && GetDesc()->IsBot())
 		return true;
-	return GetLevel() >= 1 && GetSpecialFlag(PLAYER_STATS_MONSTER_FLAG) >= 0;
+	// playerbot: no kill count for a player either - the eight hundred
+	// kills were the public server's gate (gregoszky, 14 September).
+	return GetLevel() >= 15;
 }
 
 // Files shared by GameCore.top

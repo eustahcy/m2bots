@@ -17,6 +17,7 @@
 #include "log.h"
 #include "questmanager.h"
 #include "war_map.h"
+#include "playerbot_manager.h"
 
 #define ENABLE_GUILD_COMMENT_ANTIFLOOD
 #ifdef ENABLE_GUILD_COMMENT_ANTIFLOOD
@@ -1935,6 +1936,11 @@ void CGuild::Invite( LPCHARACTER pchInviter, LPCHARACTER pchInvitee )
 	buf.write( GetName(), GUILD_NAME_MAX_LEN + 1 );
 
 	pchInvitee->GetDesc()->Packet( buf.read_peek(), buf.size() );
+
+	// A bot has no client to press "Accept": its manager answers now, while
+	// the invitation event is alive (playerbotify.py, apply_playerbot_guild_invites).
+	if (pchInvitee->GetDesc()->IsBot())
+		CPlayerBotManager::instance().OnGuildInvite(this, pchInviter, pchInvitee);
 }
 
 void CGuild::InviteAccept( LPCHARACTER pchInvitee )

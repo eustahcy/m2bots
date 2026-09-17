@@ -28,6 +28,7 @@
 #include "party.h"
 #include "playerbot_monkey_policy.h"
 #include "playerbot_party_policy.h"
+#include "playerbot_manager.h"
 #include "start_position.h"
 #include "questmanager.h"
 #include "log.h"
@@ -561,7 +562,12 @@ void CHARACTER::Destroy()
 
 	HorseSummon(false);
 
-	if (IsPC() && GetRider())
+	// Playerbot: a horse destroyed by anything but its own rider's
+	// HorseSummon(false) - a splash skill, most often - left the rider
+	// holding m_chHorse, and the rider's next StartRiding() called
+	// HorseSummon(false) on freed memory. "IsPC() && GetRider()" was never
+	// true: only a horse has a rider.
+	if (GetRider() && GetRider()->GetHorse() == this)
 		GetRider()->ClearHorseInfo();
 
 	if (GetDesc())
@@ -1687,9 +1693,7 @@ bool CHARACTER::IsLevelViewable() const
 		if (IsEquipUniqueItem(UNIQUE_ITEM_HIDE_LEVEL))
 			return false;
 
-		if (!test_server && IsGM())
-			return false;
-
+		// playerbot: a GM's level shows like anybody's.
 		return true;
 	}
 	return false;
@@ -1711,8 +1715,7 @@ void CHARACTER::SetLevel(BYTE level)
 	{
 		if (level < PK_PROTECT_LEVEL)
 			SetPKMode(PK_MODE_PROTECT);
-		else if (GetGMLevel() != GM_PLAYER)
-			SetPKMode(PK_MODE_PROTECT);
+		// playerbot: a GM is protected by its level like anybody, not by rank.
 		else if (m_bPKMode == PK_MODE_PROTECT)
 			SetPKMode(PK_MODE_PEACE);
 	}
@@ -1851,7 +1854,7 @@ void CHARACTER::SetPlayerProto(const TPlayerTable * t)
 #endif
 		{
 			m_afAffectFlag.Set(AFF_YMIR);
-			m_bPKMode = PK_MODE_PROTECT;
+			// playerbot: the GM badge stays, the forced protection does not.
 		}
 	}
 
@@ -5627,6 +5630,14 @@ bool CHARACTER::WarpSet(long x, long y, long lPrivateMapIndex)
 {
 	if (!IsPC())
 		return false;
+
+	// Playerbot: a bot has no client to reconnect to another core, so its
+	// own AI makes the move server-side when this core hosts the map - a
+	// dungeon's jump, d.exit_all and a quest's pc.warp reach a bot this
+	// way (playerbotify.py, apply_bot_warpset).
+	if (GetDesc() && GetDesc()->IsBot())
+		return CPlayerBotManager::instance().WarpBot(this, x, y, lPrivateMapIndex);
+
 
 	if (lPrivateMapIndex < 10000 && !CanWarp())
 		return false;
