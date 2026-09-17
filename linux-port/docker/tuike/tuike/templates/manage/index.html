@@ -213,120 +213,148 @@
   </section>
 </div>
 
-<div data-tab-panel="behavior" hidden>
-  <section class="panel" id="behavior">
-    <p class="eyebrow">PLAYERBOTS · NA ŻYWO</p>
-    <h2>Zachowanie botów</h2>
-    <p class="muted">{{ weight_neutral }}% to domyślne zachowanie autora rdzenia.
-      Zapis wchodzi w życie do pięciu sekund — bez restartu i bez rozłączania graczy.</p>
+{# Bot behaviour. Every control is a card: what it does, what it is set to now,
+   and what the core's own default is, so a value that has been moved away from
+   the default is visible without reading a paragraph. The explanations that
+   used to sit under each group as walls of text are folded into the cards and
+   into one "co to zmienia" note per group. #}
+{% macro slider(name, icon, label, value, note, low, high, step, unit, default) %}
+<div class="control" data-default="{{ default }}">
+  <header>
+    <span class="control-icon">{{ icon }}</span>
+    <span class="control-name">{{ label }}</span>
+    <button type="button" class="control-reset" data-reset title="Przywróć {{ default }}{{ unit }}">↺</button>
+  </header>
+  <input type="range" min="{{ low }}" max="{{ high }}" step="{{ step }}"
+         name="{{ name }}" value="{{ value }}" data-weight
+         aria-label="{{ label }}">
+  <footer>
+    <output class="control-value">{{ value }}<i>{{ unit }}</i></output>
+    <small>{{ note }}</small>
+  </footer>
+</div>
+{% endmacro %}
 
-    <form action="{{ url_for('manage.behavior') }}" method="post" class="behavior">
+{% macro toggle(name, icon, label, note, checked) %}
+<div class="control control-switch">
+  <header>
+    <span class="control-icon">{{ icon }}</span>
+    <span class="control-name">{{ label }}</span>
+  </header>
+  <label class="toggle">
+    <input type="hidden" name="{{ name }}" value="0">
+    <input type="checkbox" name="{{ name }}" value="1" {{ 'checked' if checked }}>
+    <span class="toggle-track" aria-hidden="true"><i></i></span>
+    <span class="toggle-text">{{ note }}</span>
+  </label>
+</div>
+{% endmacro %}
+
+{% macro number(name, icon, label, value, note, low, high, unit) %}
+<div class="control control-number">
+  <header>
+    <span class="control-icon">{{ icon }}</span>
+    <span class="control-name">{{ label }}</span>
+  </header>
+  <label class="number-field">
+    <input name="{{ name }}" type="number" min="{{ low }}" max="{{ high }}" value="{{ value }}">
+    <span class="number-unit">{{ unit }}</span>
+  </label>
+  <small>{{ note }}</small>
+</div>
+{% endmacro %}
+
+<div data-tab-panel="behavior" hidden>
+  <section class="panel behavior-panel" id="behavior">
+    <header class="panel-head">
+      <div>
+        <p class="eyebrow">PLAYERBOTS · NA ŻYWO</p>
+        <h2>Zachowanie botów</h2>
+        <p class="muted">Rdzeń czyta te ustawienia co pięć sekund — bez restartu
+          i bez rozłączania graczy.</p>
+      </div>
+      <span class="badge" id="behavior-dirty" hidden></span>
+    </header>
+
+    <form action="{{ url_for('manage.behavior') }}" method="post" class="behavior" id="behavior-form">
       {{ csrf_field() }}
 
-      <h3>Cele i priorytety</h3>
-      <div class="weight-grid">
-        {% for key, label, icon in weight_keys %}
-          <label class="weight">
-            <span>{{ icon }} {{ label }}</span>
-            <input type="range" min="{{ weight_min }}" max="{{ weight_max }}" step="5"
-                   name="{{ key }}" value="{{ weights[key] }}" data-weight>
-            <output>{{ weights[key] }}</output><small>%</small>
-          </label>
-        {% endfor %}
-      </div>
-
-      <h3>Gospodarka straganów</h3>
-      <div class="behavior-extras">
-        <label class="weight">
-          <span>♻️ Boty złomiarze</span>
-          <input type="range" min="0" max="100" step="5" name="SCRAP"
-                 value="{{ weights.SCRAP }}" data-weight>
-          <output>{{ weights.SCRAP }}</output><small>% straganiarzy</small>
-        </label>
-        <label class="weight">
-          <span>💹 Handlarze okazjami</span>
-          <input type="range" min="0" max="100" step="5" name="PROFIT"
-                 value="{{ weights.PROFIT }}" data-weight>
-          <output>{{ weights.PROFIT }}</output><small>% botów kupuje okazje na straganach z myślą o odsprzedaży</small>
-        </label>
-        <div class="chest-fields">
-          <span>⚒️ Próg "prawdziwego" ekwipunku
-            <small>od jakiego refine sztuka liczy się jako towar, a nie złom</small></span>
-          <label>ulepszenie
-            <input name="SCRAPFLOOR" type="number"
-                   min="{{ refine_floor_bounds[0] }}" max="{{ refine_floor_bounds[1] }}"
-                   value="{{ weights.SCRAPFLOOR if weights.SCRAPFLOOR is not none else refine_floor_suggestions.SCRAPFLOOR }}">
-            <small>+</small>
-          </label>
+      <fieldset class="control-group">
+        <legend>Cele i priorytety</legend>
+        <p class="group-note">Jak chętnie bot wybiera dane zajęcie.
+          {{ weight_neutral }}% to zachowanie autora rdzenia; wyżej znaczy częściej.</p>
+        <div class="control-grid">
+          {% for key, label, icon in weight_keys %}
+            {{ slider(key, icon, label, weights[key], 'domyślnie ' ~ weight_neutral ~ '%',
+                      weight_min, weight_max, 5, '%', weight_neutral) }}
+          {% endfor %}
         </div>
-      </div>
-      <p class="muted">Stragany otwierają zawsze: Handlarz, bot bez Yang na mikstury, bot z pełnym
-        plecakiem i dropper pod presją plecaka — suwak rusza tylko resztę. Zmiana bywa widoczna
-        do pięciu minut, a status bota mówi, dlaczego stoi.</p>
-      <p class="muted">Domyślnie +4: przedmiot poniżej tego ulepszenia liczy się jako towar tylko wtedy,
-        gdy i tak jest wart yangów (rodzina wyceniana ręcznie) albo jest dla innej klasy niż bota — inaczej
-        trafia na stos złomu. Niższa wartość = więcej przedmiotów trafia na straganu jako prawdziwy ekwipunek
-        zamiast do przetopienia.</p>
+      </fieldset>
 
-      <h3>Społeczne i widoczność</h3>
-      <div class="behavior-extras">
-        <label class="switch">
-          <span>💬 Czynność nad głową bota</span>
-          <input type="hidden" name="CHAT" value="0">
-          <input type="checkbox" name="CHAT" value="1" {{ 'checked' if weights.CHAT }}>
-          <small>pokazuj w świecie</small>
-        </label>
-        <label class="switch">
-          <span>🌙 Noc na serwerze</span>
-          <input type="hidden" name="NIGHT" value="0">
-          <input type="checkbox" name="NIGHT" value="1" {{ 'checked' if weights.NIGHT }}>
-          <small>22:00–05:59 czasu serwera</small>
-        </label>
-        <label class="weight">
-          <span>⚔️ Wrogość między królestwami</span>
-          <input type="range" min="0" max="100" step="5" name="KINGDOMPVP"
-                 value="{{ weights.KINGDOMPVP }}" data-weight>
-          <output>{{ weights.KINGDOMPVP }}</output><small>% botów zaczepia bota innego królestwa na widok</small>
-        </label>
-      </div>
-      <p class="muted">Wrogość między królestwami domyślnie wyłączona (0%) — to świadoma decyzja operatora,
-        nie cecha pojedynczego bota: dotyczy tylko światów z włączonymi trzema królestwami
-        (<code>M2_PLAYERBOT_KINGDOMS=1</code>) i zmienia to, jak świat zachowuje się sam wobec siebie.</p>
-
-      <h3>Nauka</h3>
-      <div class="behavior-extras">
-        <label class="switch">
-          <span>📖 Szybkie czytanie ksiąg</span>
-          <input type="hidden" name="BOOKS" value="0">
-          <input type="checkbox" name="BOOKS" value="1" {{ 'checked' if weights.BOOKS }}>
-          <small>czyta od razu, bez dobowej przerwy gry</small>
-        </label>
-        <label class="weight">
-          <span>🛋️ Odpoczynek w mieście</span>
-          <input type="range" min="0" max="100" step="5" name="REST"
-                 value="{{ weights.REST }}" data-weight>
-          <output>{{ weights.REST }}</output><small>% botów po sprawach w mieście</small>
-        </label>
-      </div>
-
-      <h3>Eventy</h3>
-      <div class="behavior-extras">
-        <div class="chest-fields">
-          <span>🎁 Szkatułki Blasku <small>szansa w promilach</small></span>
-          <label>z potwora
-            <input name="CHEST" type="number" min="0" max="1000"
-                   value="{{ weights.CHEST if weights.CHEST is not none else chest_suggestions.CHEST }}"><small>‰</small>
-          </label>
-          <label>z Metina
-            <input name="CHEST_STONE" type="number" min="0" max="1000"
-                   value="{{ weights.CHEST_STONE if weights.CHEST_STONE is not none else chest_suggestions.CHEST_STONE }}"><small>‰</small>
-          </label>
+      <fieldset class="control-group">
+        <legend>Gospodarka straganów</legend>
+        <p class="group-note">Stragany i tak otwierają: Handlarz, bot bez Yang na mikstury,
+          bot z pełnym plecakiem i dropper pod presją plecaka — te ustawienia ruszają tylko resztę.</p>
+        <div class="control-grid">
+          {{ slider('SCRAP', '♻️', 'Boty złomiarze', weights.SCRAP,
+                    'odsetek straganiarzy sprzedających złom', 0, 100, 5, '%', 0) }}
+          {{ slider('PROFIT', '💹', 'Handlarze okazjami', weights.PROFIT,
+                    'kupują tanio, żeby odsprzedać drożej', 0, 100, 5, '%', 0) }}
+          {{ number('SCRAPFLOOR', '⚒️', 'Próg prawdziwego ekwipunku',
+                    weights.SCRAPFLOOR if weights.SCRAPFLOOR is not none else refine_floor_suggestions.SCRAPFLOOR,
+                    'Od tego ulepszenia przedmiot jest towarem, a nie złomem. Niżej = więcej sztuk trafia na ladę.',
+                    refine_floor_bounds[0], refine_floor_bounds[1], '+') }}
         </div>
-      </div>
+        <details class="group-more">
+          <summary>Co to zmienia w świecie?</summary>
+          <p>Zmiana bywa widoczna do pięciu minut, a status bota mówi, dlaczego stoi.
+            Przedmiot poniżej progu liczy się jako towar tylko wtedy, gdy i tak jest wart yangów
+            (rodzina wyceniana ręcznie) albo jest dla innej klasy niż bota — inaczej trafia na stos złomu.</p>
+        </details>
+      </fieldset>
 
-      <div class="button-row">
-        <button type="submit">Zapisz zachowanie</button>
+      <fieldset class="control-group">
+        <legend>Społeczne i widoczność</legend>
+        <div class="control-grid">
+          {{ toggle('CHAT', '💬', 'Czynność nad głową bota', 'pokazuj w świecie', weights.CHAT) }}
+          {{ toggle('NIGHT', '🌙', 'Noc na serwerze', '22:00–05:59 czasu serwera', weights.NIGHT) }}
+          {{ slider('KINGDOMPVP', '⚔️', 'Wrogość między królestwami', weights.KINGDOMPVP,
+                    'botów zaczepia bota innego królestwa', 0, 100, 5, '%', 0) }}
+        </div>
+        <details class="group-more">
+          <summary>Kiedy wrogość między królestwami ma sens?</summary>
+          <p>Domyślnie wyłączona (0%) — to decyzja o świecie, nie cecha pojedynczego bota.
+            Działa tylko tam, gdzie włączone są trzy królestwa
+            (<code>M2_PLAYERBOT_KINGDOMS=1</code>).</p>
+        </details>
+      </fieldset>
+
+      <fieldset class="control-group">
+        <legend>Nauka i odpoczynek</legend>
+        <div class="control-grid">
+          {{ toggle('BOOKS', '📖', 'Szybkie czytanie ksiąg', 'bez dobowej przerwy gry', weights.BOOKS) }}
+          {{ slider('REST', '🛋️', 'Odpoczynek w mieście', weights.REST,
+                    'botów zostaje w mieście po sprawach', 0, 100, 5, '%', 100) }}
+        </div>
+      </fieldset>
+
+      <fieldset class="control-group">
+        <legend>Eventy</legend>
+        <p class="group-note">Szansa na Szkatułkę Blasku, w promilach — 10‰ to jedna na sto sztuk.</p>
+        <div class="control-grid">
+          {{ number('CHEST', '🎁', 'Szkatułki z potwora',
+                    weights.CHEST if weights.CHEST is not none else chest_suggestions.CHEST,
+                    'szansa przy zabiciu zwykłego potwora', 0, 1000, '‰') }}
+          {{ number('CHEST_STONE', '🗿', 'Szkatułki z Metina',
+                    weights.CHEST_STONE if weights.CHEST_STONE is not none else chest_suggestions.CHEST_STONE,
+                    'szansa przy rozbiciu Metina', 0, 1000, '‰') }}
+        </div>
+      </fieldset>
+
+      <div class="form-bar">
+        <span class="muted" id="behavior-summary">Nic nie zmienione.</span>
         <button type="button" class="ghost" id="reset-weights">Przywróć {{ weight_neutral }}%</button>
+        <button type="submit">Zapisz zachowanie</button>
       </div>
     </form>
   </section>
@@ -386,6 +414,10 @@
       <label class="switch"><span>Rankingi z graczami</span>
         <input type="checkbox" name="rankings_include_players" value="1"
                {{ 'checked' if settings.rankings_include_players == '1' }}><small>licz też prawdziwych graczy</small></label>
+      <label class="switch"><span>Strona dla graczy</span>
+        <input type="checkbox" name="public_page" value="1"
+               {{ 'checked' if settings.public_page == '1' }}>
+        <small>publiczne <code>/serwer</code>: stan świata, rankingi i ceny na straganach, bez logowania</small></label>
       <label class="switch"><span>Ochrona hasłem</span>
         <input type="checkbox" name="auth_enabled" value="1"
                {{ 'checked' if settings.auth_enabled == '1' }}><small>włącz</small></label>

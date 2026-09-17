@@ -17,6 +17,9 @@ DEFAULT_SETTINGS = {
     # Rankings and the dashboard carousel count Playerbots only unless the
     # operator opens them to real players too.
     "rankings_include_players": "0",
+    # The pages a player may open without a password (/serwer). Off until the
+    # operator publishes them.
+    "public_page": "0",
     # A single-player suite needs no wizard and no passphrase - one player at
     # their own machine. An operator who publishes the panel turns auth on from
     # the settings page.
@@ -89,6 +92,15 @@ STATEMENTS = (
       UNIQUE KEY batch_player(batch, player_id),
       KEY pending(status, next_try),
       KEY recipient(player_id, vnum, status)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4""",
+
+    f"""CREATE TABLE IF NOT EXISTS {config.AUDIT_TABLE} (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      action VARCHAR(32) NOT NULL,
+      target VARCHAR(64) NOT NULL DEFAULT '',
+      detail VARCHAR(255) NOT NULL DEFAULT '',
+      KEY recent(at), KEY subject(target, at)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4""",
 
     # The game's own queue. Tuike creates it only if nothing else has: the

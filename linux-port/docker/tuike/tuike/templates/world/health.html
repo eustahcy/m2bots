@@ -1,0 +1,120 @@
+{% extends 'base.html' %}
+{% from 'partials/macros.html' import page_head, stat, character_link, empty_row with context %}
+{% from 'partials/icons.html' import icon %}
+{% block title %}Zdrowie botów{% endblock %}
+
+{% block content %}
+{{ page_head('KONTROLA ŚWIATA', 'Zdrowie botów',
+             'Ciche usterki: boty, których rdzeń nie zgłasza, stojące w miejscu i bez broni, '
+             ~ 'oraz to, jak świat zachowuje się od ostatniego restartu.') }}
+
+<section class="stat-grid">
+  {{ stat('W świecie teraz', thousands(live_bots),
+          'z ' ~ thousands(registered) ~ ' w rejestrze seeda' if registered else 'rdzeń raportuje je na żywo',
+          tone='tone-outdated' if registered and live_bots < registered * 0.9 else None,
+          icon_name='bot') }}
+  {{ stat('Możliwie zawieszone', thousands(stuck|length),
+          'stoją dłużej niż ustawiony próg', tone='tone-outdated' if stuck else 'tone-current',
+          icon_name='pin') }}
+  {{ stat('Bez broni', thousands(gaps.no_weapon),
+          'z ' ~ thousands(gaps.total) ~ ' botów w bazie',
+          tone='tone-outdated' if gaps.no_weapon else 'tone-current') }}
+  {{ stat('Bez zbroi', thousands(gaps.no_armour), 'nie założyły korpusu') }}
+  {{ stat('Zgony · 24 h', thousands(deaths.by_monster),
+          thousands(deaths.by_player) ~ ' od innych postaci', icon_name='activity') }}
+</section>
+
+<div class="dash-row dash-row-two">
+  <section class="card">
+    <header class="card-head">
+      <h2>{{ icon('clock', 18) }} Świat wokół ostatniego restartu</h2>
+      <span class="card-sub">{{ started_label }}</span>
+    </header>
+    {% if restart and restart.samples_after %}
+      <div class="stat-cells stat-cells-wide">
+        <div><span>Przed restartem</span><b>{{ thousands(restart.before) }}</b></div>
+        <div><span>Po restarcie</span><b>{{ thousands(restart.after) }}</b></div>
+        <div><span>Różnica</span>
+          <b class="{{ 'ok' if restart.change >= 0 else 'warn' }}">
+            {{ '+' if restart.change > 0 }}{{ thousands(restart.change) }}
+            {% if restart.percent is not none %}({{ restart.percent }}%){% endif %}</b></div>
+      </div>
+      <p class="muted">Średnia liczba botów w świecie w oknie sześciu godzin po każdej stronie
+        restartu, licząc z migawek kolektora. Duży spadek po aktualizacji znaczy, że część botów
+        nie wróciła do gry.</p>
+    {% else %}
+      <p class="muted">Kolektor nie ma jeszcze dość migawek po obu stronach restartu,
+        żeby było co porównywać.</p>
+    {% endif %}
+
+    {% if gaps.never_started %}
+      <p class="notice-line">{{ icon('bell', 16) }} {{ thousands(gaps.never_started) }} botów nadal
+        siedzi na 1 poziomie — jeśli to nie świeży seed, rdzeń ich nie prowadzi.</p>
+    {% endif %}
+    {% if empty_maps %}
+      <h3>Mapy bez botów</h3>
+      <p class="muted">{{ empty_maps|join(', ') }}.</p>
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <header class="card-head"><h2>{{ icon('pin', 18) }} Stojące w miejscu</h2>
+      <span class="card-sub">pierwsze {{ stuck|length }}</span></header>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Bot</th><th>Mapa</th><th class="numeric">Pozycja</th><th>Co robi</th></tr></thead>
+        <tbody>
+          {% for bot in stuck %}
+            <tr>
+              <td class="name-cell">{{ character_link(bot.id, bot.name) }} <small class="muted">Lv {{ bot.level }}</small></td>
+              <td>{{ bot.map_name }}</td>
+              <td class="numeric muted">{{ bot.x }}, {{ bot.y }}</td>
+              <td class="muted">{{ bot.status }}</td>
+            </tr>
+          {% else %}
+            {{ empty_row(4, 'Żaden bot nie stoi dłużej, niż powinien.') }}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<section class="panel">
+  <h2>Kto gdzie poluje</h2>
+  <p class="muted">Rozkład poziomów na mapach, prosto z rdzenia. Jeśli wysoki poziom siedzi na
+    mapie startowej — tak jak boty zaklinowane na M1 — widać to tutaj jako pasek w złym kolorze.</p>
+  <div class="table-wrap">
+    <table class="band-table">
+      <thead>
+        <tr><th>Mapa</th><th class="numeric">Botów</th><th class="numeric">Śr. poziom</th>
+            <th class="numeric">Zakres</th><th>Rozkład poziomów</th></tr>
+      </thead>
+      <tbody>
+        {% for row in population %}
+          <tr>
+            <td>{{ row.name }}</td>
+            <td class="numeric">{{ thousands(row.count) }}</td>
+            <td class="numeric">{{ row.average }}</td>
+            <td class="numeric muted">{{ row.lowest }}–{{ row.highest }}</td>
+            <td>
+              <span class="band-bar" title="{% for low, high in bands %}{{ low }}–{{ high if high < 999 else '∞' }}: {{ row.bands[loop.index0] }}%{{ ' · ' if not loop.last }}{% endfor %}">
+                {% for share in row.bands %}
+                  <i class="band-{{ loop.index0 }}" style="width:{{ share }}%"></i>
+                {% endfor %}
+              </span>
+            </td>
+          </tr>
+        {% else %}
+          {{ empty_row(5, 'Żaden rdzeń nie zgłasza teraz botów.') }}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <ul class="legend band-legend">
+    {% for low, high in bands %}
+      <li><i class="band-{{ loop.index0 }}"></i>{{ low }}–{{ high if high < 999 else '∞' }}</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}

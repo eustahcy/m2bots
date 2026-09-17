@@ -11,9 +11,10 @@ from time import time
 
 import pymysql
 
-from . import config, db, settings
+from . import cache, config, db, settings
 from .gamedata import bots as botdata
 from .gamedata.maps import MAP_BOUNDS
+from .text import game_text
 
 # pid, personality, ambition, role, in_party, goal, action, updated_ms,
 # map_index, x, y, hp, max_hp, status - fourteen columns after the header row.
@@ -164,4 +165,89 @@ def summary(roster):
         "stuck_bots": sum(1 for bot in roster if bot.get("stuck")),
         "horse_average": round(sum(horses) / count, 1) if count else 0,
         "horse_max": max(horses, default=0),
+    }
+
+
+# --- the map's own feed -------------------------------------------------------
+# The dashboard map used to ask for every bot in the world, with its name, goal
+# and labels, every one and a half seconds - two thirds of a megabyte per tick
+# per open tab, redrawn from scratch. What a moving map actually needs each
+# tick is a position; a name and a level change far more slowly than that.
+DIRECTORY_SECONDS = 30
+STUCK_SECONDS = 15
+# Flags, so a row is five numbers and a name rather than a dozen keys.
+FLAG_PARTY, FLAG_STUCK, FLAG_METIN = 1, 2, 4
+
+
+@cache.ttl(DIRECTORY_SECONDS)
+def _directory():
+    """Who the Playerbots are: id -> (name, level). Rarely changes."""
+    rows = db.rows(
+        "SELECT p.id, p.name, p.level FROM player.player p"
+        " LEFT JOIN account.account a ON a.id = p.account_id"
+        " WHERE LEFT(a.login, 10) = 'playerbot_' OR p.name LIKE 'bot%%'"
+    )
+    return {row["id"]: (game_text(row["name"]), int(row["level"] or 0)) for row in rows}
+
+
+@cache.ttl(STUCK_SECONDS)
+def _stuck_ids(minutes):
+    """Bots that have not moved in `minutes` and are not idling on purpose.
+
+    Its own query against the collector's snapshots, so the map's fast path
+    does not run it on every tick.
+    """
+    current = statuses()
+    earlier = _earlier_positions(list(current), minutes)
+    return frozenset(
+        pid for pid, state in current.items()
+        if _looks_stuck(earlier.get(pid), state, botdata.STUCK_DISTANCE_SQUARED)
+    )
+
+
+def map_snapshot(map_index, current_settings=None):
+    """Everything the live map needs for one map, plus the world's totals.
+
+    Positions arrive as percentages of the map picture: the browser gets a
+    number it can use directly, and the bounds table stays on the server.
+    """
+    current = statuses()
+    directory = _directory()
+    stuck = _stuck_ids(settings.stuck_minutes(current_settings))
+    bounds = MAP_BOUNDS.get(int(map_index or 0))
+    rows, counts = [], {}
+    levels, party, world = [], 0, 0
+    for pid, state in current.items():
+        known = directory.get(pid)
+        if not known or state["map_index"] not in MAP_BOUNDS:
+            continue
+        name, level = known
+        world += 1
+        levels.append(level)
+        if state["in_party"]:
+            party += 1
+        counts[state["map_index"]] = counts.get(state["map_index"], 0) + 1
+        if not bounds or state["map_index"] != int(map_index):
+            continue
+        flags = (FLAG_PARTY if state["in_party"] else 0) | (FLAG_STUCK if pid in stuck else 0)
+        if state.get("goal") == botdata.METIN_GOAL and state.get("action") == botdata.FIGHT_ACTION:
+            flags |= FLAG_METIN
+        rows.append([
+            pid,
+            round(max(0.0, min(100.0, (state["x"] - bounds[0]) * 100 / bounds[2])), 2),
+            round(max(0.0, min(100.0, (state["y"] - bounds[1]) * 100 / bounds[3])), 2),
+            level, flags, name,
+        ])
+    return {
+        "map": int(map_index or 0),
+        "bots": rows,
+        "summary": {
+            "bots": world,
+            "average_level": round(sum(levels) / len(levels), 1) if levels else 0,
+            "max_level": max(levels, default=0),
+            "party_bots": party,
+            "stuck_bots": len(stuck),
+            "maps": [{"map_index": index, "count": count}
+                     for index, count in sorted(counts.items(), key=lambda pair: -pair[1])],
+        },
     }

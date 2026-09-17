@@ -424,8 +424,13 @@ def top_by_level(limit=QUICK_SIZE):
     return rows
 
 
+@cache.ttl(60)
 def global_leader_id():
-    """The single highest bot in the world, highlighted wherever it appears."""
+    """The single highest bot in the world, highlighted wherever it appears.
+
+    Remembered for a minute: the live map asks for it on every tick, and the
+    highest bot in the world does not change from second to second.
+    """
     return db.one(
         f"SELECT id FROM player.player WHERE {engine.BOT_IS_BARE}"
         " ORDER BY level DESC, exp DESC LIMIT 1"

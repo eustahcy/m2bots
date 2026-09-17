@@ -96,7 +96,91 @@
     });
   });
 
-  // Every slider shows its own value.
+  /* --- the behaviour controls --------------------------------------------
+   * Each card paints its own track, marks itself when it sits away from the
+   * core's default, and the bar at the foot of the form counts how many are
+   * moved. The form is not submitted from here - saving stays a click. */
+  const behaviorForm = $('behavior-form');
+  if (behaviorForm) {
+    const cards = [...behaviorForm.querySelectorAll('.control')];
+    const dirtyBadge = $('behavior-dirty');
+    const summary = $('behavior-summary');
+
+    const share = (slider) => {
+      const low = Number(slider.min);
+      const span = Number(slider.max) - low || 1;
+      return (value) => `${((Number(value) - low) * 100) / span}%`;
+    };
+
+    function paint(card) {
+      const slider = card.querySelector('input[type="range"]');
+      if (!slider) return;
+      const position = share(slider);
+      const output = card.querySelector('output');
+      slider.style.setProperty('--fill', position(slider.value));
+      slider.style.setProperty('--default', position(card.dataset.default));
+      if (output) output.childNodes[0].nodeValue = slider.value;
+    }
+
+    function moved(card) {
+      const slider = card.querySelector('input[type="range"]');
+      if (slider) return Number(slider.value) !== Number(card.dataset.default);
+      const box = card.querySelector('input[type="checkbox"]');
+      if (box) return box.checked !== box.defaultChecked;
+      const number = card.querySelector('input[type="number"]');
+      return number ? number.value !== number.defaultValue : false;
+    }
+
+    function refresh() {
+      let changed = 0;
+      cards.forEach((card) => {
+        paint(card);
+        const off = moved(card);
+        card.classList.toggle('is-changed', off);
+        if (off) changed += 1;
+      });
+      const nothing = changed === 0;
+      if (dirtyBadge) {
+        dirtyBadge.hidden = nothing;
+        dirtyBadge.textContent = `${changed} poza domyślnym`;
+      }
+      if (summary) {
+        summary.textContent = nothing
+          ? 'Wszystko na wartościach domyślnych.'
+          : `Zmienione ustawienia: ${changed}. Zapis wchodzi w życie do pięciu sekund.`;
+      }
+    }
+
+    cards.forEach((card) => {
+      card.addEventListener('input', () => { paint(card); refresh(); });
+      const reset = card.querySelector('[data-reset]');
+      if (reset) {
+        reset.addEventListener('click', () => {
+          const slider = card.querySelector('input[type="range"]');
+          if (slider) slider.value = card.dataset.default;
+          paint(card);
+          refresh();
+        });
+      }
+    });
+
+    // "Przywróć domyślne" puts every card back to the default it states - a
+    // goal weight to neutral, and the 0-100 settings to their own defaults,
+    // which are different numbers and always were.
+    const resetAll = $('reset-weights');
+    if (resetAll) {
+      resetAll.addEventListener('click', () => {
+        cards.forEach((card) => {
+          const slider = card.querySelector('input[type="range"]');
+          if (slider) slider.value = card.dataset.default;
+        });
+        refresh();
+      });
+    }
+    refresh();
+  }
+
+  // Sliders elsewhere on the page (rates, respawns) still just echo their value.
   document.querySelectorAll('[data-weight]').forEach((slider) => {
     const output = slider.parentElement.querySelector('output');
     if (!output) return;
@@ -149,16 +233,4 @@
     activateTab(ANCHOR_TAB[requested] || requested || tabButtons[0].dataset.tab);
   }
 
-  const reset = $('reset-weights');
-  if (reset) {
-    reset.addEventListener('click', () => {
-      // Only the 25-250 goal weights go back to neutral. SCRAP and REST are
-      // 0-100 settings that mean something else entirely at 100.
-      document.querySelectorAll('.weight-grid [data-weight]').forEach((slider) => {
-        slider.value = 100;
-        const output = slider.parentElement.querySelector('output');
-        if (output) output.value = 100;
-      });
-    });
-  }
 })();

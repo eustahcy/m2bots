@@ -64,7 +64,12 @@ RANK_ROW = {"id": 7, "name": "botarek7", "level": 42, "gold": 987654, "score": 5
 # (fragment that must appear in the SQL, rows to return). First match wins, so
 # the most specific fragments come first.
 ROUTES = [
-    # The character profile first: its FROM clause also matches the broader
+    # World health first: its subqueries mention player.item, which the
+    # inventory fragments further down would otherwise swallow.
+    ("AS no_weapon", [{"no_weapon": 4, "no_armour": 2, "never_started": 0, "total": 2500}]),
+    ("common.playerbot_seed_state", [{"count": 2500}]),
+    ("AS by_monster", [{"by_monster": 1793, "by_player": 12}]),
+    # The character profile next: its FROM clause also matches the broader
     # player fragments further down.
     ("SELECT p.id, p.account_id, p.name", [dict(CHARACTER)]),
     ("AS yang FROM player.player", [{"yang": 99887766}]),
@@ -150,8 +155,16 @@ ROUTES = [
                          "bosses": 1, "refine7": 2, "detail": b"x"}]),
     ("FROM log.log WHERE who", [{"time": NOW, "type": b"ITEM", "how": b"GET",
                                  "hint": b"co\xb6", "what": b"1"}]),
-    ("FROM account.account a", [{"id": 3, "login": "playerbot_003", "email": "",
-                                 "empire": 2, "create_time": NOW, "last_play": NOW}]),
+    ("FROM account.account a", [{"id": 3, "login": "playerbot_003", "email": "", "status": "OK",
+                                 "empire": 2, "create_time": NOW, "last_play": NOW, "cash": 120}]),
+    # One account's card: its login history and the accounts sharing its address.
+    ("FROM log.loginlog l LEFT JOIN player.player p",
+     [{"type": b"LOGIN", "time": NOW, "ip": "5.173.145.12", "hwid": "69746E6500000",
+       "pid": 7, "playtime": 162, "name": "botarek7", "level": 42}]),
+    ("FROM log.loginlog other", [{"account_id": 4, "login": "gracz", "status": "OK",
+                                  "last_seen": NOW, "ips": "5.173.145.12", "same_machine": 1}]),
+    ("web_tuike_audit", [{"at": NOW, "action": "account_block", "target": "gracz",
+                          "detail": "status=BLOCK"}]),
     ("FROM player.player p LEFT JOIN account.account a ON a.id = p.account_id",
      [{"id": 7, "name": "botarek7", "level": 42, "horse_level": 11, "playtime": 4321,
        "job": 2, "riding": 7}]),
@@ -278,11 +291,14 @@ PAGES = [
     ("/economy", 200), ("/economy?q=miecz", 200), ("/economy/item/189", 200),
     ("/economy/shops", 200), ("/economy/shop/7", 200), ("/economy/shop/999999", 404),
     ("/items", 200), ("/items?type=1&q=miecz", 200),
-    ("/maps", 200), ("/season", 200), ("/system", 200),
+    ("/maps", 200), ("/season", 200), ("/zdrowie", 200), ("/system", 200),
     ("/manage", 200), ("/manage/items", 200),
     ("/accounts", 200), ("/accounts?q=bot&display=all", 200),
+    ("/account/3", 200), ("/account/999999", 404),
     ("/gm-commands", 200), ("/changelog", 200),
     ("/setup", 302), ("/login", 302),
+    # The player-facing pages are off until the operator publishes them.
+    ("/serwer/", 404), ("/serwer/stragany", 404),
     ("/api/live-bots", 200), ("/api/news", 200), ("/api/system", 200),
     ("/api/manage-status", 200), ("/api/heat-events?type=metins", 200),
     ("/api/heat-events?type=nope", 400),
@@ -315,7 +331,8 @@ def run():
     for path in ("/manage/settings", "/manage/behavior", "/manage/restart",
                  "/manage/restart-config", "/manage/clear-stale", "/manage/update",
                  "/manage/language", "/accounts",
-                 "/player/7/action", "/player/7/gm", "/player/7/warp-me", "/player/7/warp-shop"):
+                 "/player/7/action", "/player/7/gm", "/player/7/warp-me", "/player/7/warp-shop",
+                 "/account/3/block", "/account/3/password"):
         response = client.post(path, data={})
         if response.status_code != 403:
             failures.append((path, f"POST bez CSRF dal {response.status_code}, oczekiwano 403", ""))
@@ -330,7 +347,7 @@ def run():
         print(f"{path}  ->  {why}")
         print(detail)
     sys.exit(1)
-  print(f"Wszystkie {len(PAGES)} stron i 12 testow CSRF przeszlo.")
+  print(f"Wszystkie {len(PAGES)} stron i 14 testow CSRF przeszlo.")
 
 
 if __name__ == "__main__":

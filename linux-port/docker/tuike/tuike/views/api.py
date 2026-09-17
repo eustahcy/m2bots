@@ -41,6 +41,28 @@ def live_bots():
     }
 
 
+@bp.route("/live-map")
+@login_required
+def live_map():
+    """One map's bots, as the moving map wants them: positions and little else.
+
+    The map polls this every second, so it carries only what changes that
+    often. Names and levels come from a cached directory, and the world totals
+    beside the map are counted in the same pass.
+    """
+    try:
+        map_index = int(request.args.get("map", 0))
+    except ValueError:
+        abort(400, "Zła mapa.")
+    if map_index not in MAP_BOUNDS:
+        abort(400, "Ta mapa nie jest rysowana.")
+    snapshot = live.map_snapshot(map_index, settings.read())
+    for row in snapshot["summary"]["maps"]:
+        row["name"] = MAP_NAMES.get(row["map_index"], f"Mapa #{row['map_index']}")
+    return {"ok": True, "t": int(datetime.now().timestamp() * 1000),
+            "leader_id": rankings.global_leader_id(), **snapshot}
+
+
 @bp.route("/news")
 @login_required
 def news():

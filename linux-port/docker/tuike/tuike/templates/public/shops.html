@@ -1,0 +1,75 @@
+{% extends 'public/base.html' %}
+{# Imports live in the template that uses them: a parent's imports are not in
+   scope inside a child's block. #}
+{% from 'partials/hero.html' import hero_art %}
+{% from 'partials/icons.html' import icon %}
+{% from 'partials/macros.html' import stat, empty_row with context %}
+{% block title %}Stragany{% endblock %}
+
+{% block content %}
+<section class="hero hero-page public-hero">
+  {{ hero_art() }}
+  <div class="hero-body">
+    <p class="hero-eyebrow">RYNEK</p>
+    <h1>Stragany</h1>
+    <p class="hero-tagline">Co stoi na ladach i po ile schodzi. Ceny są prawdziwe — pochodzą
+      z dziennika sprzedaży sklepów offline.</p>
+  </div>
+</section>
+
+<section class="stat-grid">
+  {{ stat('Otwarte stragany', thousands(overview.shops), 'w tej chwili', icon_name='store') }}
+  {{ stat('Wystawione przedmioty', thousands(overview.listed), 'na wszystkich ladach', icon_name='box') }}
+  {{ stat('Transakcje · 24 h', thousands(overview.trades_24h), 'zakończone sprzedaże', icon_name='activity') }}
+  {{ stat('Obrót · 24 h', thousands(overview.turnover_24h), 'zapłacone Yang', icon_name='coins') }}
+</section>
+
+<div class="dash-row dash-row-two">
+  <section class="card">
+    <header class="card-head"><h2>Najczęściej kupowane · 7 dni</h2></header>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Przedmiot</th><th class="numeric">Sprzedaże</th>
+                   <th class="numeric">Średnia cena</th></tr></thead>
+        <tbody>
+          {% for item in top_items %}
+            <tr>
+              <td class="item-cell">
+                {% if item_icon(item.vnum) %}
+                  <img class="item-icon" src="{{ item_icon(item.vnum) }}" alt="" loading="lazy">
+                {% endif %}{{ item.item_name }}</td>
+              <td class="numeric">{{ item.sales }}</td>
+              <td class="numeric">{{ thousands(item.avg_price) }}</td>
+            </tr>
+          {% else %}
+            {{ empty_row(3, 'W tym tygodniu nic się nie sprzedało.') }}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <header class="card-head"><h2>Ostatnie sprzedaże</h2></header>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Przedmiot</th><th class="numeric">Cena</th><th class="numeric">Kiedy</th></tr></thead>
+        <tbody>
+          {% for trade in trades %}
+            <tr>
+              <td class="item-cell">
+                {% if item_icon(trade.vnum) %}
+                  <img class="item-icon" src="{{ item_icon(trade.vnum) }}" alt="" loading="lazy">
+                {% endif %}{{ trade.item_name }}{% if trade.count > 1 %} ×{{ trade.count }}{% endif %}</td>
+              <td class="numeric">{{ thousands(trade.yang) }}</td>
+              <td class="numeric muted">{{ trade.time }}</td>
+            </tr>
+          {% else %}
+            {{ empty_row(3, 'Żaden stragan jeszcze niczego nie sprzedał.') }}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}

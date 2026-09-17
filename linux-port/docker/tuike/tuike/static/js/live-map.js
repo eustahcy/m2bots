@@ -1,10 +1,15 @@
 /* The live world map on the dashboard.
  *
- * Two modes share one stage: bot positions, refreshed every one and a half
- * seconds, and a 24-hour heat map of logged events. Everything the page needs
- * to draw a map - its picture and its aspect ratio - is rendered into the
- * <option> by the server, so this file holds no table of maps to fall out of
- * step with the one in Python.
+ * The map is continuous, not a slideshow. Each bot keeps its own element for
+ * as long as it is on screen and is moved with a transform that eases over the
+ * gap between two ticks, so a bot walking across Yongbi glides instead of
+ * jumping every second. Rebuilding the whole layer each tick - which is what
+ * this did before - threw away that motion, discarded hover and cost a full
+ * relayout for a thousand dots.
+ *
+ * The feed matches: /api/live-map returns one map's positions as percentages
+ * plus the world's totals, a few kilobytes, rather than every bot in the world
+ * with all its labels.
  */
 (() => {
   const stage = document.getElementById('world-map');
@@ -20,19 +25,24 @@
   const caption = $('map-caption');
   const count = $('live-count');
 
-  const LIVE_INTERVAL = 1500;
+  const TICK = 1000;
   const STATUS_INTERVAL = 30000;
   const AUTOPLAY_INTERVAL = 8000;
   const IDLE_BEFORE_AUTOPLAY = 15000;
   const RANKING_SIZE = 10;
   const ACTIVITY_ROWS = 6;
+  const FLAG_PARTY = 1;
+  const FLAG_STUCK = 2;
+  const FLAG_METIN = 4;
 
+  // id -> {node, label, x, y, flags, level, name}
+  const points = new Map();
   let snapshot = [];
   let leaderId = null;
   let levelFilter = 'all';
   let lastInteraction = Date.now();
+  let missing = 0;
 
-  /* --- helpers ----------------------------------------------------------- */
   const escape = (value) => String(value).replace(/[&<>"']/g, (character) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
   }[character]));
@@ -54,146 +64,161 @@
       ? `linear-gradient(#00000014, #00000014), url('${option.dataset.background}')`
       : 'none';
     caption.textContent = option.textContent.trim();
-    stage.querySelectorAll('.bot-point, .heat-point').forEach((node) => node.remove());
   }
 
-  // Percentages, clamped so a point on a map edge stays visible.
-  const place = (value) => `${Math.max(1, Math.min(99, value))}%`;
+  function clearPoints() {
+    points.forEach((point) => point.node.remove());
+    points.clear();
+  }
 
-  /* --- what a bot is busy with ------------------------------------------- */
-  // The goal says what a bot is trying to achieve and the action what it is
-  // doing this second; the goal is the better summary when it has one.
-  const GOAL_SUMMARY = {
-    2: 'Wybiera profesję', 3: 'Zdobywa ekwipunek', 4: 'Uzupełnia zapasy',
-    5: 'Ulepsza ekwipunek', 6: 'Rozwija umiejętności', 7: 'Poluje na Metiny',
-    8: 'Gra w grupie', 9: 'Robi Biologa', 10: 'Misje polowania', 11: 'Rozwija konia',
-  };
-  const ACTION_SUMMARY = {
-    2: 'Walczy', 3: 'Zbiera łup', 4: 'Regeneruje się', 6: 'Handluje',
-    7: 'Ulepsza ekwipunek', 8: 'Rozwija umiejętności', 9: 'Ulepsza ekwipunek',
-    10: 'Gra w grupie', 11: 'Robi Biologa', 12: 'Rozwija konia',
-    13: 'Prowadzi stragan', 14: 'Łowi ryby', 15: 'Przegląda stragany',
-    17: 'Odpoczywa w mieście', 18: 'Kopie rudę',
-  };
+  function clearHeat() {
+    stage.querySelectorAll('.heat-point').forEach((node) => node.remove());
+  }
 
-  const activityOf = (bot) => GOAL_SUMMARY[bot.goal]
-    || ACTION_SUMMARY[bot.action]
-    || (bot.action === 1 ? 'Przemieszcza się' : 'Walczy');
-
+  /* --- what a bot is busy with -------------------------------------------
+   * The map feed carries positions, not goals, so activity is summarised from
+   * what the map itself can see: fighting a Metin, in a party, stuck, or
+   * simply out in the world. */
   function renderActivities(bots) {
     const box = $('live-activity');
     if (!box) return;
-    const grouped = bots.reduce((all, bot) => {
-      const label = activityOf(bot);
-      all[label] = (all[label] || 0) + 1;
-      return all;
-    }, {});
-    let entries = Object.entries(grouped).sort((a, b) => b[1] - a[1]);
-    if (entries.length > ACTIVITY_ROWS) {
-      const rest = entries.slice(ACTIVITY_ROWS - 1).reduce((sum, entry) => sum + entry[1], 0);
-      entries = entries.slice(0, ACTIVITY_ROWS - 1);
-      if (rest) entries.push(['Pozostałe', rest]);
-    }
+    const groups = [
+      ['Walczy z Metinem', bots.filter((bot) => bot.flags & FLAG_METIN).length],
+      ['Gra w grupie', bots.filter((bot) => (bot.flags & FLAG_PARTY) && !(bot.flags & FLAG_METIN)).length],
+      ['Możliwie zawieszone', bots.filter((bot) => bot.flags & FLAG_STUCK).length],
+      ['W drodze przez świat', bots.filter((bot) => !bot.flags).length],
+    ].filter(([, number]) => number > 0).slice(0, ACTIVITY_ROWS);
     const total = bots.length || 1;
-    box.innerHTML = entries.map(([label, number]) => `
+    box.innerHTML = groups.map(([label, number]) => `
       <div class="activity-row">
         <span>${escape(label)}</span><b>${number}</b>
         <i style="--share:${Math.max(4, Math.round(number / total * 100))}%"></i>
       </div>`).join('') || '<p class="muted">Brak aktywnych botów na tej mapie.</p>';
   }
 
-  /* --- live positions ----------------------------------------------------- */
+  /* --- the moving layer --------------------------------------------------- */
+  function pointClass(flags) {
+    return 'bot-point'
+      + ((flags & FLAG_PARTY) ? ' is-party' : '')
+      + ((flags & FLAG_STUCK) ? ' is-stuck' : '')
+      + ((flags & FLAG_METIN) ? ' is-metin' : '');
+  }
+
+  function pointTitle(bot) {
+    return `${bot.name} · poziom ${bot.level}`
+      + ((bot.flags & FLAG_PARTY) ? ' · w grupie' : '')
+      + ((bot.flags & FLAG_STUCK) ? ' · możliwie zawieszony' : '')
+      + ((bot.flags & FLAG_METIN) ? ' · walczy z Metinem' : '');
+  }
+
+  function place(point, bot, animate) {
+    // The transition is set per move: a bot that has just appeared, or one the
+    // feed skipped, must not slide in from wherever the last bot stood.
+    point.node.style.transitionDuration = animate ? `${TICK + 120}ms` : '0ms';
+    point.node.style.left = `${bot.x}%`;
+    point.node.style.top = `${bot.y}%`;
+  }
+
   function renderLive() {
     if (mode.value !== 'live') return;
-    dressStage();
-    const mapIndex = Number(mapSelect.value);
     const needle = search.value.trim().toLowerCase();
-    const bots = snapshot.filter((bot) => bot.map_index === mapIndex
-      && inLevelBand(bot.level)
-      && (!partyOnly.checked || bot.in_party)
+    const visible = snapshot.filter((bot) => inLevelBand(bot.level)
+      && (!partyOnly.checked || (bot.flags & FLAG_PARTY))
       && (!needle || bot.name.toLowerCase().includes(needle)));
+    const seen = new Set();
 
-    const fragment = document.createDocumentFragment();
-    bots.forEach((bot) => {
-      const point = document.createElement('a');
-      point.className = 'bot-point'
-        + (bot.in_party ? ' is-party' : '')
-        + (bot.stuck ? ' is-stuck' : '')
-        + (bot.fighting_metin ? ' is-metin' : '');
-      point.href = `/player/${bot.id}`;
-      point.style.left = place(bot.px);
-      point.style.top = place(bot.py);
-      point.title = `${bot.name} · poziom ${bot.level}`
-        + (bot.in_party ? ' · w grupie' : '')
-        + (bot.stuck ? ' · możliwie zawieszony' : '')
-        + (bot.fighting_metin ? ' · walczy z Metinem' : '');
-      if (showNames.checked) point.innerHTML = `<em>${escape(bot.name)} (${bot.level})</em>`;
-      fragment.append(point);
+    visible.forEach((bot) => {
+      seen.add(bot.id);
+      let point = points.get(bot.id);
+      if (!point) {
+        const node = document.createElement('a');
+        node.className = pointClass(bot.flags);
+        node.href = `/player/${bot.id}`;
+        point = { node, flags: bot.flags, named: false };
+        points.set(bot.id, point);
+        stage.append(node);
+        place(point, bot, false);
+        // One frame later, so the browser has the starting position before the
+        // transition is allowed to matter.
+        requestAnimationFrame(() => place(point, bot, true));
+      } else {
+        place(point, bot, true);
+      }
+      if (point.flags !== bot.flags) {
+        point.node.className = pointClass(bot.flags);
+        point.flags = bot.flags;
+      }
+      point.node.title = pointTitle(bot);
+      const wantsName = showNames.checked;
+      if (wantsName !== point.named || (wantsName && point.name !== bot.name)) {
+        point.node.innerHTML = wantsName ? `<em>${escape(bot.name)} (${bot.level})</em>` : '';
+        point.named = wantsName;
+        point.name = bot.name;
+      }
     });
-    stage.append(fragment);
 
-    const average = bots.length
-      ? (bots.reduce((sum, bot) => sum + bot.level, 0) / bots.length).toFixed(1) : '—';
-    $('stat-visible').textContent = bots.length;
-    $('stat-party').textContent = bots.filter((bot) => bot.in_party).length;
+    points.forEach((point, id) => {
+      if (seen.has(id)) return;
+      point.node.remove();
+      points.delete(id);
+    });
+
+    const average = visible.length
+      ? (visible.reduce((sum, bot) => sum + bot.level, 0) / visible.length).toFixed(1) : '—';
+    $('stat-visible').textContent = visible.length;
+    $('stat-party').textContent = visible.filter((bot) => bot.flags & FLAG_PARTY).length;
     $('stat-average').textContent = average;
-    $('stat-max').textContent = bots.length ? Math.max(...bots.map((bot) => bot.level)) : '—';
-    count.textContent = `${bots.length} botów na mapie`;
+    $('stat-max').textContent = visible.length ? Math.max(...visible.map((bot) => bot.level)) : '—';
+    count.textContent = `${visible.length} botów na mapie`;
 
-    const ranked = [...bots]
+    const ranked = [...visible]
       .sort((a, b) => b.level - a.level || a.name.localeCompare(b.name, 'pl'))
       .slice(0, RANKING_SIZE);
     $('live-ranking').innerHTML = ranked.map((bot, index) => `
       <a class="${bot.id === leaderId ? 'is-leader' : ''}" href="/player/${bot.id}">
         <b>#${index + 1}</b>${escape(bot.name)}
-        ${bot.in_party ? '<mark>PT</mark>' : ''}${bot.stuck ? '<mark>⚠</mark>' : ''}
+        ${(bot.flags & FLAG_PARTY) ? '<mark>PT</mark>' : ''}${(bot.flags & FLAG_STUCK) ? '<mark>⚠</mark>' : ''}
         <span>Lv ${bot.level}</span>
       </a>`).join('') || '<p class="muted">Brak botów spełniających filtr.</p>';
 
-    renderActivities(bots);
+    renderActivities(visible);
   }
 
-  function renderOverviewMaps() {
+  function renderOverview(summary) {
+    const set = (id, value) => { const node = $(id); if (node) node.textContent = value; };
+    set('overview-bots', summary.bots);
+    set('overview-average', summary.average_level);
+    set('overview-party', summary.party_bots);
+    set('overview-max', summary.max_level);
+    set('overview-stuck', summary.stuck_bots);
     const box = $('overview-maps');
     if (!box) return;
-    const counts = new Map();
-    [...mapSelect.options].forEach((option) => counts.set(Number(option.value), 0));
-    snapshot.forEach((bot) => {
-      if (counts.has(bot.map_index)) counts.set(bot.map_index, counts.get(bot.map_index) + 1);
-    });
-    const names = new Map([...mapSelect.options].map((o) => [Number(o.value), o.textContent.trim()]));
-    const rows = [...counts.entries()].sort((a, b) => b[1] - a[1]);
-    box.innerHTML = '<h4>Boty na mapach</h4>' + rows.map(([index, number]) =>
-      `<div><span>${escape(names.get(index) || `Mapa #${index}`)}</span><b>${number}</b></div>`)
-      .join('');
+    box.innerHTML = '<h4>Boty na mapach</h4>' + summary.maps.map((row) =>
+      `<div><span>${escape(row.name)}</span><b>${row.count}</b></div>`).join('');
   }
 
-  async function loadLive() {
+  async function tick() {
+    if (mode.value !== 'live' || document.hidden) return;
     try {
-      const response = await fetch('/api/live-bots', { cache: 'no-store' });
+      const response = await fetch(`/api/live-map?map=${encodeURIComponent(mapSelect.value)}`,
+                                   { cache: 'no-store' });
       const data = await response.json();
       if (!data.ok) return;
+      missing = 0;
+      stage.classList.remove('is-stale');
       leaderId = data.leader_id;
-      snapshot = data.bots.map((bot) => {
-        const bound = data.bounds[String(bot.map_index)] || data.bounds[bot.map_index];
-        if (!bound) return bot;
-        return { ...bot,
-                 px: (bot.x - bound[0]) / bound[2] * 100,
-                 py: (bot.y - bound[1]) / bound[3] * 100 };
-      });
-
-      const total = snapshot.length;
-      const average = total
-        ? (snapshot.reduce((sum, bot) => sum + bot.level, 0) / total).toFixed(1) : '0';
-      $('overview-bots').textContent = total;
-      $('overview-average').textContent = average;
-      $('overview-party').textContent = snapshot.filter((bot) => bot.in_party).length;
-      $('overview-max').textContent = total ? Math.max(...snapshot.map((bot) => bot.level)) : '0';
-      $('overview-stuck').textContent = snapshot.filter((bot) => bot.stuck).length;
-      renderOverviewMaps();
+      // A tick for another map is a reply that overtook a map change.
+      if (Number(data.map) !== Number(mapSelect.value)) return;
+      snapshot = data.bots.map(([id, x, y, level, flags, name]) => ({ id, x, y, level, flags, name }));
+      renderOverview(data.summary);
       renderLive();
     } catch (_) {
-      count.textContent = 'Brak danych na żywo';
+      // One missed tick is a hiccup; several mean the panel lost the world.
+      missing += 1;
+      if (missing >= 3) {
+        stage.classList.add('is-stale');
+        count.textContent = 'Brak danych na żywo';
+      }
     }
   }
 
@@ -201,6 +226,8 @@
   async function loadHeat() {
     if (mode.value === 'live') return;
     dressStage();
+    clearPoints();
+    clearHeat();
     try {
       const response = await fetch(`/api/heat-events?type=${encodeURIComponent(mode.value)}`,
                                    { cache: 'no-store' });
@@ -211,11 +238,12 @@
       const events = data.events.filter((event) => event.map_index === mapIndex);
 
       const fragment = document.createDocumentFragment();
+      const clamp = (value) => `${Math.max(1, Math.min(99, value))}%`;
       events.forEach((event) => {
         const dot = document.createElement('i');
         dot.className = 'heat-point';
-        dot.style.left = place((event.x - bound[0]) / bound[2] * 100);
-        dot.style.top = place((event.y - bound[1]) / bound[3] * 100);
+        dot.style.left = clamp((event.x - bound[0]) / bound[2] * 100);
+        dot.style.top = clamp((event.y - bound[1]) / bound[3] * 100);
         dot.title = `${event.name || 'Zdarzenie'} · ${String(event.time).slice(11, 16)}`;
         fragment.append(dot);
       });
@@ -238,7 +266,13 @@
     }
   }
 
-  const refresh = () => (mode.value === 'live' ? renderLive() : loadHeat());
+  function switchMap() {
+    clearPoints();
+    clearHeat();
+    snapshot = [];
+    dressStage();
+    if (mode.value === 'live') tick(); else loadHeat();
+  }
 
   /* --- the restart line and the rate readouts ----------------------------- */
   async function refreshStatus() {
@@ -270,21 +304,30 @@
     });
   });
 
-  [mode, mapSelect, search, showNames, partyOnly].forEach((node) => {
-    node.addEventListener('input', () => { noteInteraction(); refresh(); });
+  mapSelect.addEventListener('input', () => { noteInteraction(); switchMap(); });
+  mode.addEventListener('input', () => { noteInteraction(); switchMap(); });
+  [search, showNames, partyOnly].forEach((node) => {
+    node.addEventListener('input', () => { noteInteraction(); renderLive(); });
   });
   autoplay.addEventListener('input', noteInteraction);
   window.addEventListener('pointerdown', noteInteraction, { passive: true });
+  // Coming back to a tab that has been hidden for a while: no sliding in from
+  // wherever every bot stood when the tab went to sleep.
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) return;
+    points.forEach((point) => { point.node.style.transitionDuration = '0ms'; });
+    tick();
+  });
 
   setInterval(() => {
     if (!autoplay.checked || Date.now() - lastInteraction < IDLE_BEFORE_AUTOPLAY) return;
     mapSelect.selectedIndex = (mapSelect.selectedIndex + 1) % mapSelect.options.length;
-    refresh();
+    switchMap();
   }, AUTOPLAY_INTERVAL);
 
   dressStage();
-  loadLive();
+  tick();
   refreshStatus();
-  setInterval(() => { if (mode.value === 'live') loadLive(); }, LIVE_INTERVAL);
+  setInterval(tick, TICK);
   setInterval(refreshStatus, STATUS_INTERVAL);
 })();

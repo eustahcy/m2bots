@@ -108,7 +108,9 @@
       {% for account in accounts %}
         <tr>
           <td class="muted">{{ account.id }}</td>
-          <td>{{ account.login }}</td>
+          <td><a href="{{ url_for('accounts.detail', account_id=account.id) }}">{{ account.login }}</a>
+            {% if account.status and account.status != 'OK' %}
+              <span class="tag">{{ account.status|lower }}</span>{% endif %}</td>
           <td>{{ account.email or '—' }}</td>
           <td>{{ empire_badge(account.empire) }}</td>
           <td>{{ account.create_time }}</td>
@@ -119,6 +121,19 @@
       {% endfor %}
     </tbody>
   </table>
+</section>
+
+<section class="panel">
+  <h2>Dziennik działań operatora</h2>
+  <p class="muted">Co zostało zrobione z tego panelu: blokady kont, zmiany haseł i nowe konta.</p>
+  <ol class="event-list audit-list">
+    {% for row in audit %}
+      <li><span><b>{{ row.label }}</b> · {{ row.target }}{% if row.detail %} <span class="muted">{{ row.detail }}</span>{% endif %}</span>
+        <time>{{ row.at }}</time></li>
+    {% else %}
+      <li class="muted">Nic jeszcze nie zapisano.</li>
+    {% endfor %}
+  </ol>
 </section>
 {% endblock %}
 

@@ -1,0 +1,44 @@
+{# The public layout: the panel's own stylesheet, none of the panel's chrome.
+   No sidebar, no console, nothing that would let a visitor wander into the
+   administration by clicking around. #}
+{% from 'partials/hero.html' import hero_art %}
+{% from 'partials/icons.html' import icon %}
+<!doctype html>
+<html lang="pl" data-theme="{{ settings.theme }}" data-density="{{ settings.density }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{% block title %}{{ brand }}{% endblock %} · serwer</title>
+  <meta name="description" content="Stan serwera {{ brand }}, rankingi i ceny na straganach.">
+  <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/tuike.css') }}">
+</head>
+<body class="public">
+<div class="public-shell">
+  <header class="public-bar">
+    <a class="brand" href="{{ url_for('public.index') }}">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 32 32" width="24" height="24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linejoin="round">
+          <path d="M16 3 27 9.5v13L16 29 5 22.5v-13z"/>
+        </svg>
+      </span>
+      <span class="brand-text"><b>{{ brand }}</b><small>serwer Metin2</small></span>
+    </a>
+    <nav class="public-nav">
+      <a href="{{ url_for('public.index') }}"
+         class="{{ 'active' if request.endpoint == 'public.index' }}">Świat</a>
+      <a href="{{ url_for('public.shops') }}"
+         class="{{ 'active' if request.endpoint == 'public.shops' }}">Stragany</a>
+    </nav>
+  </header>
+
+  {% block content %}{% endblock %}
+
+  <footer class="public-foot">
+    <span>{{ brand }}</span>
+    <span class="muted">Strona pokazuje to, co dzieje się w świecie gry. Odświeża się sama co minutę.</span>
+  </footer>
+</div>
+</body>
+</html>

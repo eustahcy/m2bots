@@ -93,6 +93,7 @@ def validate_display(form):
         "density": density,
         "monitor_mode": monitor_mode,
         "rankings_include_players": "1" if form.get("rankings_include_players") == "1" else "0",
+        "public_page": "1" if form.get("public_page") == "1" else "0",
     }, None
 
 

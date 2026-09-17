@@ -63,6 +63,9 @@ SYSTEM_SNAPSHOT_TABLE = f"player.{TABLE_PREFIX}system_snapshot"
 METRIC_SNAPSHOT_TABLE = f"player.{TABLE_PREFIX}metric_snapshot"
 POSITION_SNAPSHOT_TABLE = f"player.{TABLE_PREFIX}bot_position_snapshot"
 GRANTS_TABLE = f"player.{TABLE_PREFIX}grants"
+# What the operator did from this panel, so an account that was blocked or a
+# password that was reset has a record naming the moment it happened.
+AUDIT_TABLE = f"player.{TABLE_PREFIX}audit"
 # Written by the game's own web_admin quest; every panel in the stack appends
 # to it and the quest drains it. Never prefixed.
 GAME_QUEUE_TABLE = "player.web_admin_queue"

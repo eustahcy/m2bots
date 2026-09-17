@@ -10,7 +10,8 @@ import re
 
 import pymysql
 
-from .. import db, engine
+from .. import config, db, engine, live
+from ..text import game_text
 from ..gamedata.characters import (
     AUTHORITIES, GM_EMPIRE_STARTS, GM_JOB_OPTIONS, GM_JOB_STARTS, GM_NAME_PATTERN,
     GM_RACE_BY_CLASS_GENDER, GM_GENDER_OPTIONS,
@@ -36,7 +37,8 @@ def roster(query="", display="100"):
                      "SELECT 1 FROM player.player p WHERE p.account_id = a.id AND p.name LIKE %s))")
         params.extend([f"%{query}%", f"%{query}%"])
     empire_column = "a.empire" if engine.ACCOUNT_HAS_EMPIRE else "0 AS empire"
-    sql = (f"SELECT a.id, a.login, a.email, {empire_column}, a.create_time, a.last_play"
+    sql = (f"SELECT a.id, a.login, a.email, a.status, {empire_column},"
+           " a.create_time, a.last_play"
            " FROM account.account a")
     if where:
         sql += " WHERE " + " AND ".join(where)
@@ -187,7 +189,158 @@ def create(values):
             _clean_up(values, account_id, player_id)
         detail = exc.args[1] if len(exc.args) > 1 else exc
         raise AccountError(f"Nie utworzono konta: {detail}")
+    note("account_create", values["login"],
+         "GM " + values["gm_name"] if is_gm else "konto gracza")
     if is_gm:
         return (f"Utworzono konto i postać GM „{values['gm_name']}”. Postać jest dostępna "
                 "od razu; uprawnienia GM staną się aktywne po restarcie usług gry.")
     return "Konto utworzone."
+
+# --- one account, and what can be done to it ---------------------------------
+# A blocked account cannot log in; the engine reads account.status when a login
+# arrives. It does NOT throw out a session that is already running - the quest
+# this panel talks to has no command for that - so the panel says so rather
+# than pretending the player vanishes on the spot.
+BLOCKED_STATUS = "BLOCK"
+OPEN_STATUS = "OK"
+LOGIN_HISTORY_LIMIT = 40
+RELATED_LIMIT = 20
+
+
+def detail(account_id):
+    """One account's row, with its kingdom and Dragon Coins."""
+    empire_column = "a.empire" if engine.ACCOUNT_HAS_EMPIRE else "0 AS empire"
+    account = db.one(
+        f"SELECT a.id, a.login, a.email, a.status, a.create_time, a.last_play, a.cash,"
+        f" {empire_column} FROM account.account a WHERE a.id = %s",
+        (account_id,),
+    )
+    if account:
+        account["blocked"] = str(account.get("status") or "").upper() != OPEN_STATUS
+    return account
+
+
+def characters(account_id):
+    """The characters on this account, with their live position folded in."""
+    rows = db.rows(
+        "SELECT p.id, p.name, p.level, p.job, p.map_index, p.gold, p.playtime, p.last_play"
+        " FROM player.player p WHERE p.account_id = %s ORDER BY p.level DESC",
+        (account_id,),
+    )
+    current = live.statuses()
+    for row in rows:
+        row["name"] = game_text(row["name"])
+        row["live"] = row["id"] in current
+    return rows
+
+
+def logins(account_id, limit=LOGIN_HISTORY_LIMIT):
+    """This account's own login history: when, from where, and as whom."""
+    try:
+        rows = db.rows(
+            "SELECT l.type, l.time, l.ip, l.hwid, l.pid, l.playtime, p.name, p.level"
+            " FROM log.loginlog l LEFT JOIN player.player p ON p.id = l.pid"
+            " WHERE l.account_id = %s ORDER BY l.time DESC LIMIT %s",
+            (account_id, int(limit)),
+        )
+    except pymysql.MySQLError:
+        return []
+    for row in rows:
+        row["type"] = game_text(row.get("type"))
+        row["name"] = game_text(row.get("name"))
+    return rows
+
+
+def related(account_id, limit=RELATED_LIMIT):
+    """Other accounts seen from the same address or the same machine.
+
+    Shared addresses are evidence, not proof: a household, a school or a phone
+    network puts unrelated people behind one address. The HWID is the stronger
+    hint, and the engine only records one when the client sends it.
+    """
+    try:
+        rows = db.rows(
+            """SELECT other.account_id, a.login, a.status,
+                  MAX(other.time) AS last_seen,
+                  GROUP_CONCAT(DISTINCT other.ip ORDER BY other.ip SEPARATOR ', ') AS ips,
+                  SUM(mine.hwid IS NOT NULL AND other.hwid = mine.hwid) AS same_machine
+                FROM log.loginlog other
+                JOIN (SELECT DISTINCT ip, NULLIF(hwid, '') AS hwid FROM log.loginlog
+                      WHERE account_id = %s) mine
+                  ON other.ip = mine.ip OR other.hwid = mine.hwid
+                LEFT JOIN account.account a ON a.id = other.account_id
+                WHERE other.account_id <> %s AND other.ip NOT LIKE '127.%%'
+                GROUP BY other.account_id, a.login, a.status
+                ORDER BY last_seen DESC LIMIT %s""",
+            (account_id, account_id, int(limit)),
+        )
+    except pymysql.MySQLError:
+        return []
+    for row in rows:
+        row["same_machine"] = int(row.get("same_machine") or 0) > 0
+    return rows
+
+
+def set_blocked(account_id, blocked):
+    """Block or unblock an account. Returns a sentence for the operator."""
+    account = detail(account_id)
+    if not account:
+        raise AccountError("Nie ma konta o tym numerze.")
+    status = BLOCKED_STATUS if blocked else OPEN_STATUS
+    db.execute("UPDATE account.account SET status = %s WHERE id = %s", (status, account_id))
+    note("account_block" if blocked else "account_unblock", account["login"], f"status={status}")
+    if blocked:
+        return (f"Konto {account['login']} zablokowane. Gracz nie zaloguje się ponownie; "
+                "sesja, która już trwa, kończy się dopiero przy wylogowaniu.")
+    return f"Konto {account['login']} odblokowane."
+
+
+def set_password(account_id, password):
+    """Set a new password, hashed by the database the way the engine expects."""
+    account = detail(account_id)
+    if not account:
+        raise AccountError("Nie ma konta o tym numerze.")
+    password = (password or "").strip()
+    if len(password) < PASSWORD_MIN_LENGTH:
+        raise AccountError(f"Hasło musi mieć co najmniej {PASSWORD_MIN_LENGTH} znaków.")
+    db.execute("UPDATE account.account SET password = PASSWORD(%s) WHERE id = %s",
+               (password, account_id))
+    note("account_password", account["login"], "hasło zmienione z panelu")
+    return f"Hasło konta {account['login']} zmienione."
+
+
+# --- the operator's own trail -------------------------------------------------
+AUDIT_LIMIT = 50
+
+
+def note(action, target, detail_text=""):
+    """Record one operator action. Never raises: a missing trail must not stop
+    the action the operator actually asked for."""
+    try:
+        db.execute(
+            f"INSERT INTO {config.AUDIT_TABLE} (action, target, detail) VALUES (%s, %s, %s)",
+            (action[:32], str(target)[:64], str(detail_text)[:255]),
+        )
+    except pymysql.MySQLError:
+        pass
+
+
+AUDIT_LABELS = {
+    "account_block": "Zablokowane konto",
+    "account_unblock": "Odblokowane konto",
+    "account_password": "Zmienione hasło",
+    "account_create": "Założone konto",
+}
+
+
+def audit(limit=AUDIT_LIMIT):
+    """What was done from this panel, newest first."""
+    try:
+        rows = db.rows(
+            f"SELECT at, action, target, detail FROM {config.AUDIT_TABLE}"
+            f" ORDER BY id DESC LIMIT {int(limit)}")
+    except pymysql.MySQLError:
+        return []
+    for row in rows:
+        row["label"] = AUDIT_LABELS.get(row["action"], row["action"])
+    return rows

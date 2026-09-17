@@ -1,0 +1,130 @@
+{% extends 'base.html' %}
+{% from 'partials/macros.html' import page_head, stat, csrf_field, character_link, empire_badge, empty_row with context %}
+{% from 'partials/icons.html' import icon %}
+{% block title %}{{ account.login }}{% endblock %}
+
+{% block content %}
+{{ page_head('KONTO GRACZA', account.login,
+             'Historia logowań pochodzi z dziennika gry. Blokada działa na kolejne logowanie.',
+             back=url_for('accounts.index'), back_label='Wróć do kont') }}
+
+<section class="stat-grid">
+  {{ stat('Stan konta', 'Zablokowane' if account.blocked else 'Otwarte',
+          'status w bazie: ' ~ account.status,
+          tone='tone-outdated' if account.blocked else 'tone-current', icon_name='key') }}
+  {{ stat('Postacie', characters|length, 'na tym koncie', icon_name='users') }}
+  {{ stat('Smocze Monety', thousands(account.cash), 'saldo konta', icon_name='coins') }}
+  {{ stat('Ostatnia gra', account.last_play or '—',
+          'konto założone ' ~ (account.create_time or '—'), icon_name='clock') }}
+</section>
+
+<div class="dash-row dash-row-two">
+  <section class="card">
+    <header class="card-head"><h2>{{ icon('key', 18) }} Moderacja</h2></header>
+
+    <form method="post" action="{{ url_for('accounts.block', account_id=account.id) }}"
+          class="inline-form">
+      {{ csrf_field() }}
+      <input type="hidden" name="blocked" value="{{ '0' if account.blocked else '1' }}">
+      {% if account.blocked %}
+        <button type="submit">Odblokuj konto</button>
+        <span class="muted">Gracz znów będzie mógł się zalogować.</span>
+      {% else %}
+        <button type="submit" class="danger">Zablokuj konto</button>
+        <span class="muted">Blokada zatrzymuje kolejne logowanie. Sesja, która już trwa,
+          kończy się dopiero, gdy gracz sam wyjdzie — gra nie ma komendy wyrzucenia.</span>
+      {% endif %}
+    </form>
+
+    <h3>Nowe hasło</h3>
+    <form method="post" action="{{ url_for('accounts.password', account_id=account.id) }}"
+          class="inline-form">
+      {{ csrf_field() }}
+      <label class="field"><span class="sr-only">Nowe hasło</span>
+        <input name="password" type="text" minlength="{{ password_min }}" required
+               autocomplete="off" placeholder="co najmniej {{ password_min }} znaków"></label>
+      <button type="submit">Ustaw hasło</button>
+    </form>
+    <p class="muted">Hasło zapisuje baza tą samą funkcją, której używa gra. Panel nie wysyła go
+      graczowi i nie pokazuje starego — przekaż nowe hasło własnym kanałem.</p>
+  </section>
+
+  <section class="card">
+    <header class="card-head"><h2>{{ icon('users', 18) }} Postacie</h2></header>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Postać</th><th>Poziom</th><th>Mapa</th><th class="numeric">Yang</th>
+                   <th class="numeric">Czas gry</th></tr></thead>
+        <tbody>
+          {% for row in characters %}
+            <tr>
+              <td class="name-cell">{{ character_link(row.id, row.name, row.job) }}
+                {% if row.live %}<span class="tag tag-live">w świecie</span>{% endif %}</td>
+              <td>Lv {{ row.level }}</td>
+              <td>{{ map_name(row.map_index) }}</td>
+              <td class="numeric">{{ thousands(row.gold) }}</td>
+              <td class="numeric">{{ hours(row.playtime) }} h</td>
+            </tr>
+          {% else %}
+            {{ empty_row(5, 'Na tym koncie nie ma jeszcze postaci.') }}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<div class="dash-row dash-row-two">
+  <section class="card">
+    <header class="card-head"><h2>{{ icon('login', 18) }} Historia logowań</h2>
+      <span class="card-sub">najnowsze {{ logins|length }} wpisów</span></header>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Kiedy</th><th>Zdarzenie</th><th>Postać</th><th>Adres IP</th><th>Maszyna</th></tr></thead>
+        <tbody>
+          {% for row in logins %}
+            <tr>
+              <td class="numeric muted">{{ row.time }}</td>
+              <td><span class="tag {{ 'tag-live' if row.type == 'LOGIN' }}">{{ row.type|lower }}</span></td>
+              <td>{% if row.pid and row.name %}{{ character_link(row.pid, row.name) }}
+                  {% else %}<span class="muted">—</span>{% endif %}</td>
+              <td class="numeric">{{ row.ip or '—' }}</td>
+              <td class="muted hwid">{{ (row.hwid or '')[:16] or '—' }}</td>
+            </tr>
+          {% else %}
+            {{ empty_row(5, 'Dziennik nie ma logowań tego konta.') }}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <header class="card-head"><h2>{{ icon('compass', 18) }} Powiązane konta</h2></header>
+    <p class="muted">Ten sam adres bywa całym domem, akademikiem albo siecią komórkową — to
+      poszlaka, nie dowód. Zgodna maszyna (HWID) waży więcej, ale klient nie zawsze ją wysyła.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Konto</th><th>Adresy</th><th>Ta sama maszyna</th><th class="numeric">Ostatnio</th></tr></thead>
+        <tbody>
+          {% for row in related %}
+            <tr>
+              <td>
+                {% if row.login %}
+                  <a href="{{ url_for('accounts.detail', account_id=row.account_id) }}">{{ row.login }}</a>
+                {% else %}<span class="muted">konto #{{ row.account_id }}</span>{% endif %}
+                {% if row.status and row.status != 'OK' %}<span class="tag">{{ row.status|lower }}</span>{% endif %}
+              </td>
+              <td class="numeric">{{ row.ips }}</td>
+              <td>{{ 'tak' if row.same_machine else '—' }}</td>
+              <td class="numeric muted">{{ row.last_seen }}</td>
+            </tr>
+          {% else %}
+            {{ empty_row(4, 'Z tych adresów nie logowało się żadne inne konto.') }}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}

@@ -1,5 +1,13 @@
 # Changelog
 
+## 17.09.2026 · 1.8.0
+- Mapa na żywo jest teraz naprawdę na żywo: każdy bot ma własny punkt, który płynnie przesuwa się do kolejnej zgłoszonej pozycji, zamiast przerysowywania całej mapy co półtorej sekundy. Panel pobiera przy tym tylko wybraną mapę (kilka kilobajtów zamiast 600 kB na każde odświeżenie), więc mapa nie obciąża już serwera przy każdej otwartej karcie. Gdy rdzeń przestaje odpowiadać, mapa mówi o tym wprost zamiast zastygać.
+- Zakładka „Zachowanie botów” przebudowana: każde ustawienie to osobna karta z ikoną, suwakiem z zaznaczoną wartością domyślną, aktualną liczbą i przyciskiem przywrócenia. Ustawienia odbiegające od domyślnych są podświetlone i policzone, a przycisk zapisu jedzie razem ze stroną, więc nie trzeba go szukać na dole. Przełączniki są przełącznikami, a nie zwykłymi „ptaszkami”; długie objaśnienia schowane pod „Co to zmienia w świecie?”.
+- Nowa karta konta (`/account/<id>`): postacie, pełna historia logowań z adresem IP i identyfikatorem maszyny, konta logujące się z tych samych adresów, blokada konta i ustawienie nowego hasła. Blokada zatrzymuje kolejne logowanie — trwającej sesji gra nie przerywa, bo nie ma takiej komendy, i panel to mówi.
+- Nowy dziennik działań operatora na dole zakładki Konta i GM: blokady, zmiany haseł i zakładanie kont, z datą.
+- Nowa zakładka „Zdrowie botów”: boty, których rdzeń przestał zgłaszać, stojące w miejscu, bez broni i bez zbroi, zgony z doby, mapy bez botów, rozkład poziomów na każdej mapie oraz porównanie ruchu w świecie sprzed i po ostatnim restarcie — czyli sposób na wychwycenie cichej regresji po aktualizacji.
+- Nowa strona dla graczy pod `/serwer` (domyślnie wyłączona, włącznik w Zarządzanie → Wygląd i dostęp): stan serwera, mnożniki, rankingi, ostatnie wydarzenia i ceny na straganach — bez logowania i bez żadnych danych kont.
+
 ## 17.09.2026 · 1.7.0
 - Wszystkie zakładki dostały wygląd strony głównej: każda otwiera się tym samym banerem z nocnym krajobrazem i ikoną, jaką ma w menu, a liczby nad treścią są takimi samymi kolorowymi kafelkami jak na pulpicie.
 - Nowe kafelki tam, gdzie ich nie było: Postacie i boty (postacie, playerboty, gracze, w grze teraz), Gildie (gildie, członkowie, najwyższy poziom, punkty rangi), Rankingi (kategoria, lider, liczba sklasyfikowanych, kto się liczy), Aktywność map (postacie w świecie, mapy z ruchem, najbardziej zatłoczona), Baza przedmiotów (przedmioty, kategorie, pokazane), Konta (konta na liście, botów, graczy, ostatnie logowanie), Komendy GM i Changelog.

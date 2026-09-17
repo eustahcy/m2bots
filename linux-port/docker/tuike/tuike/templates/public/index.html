@@ -1,0 +1,66 @@
+{% extends 'public/base.html' %}
+{# Imports live in the template that uses them: a parent's imports are not in
+   scope inside a child's block. #}
+{% from 'partials/hero.html' import hero_art %}
+{% from 'partials/icons.html' import icon %}
+{% block title %}{{ brand }}{% endblock %}
+
+{% block content %}
+<section class="hero public-hero">
+  {{ hero_art() }}
+  <div class="hero-body">
+    <p class="hero-eyebrow">SERWER</p>
+    <h1>{{ brand }}</h1>
+    <p class="hero-tagline">Świat żyje bez przerwy — setki postaci polują, handlują i ulepszają
+      ekwipunek także wtedy, gdy nikogo nie ma przy klawiaturze.</p>
+  </div>
+  <ul class="hero-chips">
+    <li class="chip-state state-{{ world.status.state }}">
+      <span class="status-dot" aria-hidden="true"></span>{{ world.status.label }}</li>
+    <li>{{ icon('bot', 16) }}<b>{{ thousands(world.status.bots) }}</b> postaci w świecie</li>
+    <li>{{ icon('activity', 16) }}EXP {{ world.rates.exp }}% · drop {{ world.rates.drop }}% ·
+      Yang {{ world.rates.yang }}%</li>
+  </ul>
+</section>
+
+<div class="dash-row dash-row-two">
+  <section class="card">
+    <header class="card-head"><h2>{{ icon('trophy', 18) }} Rankingi</h2>
+      <span class="card-sub">pierwsza dziesiątka w czterech kategoriach</span></header>
+    <div class="public-boards">
+      {% for board in boards %}
+        <div class="public-board">
+          <h3>{{ board.title }}</h3>
+          <ol class="people-list">
+            {% for row in board.rows %}
+              <li>
+                <span class="place">{{ loop.index }}</span>
+                <img class="portrait portrait-tiny" src="{{ class_portrait(row.job) }}"
+                     alt="" aria-hidden="true" loading="lazy">
+                <span class="public-name">{{ row.name }}</span>
+                <small>{{ row.detail }}</small>
+                <b>Lv {{ row.level }}</b>
+              </li>
+            {% else %}
+              <li class="muted">Brak danych.</li>
+            {% endfor %}
+          </ol>
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="card">
+    <header class="card-head"><h2>{{ icon('bell', 18) }} Co się właśnie wydarzyło</h2></header>
+    <ol class="event-list">
+      {% for event in events %}
+        <li><span>{{ event.message }}</span><time>{{ event.time }}</time></li>
+      {% else %}
+        <li class="muted">Ostatnie godziny były spokojne.</li>
+      {% endfor %}
+    </ol>
+    <p class="muted small-note">Pokazujemy rzadkie osiągnięcia: ulepszenia +7 i wyżej, mistrzowskie
+      umiejętności i wyłowione Małże.</p>
+  </section>
+</div>
+{% endblock %}

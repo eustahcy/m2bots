@@ -4,7 +4,7 @@ NAVIGATION is the single source of truth for the sidebar: adding a page means
 adding a blueprint and one line here, and nothing in the templates changes.
 """
 from . import (accounts, api, auth, characters, dashboard, economy, grants,
-               guilds, manage, rankings, reference, system, world)
+               guilds, manage, public, rankings, reference, system, world)
 
 # (group, ((endpoint, icon, label), ...)). The icon is a name from
 # templates/partials/icons.html.
@@ -16,6 +16,7 @@ NAVIGATION = (
         ("rankings.index", "trophy", "Rankingi"),
         ("world.maps", "map", "Aktywność map"),
         ("world.season", "sparkles", "Sezon"),
+        ("world.health_check", "activity", "Zdrowie botów"),
     )),
     ("Dane", (
         ("economy.index", "coins", "Gospodarka"),
@@ -35,6 +36,7 @@ NAVIGATION = (
 BLUEPRINTS = (
     auth.bp, dashboard.bp, characters.bp, guilds.bp, rankings.bp, economy.bp,
     world.bp, system.bp, manage.bp, grants.bp, accounts.bp, reference.bp, api.bp,
+    public.bp,
 )
 
 
