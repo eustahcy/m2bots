@@ -1,0 +1,16 @@
+[Unit]
+Description=Panel Tuike (Metin2 Playerbots)
+Documentation=https://github.com/eustahcy/m2bots
+Requires=docker.service
+After=docker.service network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=@DIR@
+ExecStart=/bin/sh -c '@DC@ --env-file @ENV@ -f @COMPOSE@ up -d'
+ExecStop=/bin/sh -c '@DC@ --env-file @ENV@ -f @COMPOSE@ stop'
+TimeoutStartSec=0
+
+[Install]
+WantedBy=multi-user.target

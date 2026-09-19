@@ -1,0 +1,101 @@
+# Tuike jako osobny projekt Compose, dołączony do już działającego stosu gry.
+#
+# Celowo NIE dopisujemy niczego do docker-compose.yml serwera: ten plik bywa
+# nadpisywany przy każdej aktualizacji (panel VPS robi `git reset --hard`), a
+# wtedy panel zniknąłby razem z wpisem. Tutaj Tuike ma własny projekt, własne
+# kontenery i tylko *podłącza się* do cudzej sieci i wolumenów, które są
+# oznaczone jako `external` - czyli Compose ich nie tworzy i nigdy nie skasuje.
+#
+# Wszystkie wartości pochodzą z pliku tuike.env, który pisze instalator.
+name: ${TUIKE_PROJECT:-tuike-panel}
+
+x-tuike-env: &tuike-env
+  DB_HOST: ${TUIKE_DB_HOST:-mariadb}
+  DB_PORT: "3306"
+  DB_USER: ${M2_DB_USER:-metin2}
+  DB_PASSWORD: ${M2_DB_PASSWORD:?ustaw M2_DB_PASSWORD w tuike.env}
+
+  # Linia silnika decyduje o numeracji bonusów i o tym, czy konto ma kolumnę
+  # empire - nie zgaduj jej, instalator czyta plik ENGINE ze stosu.
+  PLAYERBOTS_ENGINE: ${M2_ENGINE:-mt2009}
+  PLAYERBOTS_GAME_HOST: ${TUIKE_GAME_HOST:-game}
+  PLAYERBOTS_LOGIN_PORT: "11000"
+  PLAYERBOTS_WORLD_PORT: "13000"
+  PLAYERBOTS_STATUS_GLOB: "/opt/metin2/var/channel1/*/playerbot_status.tsv"
+  PLAYERBOTS_SYSLOG_GLOB: "/opt/metin2/var/channel1/*/syslog"
+  PLAYERBOTS_CORE_PID_GLOB: "/opt/metin2/var/channel1/*/pid"
+  PLAYERBOTS_VERSION: ${M2_PLAYERBOTS_VERSION:-nieustawiona}
+
+  TUIKE_PANEL_PORT: "7799"
+  TUIKE_SESSION_SECRET: ${TUIKE_SESSION_SECRET:?instalator generuje ten klucz}
+  TUIKE_COLLECTOR_INTERVAL: ${M2_TUIKE_COLLECTOR_INTERVAL:-300}
+  TUIKE_UPDATE_CHECK: ${M2_UPDATE_CHECK:-1}
+
+  TIERU_PANEL_URL: ${TUIKE_TIERU_PANEL_URL:-}
+  TUIKE_SEBAN_PANEL_URL: ${TUIKE_SEBAN_PANEL_URL:-}
+  ITEMSHOP_URL: ${TUIKE_ITEMSHOP_URL:-}
+  VPS_PANEL_URL: ${TUIKE_VPS_PANEL_URL:-}
+
+  TZ: ${M2_TZ:-UTC}
+
+services:
+  # `restart: unless-stopped` to jest właśnie "uruchamia się razem z serwerem":
+  # Docker podnosi ten kontener przy każdym starcie demona, czyli po restarcie
+  # maszyny albo po starcie Docker Desktop, bez niczyjego udziału.
+  tuike:
+    build:
+      context: ../panel
+      dockerfile: Dockerfile
+    image: ${TUIKE_IMAGE:-tuike-panel:local}
+    container_name: ${TUIKE_PROJECT:-tuike-panel}
+    restart: unless-stopped
+    environment: *tuike-env
+    ports:
+      - "${TUIKE_BIND_ADDRESS:-0.0.0.0}:${TUIKE_PORT:-7799}:7799/tcp"
+    volumes:
+      - game-var:/opt/metin2/var:ro
+      - rates-spool:/opt/m2spool
+      - update-spool:/opt/m2update
+    networks: [stack]
+
+  tuike-collector:
+    image: ${TUIKE_IMAGE:-tuike-panel:local}
+    container_name: ${TUIKE_PROJECT:-tuike-panel}-collector
+    restart: unless-stopped
+    command: ["python", "collector.py"]
+    depends_on: [tuike]
+    environment: *tuike-env
+    volumes:
+      # Telemetria hosta: kolektor czyta /proc i zajętość dysku maszyny.
+      - /proc:/host/proc:ro
+      - /:/hostfs:ro
+      - game-var:/opt/metin2/var:ro
+    networks: [stack]
+
+  tuike-grants:
+    image: ${TUIKE_IMAGE:-tuike-panel:local}
+    container_name: ${TUIKE_PROJECT:-tuike-panel}-grants
+    restart: unless-stopped
+    command: ["python", "grants_worker.py"]
+    depends_on: [tuike]
+    environment: *tuike-env
+    networks: [stack]
+
+# Sieć i wolumeny należą do stosu gry. `external: true` znaczy: "to już
+# istnieje, tylko się podłącz" - `docker compose down` na tym projekcie nie
+# ruszy ani bazy, ani plików świata.
+networks:
+  stack:
+    name: ${M2_STACK_PROJECT:?ustaw M2_STACK_PROJECT w tuike.env}_backend
+    external: true
+
+volumes:
+  game-var:
+    name: ${M2_STACK_PROJECT}_game-var
+    external: true
+  rates-spool:
+    name: ${M2_STACK_PROJECT}_rates-spool
+    external: true
+  update-spool:
+    name: ${M2_STACK_PROJECT}_update-spool
+    external: true

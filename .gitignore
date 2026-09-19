@@ -61,3 +61,10 @@ venv/
 Thumbs.db
 desktop.ini
 .DS_Store
+
+# Instalator panelu Tuike: kopia zrodel robiona na czas instalacji, lokalna
+# konfiguracja z haslem do bazy i gotowe paczki do wyslania.
+tuike-panel/panel/
+tuike-panel/.instalacja/
+tuike-panel/tuike.env
+tuike-panel-*.zip
